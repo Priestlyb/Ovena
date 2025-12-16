@@ -10,8 +10,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import FoodOrderTabView from "../../components/FoodOrderTabView";
-import Svg, { Path, Circle } from "react-native-svg";
-
 
 export default function FoodOrderPage() {
   const [visible, setVisible] = useState(false);
@@ -25,49 +23,59 @@ export default function FoodOrderPage() {
           style={styles.headerImage}
         />
 
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}
- >
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} />
         </TouchableOpacity>
 
-        <View style={styles.modalcontainer}>
-      {/* Button */}
-      <TouchableOpacity style={styles.moreBtn} onPress={() => setVisible(true)}>
-        <Ionicons name="ellipsis-horizontal" size={22} />
-      </TouchableOpacity>
-
-      {/* Overlay Modal */}
-      <Modal
-        transparent
-        animationType="fade"
-        visible={visible}
-        onRequestClose={() => setVisible(false)}
-      >
         <TouchableOpacity
-          style={styles.modalBackground}
-          activeOpacity={1}
-          onPressOut={() => setVisible(false)}
+          style={styles.moreBtn}
+          onPress={() => setVisible(true)}
         >
-          <View style={styles.modalContent}>
-            {/* Your SVG Design */}
-            <Svg width="393" height="220" viewBox="0 0 393 220" fill="none">
-              <Path
-                d="M0 175C0 78.3502 78.3502 0 175 0H268C337.036 0 393 55.9644 393 125V220H0V175Z"
-                fill="#F6D44F"
-              />
-              <Circle cx="335.041" cy="57.0412" r="21.0412" fill="#F5F4F4" />
-              <Path
-                d="M329.586 63.8601L328.222 62.4963L333.677 57.0412L328.222 51.5861L329.586 50.2223L335.041 55.6774L340.496 50.2223L341.86 51.5861L336.405 57.0412L341.86 62.4963L340.496 63.8601L335.041 58.405L329.586 63.8601Z"
-                fill="black"
-              />
-              {/* Add other paths from your SVG here */}
-            </Svg>
-
-            <Text style={styles.text}>This is your overlay content</Text>
-          </View>
+          <Ionicons name="ellipsis-horizontal" size={22} />
         </TouchableOpacity>
-      </Modal>
-    </View>
+
+        <View style={styles.modalcontainer}>
+          {/* Overlay Modal */}
+          <Modal
+            transparent
+            animationType="fade"
+            visible={visible}
+            onRequestClose={() => setVisible(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalBackground}
+              activeOpacity={1}
+              onPressOut={() => setVisible(false)}
+            >
+              <View style={styles.modalContent}>
+                <View style={{ gap: 25, marginLeft: 30 }}>
+                  <Text style={{ fontSize: 20, fontWeight: "bold" }}>
+                    Options
+                  </Text>
+                  <Text style={styles.optionsinfo}>
+                    <Ionicons name="information-circle-outline" size={22} />{" "}
+                    information
+                  </Text>
+                  <Text style={styles.optionsinfo}>
+                    <Ionicons name="send" size={22} /> Share
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    position: "absolute",
+                    right: 50,
+                    top: 50,
+                    backgroundColor: "#fff",
+                    borderRadius: 20,
+                    padding: 5,
+                  }}
+                >
+                  <Ionicons name="close" size={30} />
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        </View>
       </View>
 
       {/* Info */}
@@ -90,7 +98,6 @@ export default function FoodOrderPage() {
     </View>
   );
 }
-
 
 /* ---------------- STYLES ---------------- */
 
@@ -135,13 +142,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    width: 350,
-    height: 250,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
     alignItems: "center",
-    justifyContent: "center",
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    height: 275,
+    backgroundColor: "#F6D44F",
+    borderTopLeftRadius: 175,
+    borderTopRightRadius: 125,
+    padding: 20,
+  },
+  optionsinfo: {
+    fontSize: 16,
+    fontWeight: "400",
   },
   text: {
     marginTop: 20,

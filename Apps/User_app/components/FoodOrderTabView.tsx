@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { TabView, TabBar } from "react-native-tab-view";
 import { Ionicons } from "@expo/vector-icons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 /* -------------------- COMPONENTS -------------------- */
 
@@ -52,24 +53,28 @@ const PromoCard = ({
   first?: boolean;
 }) => (
   <View style={[styles.promoCard, first && { marginLeft: 16 }]}>
+    <View>
     <View style={styles.promoImage} />
+    <AddBtn />
+    </View>
     <Text style={styles.itemTitle}>{title}</Text>
     <Text style={styles.price}>{price}</Text>
     {oldPrice && <Text style={styles.oldPrice}>{oldPrice}</Text>}
-    <AddBtn />
   </View>
 );
 
-const ListItem = ({ title, price }: { title: string; price: string }) => (
-  <View style={styles.listItem}>
-    <View>
-      <Text style={styles.timeText}>30–45 min</Text>
-      <Text style={styles.itemTitle}>{title}</Text>
-      <Text style={styles.price}>{price}</Text>
+function ListItem({ title, price }: { title: string; price: string; }) {
+  return (
+    <View style={styles.listItem}>
+      <View>
+        <Text style={styles.timeText}>30–45 min</Text>
+        <Text style={styles.itemTitle}>{title}</Text>
+        <Text style={styles.price}>{price}</Text>
+      </View>
+      <AddBtn />
     </View>
-    <AddBtn />
-  </View>
-);
+  );
+}
 
 const DealItem = ({
   title,
@@ -211,9 +216,18 @@ const FoodsTab = () => {
 const RoomsTab = () => (
   <ScrollView
     showsVerticalScrollIndicator={false}
-    contentContainerStyle={{ padding: 16 }}
+    contentContainerStyle={{ padding: 25 }}
   >
-    <Text style={{ fontSize: 18, fontWeight: "600" }}>Rooms Content Goes Here</Text>
+    <View style={styles.roomImage} />
+    <Text>Diplomatic Suites</Text>
+    <Text>The Diplomatic Suites are stately with ostentatious designs and breath-taking views of the Atlantic. The suite has a DVD Player, Hi Definition LED TVs, and a separate lounge, bar and dining area for guests. It has an adjoining standard room that makes it perfect for a large family</Text>
+    <View  style={styles.roomactions}>
+      <View>
+        <Text style={styles.roomAmenity}><MaterialIcons name="pool" size={22} /> Outdoor pool</Text>
+        <Text style={styles.roomPrice}>$336,870</Text>
+      </View>
+        <TouchableOpacity style={styles.viewRoomButton}><Text style={{ color: "#fff" }}>View Room</Text></TouchableOpacity>
+    </View>
   </ScrollView>
 );
 
@@ -241,8 +255,10 @@ const DealsTabs = () => {
   const renderTabBar = (props: any) => (
     <TabBar
       {...props}
-      indicatorStyle={{ backgroundColor: "#F63607", height: 2 }}
+      indicatorStyle={{ backgroundColor: "#D9502E", height: 2 }}
       style={{ backgroundColor: "#fff", elevation: 0 }}
+      activeColor="#000"
+      inactiveColor="#888"
       renderLabel={({ route, focused }: { route: any; focused: boolean }) => (
         <Text
           style={{
@@ -290,23 +306,31 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   sectionTitle: { fontSize: 18, fontWeight: "700" },
-  seeAllText: { color: "#F63607", fontWeight: "600" },
+  seeAllText: { color: "#D9502E", fontWeight: "600" },
   promoCard: { width: 160, marginRight: 16, borderRadius: 12, padding: 8, backgroundColor: "#fff" },
   promoImage: { height: 100, backgroundColor: "#eee", borderRadius: 12, marginBottom: 8 },
+  roomImage: { height: 200, backgroundColor: "#eee", borderRadius: 12, marginBottom: 8 },
   itemTitle: { fontSize: 14, fontWeight: "600" },
   price: { fontSize: 14, fontWeight: "700", marginTop: 4 },
   oldPrice: { fontSize: 12, textDecorationLine: "line-through", color: "#999" },
   listItem: { flexDirection: "row", justifyContent: "space-between", padding: 16, backgroundColor: "#fff", borderRadius: 12, marginBottom: 12 },
   priceRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   oldPriceSmall: { fontSize: 12, textDecorationLine: "line-through", color: "#999" },
-  discountBadge: { backgroundColor: "#F63607", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  discountText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  discountBadge: { backgroundColor: "#F6D44F", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  discountText: { color: "#000", fontSize: 13, fontWeight: "700" },
   foodItem: { flexDirection: "row", alignItems: "center", padding: 12, backgroundColor: "#fff", borderRadius: 12, marginBottom: 12 },
   foodImg: { width: 60, height: 60, backgroundColor: "#eee", borderRadius: 8, marginRight: 12 },
-  addBtn: { backgroundColor: "#F63607", padding: 6, borderRadius: 20 },
+  addBtn: { position: "absolute", bottom: 15, right: 5, width: 32, backgroundColor: "#D9502E", padding: 6, borderRadius: 20 },
   categoryChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: "#eee", marginHorizontal: 8 },
-  activeCategoryChip: { backgroundColor: "#F63607" },
+  activeCategoryChip: { backgroundColor: "#D9502E" },
   categoryText: { fontSize: 14, fontWeight: "500" },
   activeCategoryText: { color: "#fff" },
-  timeText: { fontSize: 12, color: "#04A0AD", fontWeight: "600" },
+  timeText: { fontSize: 12, color: "#000000", fontWeight: "600" },
+
+  /* -------------------- ROOMS TAB -------------------- */
+
+  roomactions: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 16 },
+  roomAmenity: { fontSize: 16, fontWeight: "500" },
+  roomPrice: { fontSize: 18, fontWeight: "700", marginTop: 4 },
+  viewRoomButton: { fontWeight: "700", backgroundColor: "#D9502E", paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8  },
 });

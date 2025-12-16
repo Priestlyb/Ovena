@@ -24,7 +24,7 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            <IconSymbol size={22} name="HomeIcon" color={color} />
           ),
         }}
       />
@@ -34,8 +34,8 @@ export default function TabLayout() {
           title: "Orders",
           tabBarIcon: ({ color }) => (
             <IconSymbol
-              size={28}
-              name="list.bullet.rectangle.fill"
+              size={22}
+              name="OrderIcon"
               color={color}
             />
           ),
