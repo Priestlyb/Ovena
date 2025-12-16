@@ -9,7 +9,16 @@ export default function RootLayout() {
           headerShown: false,
         }}
       >
+        <Stack.Screen
+          name="delivery-or-pickup"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+        <Stack.Screen
+          name="screens/FoodOrderPage"
+          options={{ title: "FoodOrderPage", headerShown: false }}
+        />
       </Stack>
     </SafeViewScreen>
   );

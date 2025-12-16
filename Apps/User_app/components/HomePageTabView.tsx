@@ -60,22 +60,27 @@ const Hotels: Restaurant[] = [
 /* -------------------- CARD -------------------- */
 const RestaurantCard = ({ item }: { item: Restaurant }) => (
   <View style={styles.restaurantCard}>
+    <View>
     <Image source={{ uri: item.image }} style={styles.restaurantImg} />
 
     <TouchableOpacity style={styles.heart}>
       <Ionicons name="heart-outline" size={22} color="#000" />
     </TouchableOpacity>
+    </View>
 
     <View style={styles.restaurantInfo}>
+      <View style={{gap: 15}}>
       <Text style={styles.restaurantName}>{item.name}</Text>
-
-      <View style={styles.ratingRow}>
-        <Ionicons name="star" size={14} color="#f5a623" />
-        <Text style={styles.rating}>{item.rating}</Text>
-        <Text style={styles.reviews}>({item.reviews} Reviews)</Text>
+      <Text style={styles.open}>{item.openTime}</Text>
       </View>
 
-      <Text style={styles.open}>{item.openTime}</Text>
+      <View style={{ alignItems: 'flex-end', gap: 15 }}>
+        <View  style={styles.ratingRow}>
+        <Ionicons name="star" size={14} color="#f5a623" />
+        <Text style={styles.rating}>{item.rating}</Text>
+        </View>
+        <Text style={styles.reviews}>({item.reviews} Reviews)</Text>
+      </View>
     </View>
   </View>
 );
@@ -117,28 +122,26 @@ const RestaurantsTabs = () => {
   };
 
   const renderTabBar = (props: any) => (
-    <TabBar
-      {...props}
-      indicatorStyle={{ backgroundColor: "#000", height: 3 }}
-      style={{ backgroundColor: "#fff", elevation: 0 }}
-      renderLabel={({
-        route,
-        focused,
-      }: {
-        route: TabRoute;
-        focused: boolean;
-      }) => (
-        <Text
-          style={{
-            color: focused ? "#000" : "#999",
-            fontWeight: "600",
-          }}
-        >
-          {route.title}
-        </Text>
-      )}
-    />
-  );
+  <TabBar
+    {...props}
+    indicatorStyle={{ backgroundColor: "#F63607", height: 2 }}
+    style={{ backgroundColor: "#fff", elevation: 0, marginBottom: 45 }}
+    activeColor="#000"
+    inactiveColor="#000"
+    renderLabel={({ route, focused }: { route: TabRoute; focused: boolean }) => (
+      <Text
+        style={{
+          color: "#000",
+          fontSize: 16,
+          fontWeight: focused ? "700" : "500",
+        }}
+      >
+        {route.title}
+      </Text>
+    )}
+  />
+);
+
 
   return (
     <TabView
@@ -177,12 +180,16 @@ const styles = StyleSheet.create({
   heart: {
     position: "absolute",
     right: 12,
-    top: 12,
-    backgroundColor: "#fff",
+    bottom: 12,
+    backgroundColor: "#F6D44F",
     padding: 6,
     borderRadius: 20,
   },
   restaurantInfo: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 12,
   },
   restaurantName: {
