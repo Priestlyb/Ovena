@@ -7,11 +7,13 @@ import {
   Image,
   TouchableOpacity,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import FoodOrderTabView from "../../components/FoodOrderTabView";
 
 export default function FoodOrderPage() {
+  const navigation = useNavigation<any>();
   const [visible, setVisible] = useState(false);
 
   return (
@@ -52,10 +54,12 @@ export default function FoodOrderPage() {
                   <Text style={{ fontSize: 20, fontWeight: "bold" }}>
                     Options
                   </Text>
+                  <TouchableOpacity onPress={() => navigation.navigate("screens/HotelDetails")}>
                   <Text style={styles.optionsinfo}>
                     <Ionicons name="information-circle-outline" size={22} />{" "}
                     information
                   </Text>
+                  </TouchableOpacity>
                   <Text style={styles.optionsinfo}>
                     <Ionicons name="send" size={22} /> Share
                   </Text>
@@ -114,7 +118,7 @@ const styles = StyleSheet.create({
 
   backBtn: {
     position: "absolute",
-    top: 50,
+    top: 80,
     left: 16,
     backgroundColor: "#fff",
     borderRadius: 20,
@@ -129,7 +133,7 @@ const styles = StyleSheet.create({
 
   moreBtn: {
     position: "absolute",
-    top: 50,
+    top: 80,
     right: 16,
     backgroundColor: "#fff",
     borderRadius: 20,

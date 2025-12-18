@@ -18,6 +18,7 @@ const IONICONS = {
   OrderIcon: "receipt-outline",
   ProfileIcon: "person-outline",
   HeartIcon: "heart",
+  emailIcon: "mail-outline",
   BellIcon: "notifications-outline",
   SettingsIcon: "settings-outline",
   CloseIcon: "close",

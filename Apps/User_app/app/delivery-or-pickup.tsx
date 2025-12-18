@@ -10,7 +10,7 @@ export default function DeliveryOrPickUp() {
       </Text>
 
       <TouchableOpacity
-        onPress={() => router.replace("/(tabs)/homepage")}
+        onPress={() => router.replace("/login")}
         style={{ padding: 15, backgroundColor: "#eb7207dd", borderRadius: 8 }}
       >
         <Text style={{ color: "#fff", fontWeight: "600" }}>

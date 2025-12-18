@@ -8,8 +8,8 @@ import {
   Dimensions,
 } from "react-native";
 import { TabView, TabBar } from "react-native-tab-view";
-import { Ionicons } from "@expo/vector-icons";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
 /* -------------------- COMPONENTS -------------------- */
 
@@ -54,8 +54,8 @@ const PromoCard = ({
 }) => (
   <View style={[styles.promoCard, first && { marginLeft: 16 }]}>
     <View>
-    <View style={styles.promoImage} />
-    <AddBtn />
+      <View style={styles.promoImage} />
+      <AddBtn />
     </View>
     <Text style={styles.itemTitle}>{title}</Text>
     <Text style={styles.price}>{price}</Text>
@@ -63,7 +63,7 @@ const PromoCard = ({
   </View>
 );
 
-function ListItem({ title, price }: { title: string; price: string; }) {
+function ListItem({ title, price }: { title: string; price: string }) {
   return (
     <View style={styles.listItem}>
       <View>
@@ -213,23 +213,40 @@ const FoodsTab = () => {
 
 /* -------------------- ROOMS TAB -------------------- */
 
-const RoomsTab = () => (
-  <ScrollView
-    showsVerticalScrollIndicator={false}
-    contentContainerStyle={{ padding: 25 }}
-  >
-    <View style={styles.roomImage} />
-    <Text>Diplomatic Suites</Text>
-    <Text>The Diplomatic Suites are stately with ostentatious designs and breath-taking views of the Atlantic. The suite has a DVD Player, Hi Definition LED TVs, and a separate lounge, bar and dining area for guests. It has an adjoining standard room that makes it perfect for a large family</Text>
-    <View  style={styles.roomactions}>
-      <View>
-        <Text style={styles.roomAmenity}><MaterialIcons name="pool" size={22} /> Outdoor pool</Text>
-        <Text style={styles.roomPrice}>$336,870</Text>
+const RoomsTab = () => {
+  const navigation = useNavigation<any>();
+
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ padding: 25 }}
+    >
+      <View style={styles.roomImage} />
+      <Text>Diplomatic Suites</Text>
+      <Text>
+        The Diplomatic Suites are stately with ostentatious designs and
+        breath-taking views of the Atlantic. The suite has a DVD Player, Hi
+        Definition LED TVs, and a separate lounge, bar and dining area for
+        guests. It has an adjoining standard room that makes it perfect for a
+        large family
+      </Text>
+      <View style={styles.roomactions}>
+        <View>
+          <Text style={styles.roomAmenity}>
+            <MaterialIcons name="pool" size={22} /> Outdoor pool
+          </Text>
+          <Text style={styles.roomPrice}>$336,870</Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("screens/RoomDetails")}
+          style={styles.viewRoomButton}
+        >
+          <Text style={{ color: "#fff" }}>View Room</Text>
+        </TouchableOpacity>
       </View>
-        <TouchableOpacity style={styles.viewRoomButton}><Text style={{ color: "#fff" }}>View Room</Text></TouchableOpacity>
-    </View>
-  </ScrollView>
-);
+    </ScrollView>
+  );
+};
 
 /* -------------------- TAB VIEW -------------------- */
 
@@ -307,21 +324,60 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: "700" },
   seeAllText: { color: "#D9502E", fontWeight: "600" },
-  promoCard: { width: 160, marginRight: 16, borderRadius: 12, padding: 8, backgroundColor: "#fff" },
+  promoCard: {
+    width: 160,
+    marginRight: 16,
+    borderRadius: 12,
+    padding: 8,
+    backgroundColor: "#fff",
+  },
   promoImage: { height: 100, backgroundColor: "#eee", borderRadius: 12, marginBottom: 8 },
   roomImage: { height: 200, backgroundColor: "#eee", borderRadius: 12, marginBottom: 8 },
   itemTitle: { fontSize: 14, fontWeight: "600" },
   price: { fontSize: 14, fontWeight: "700", marginTop: 4 },
   oldPrice: { fontSize: 12, textDecorationLine: "line-through", color: "#999" },
-  listItem: { flexDirection: "row", justifyContent: "space-between", padding: 16, backgroundColor: "#fff", borderRadius: 12, marginBottom: 12 },
+  listItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 12,
+  },
   priceRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   oldPriceSmall: { fontSize: 12, textDecorationLine: "line-through", color: "#999" },
-  discountBadge: { backgroundColor: "#F6D44F", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  discountBadge: {
+    backgroundColor: "#F6D44F",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
   discountText: { color: "#000", fontSize: 13, fontWeight: "700" },
-  foodItem: { flexDirection: "row", alignItems: "center", padding: 12, backgroundColor: "#fff", borderRadius: 12, marginBottom: 12 },
+  foodItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 12,
+  },
   foodImg: { width: 60, height: 60, backgroundColor: "#eee", borderRadius: 8, marginRight: 12 },
-  addBtn: { position: "absolute", bottom: 15, right: 5, width: 32, backgroundColor: "#D9502E", padding: 6, borderRadius: 20 },
-  categoryChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: "#eee", marginHorizontal: 8 },
+  addBtn: {
+    position: "absolute",
+    bottom: 15,
+    right: 5,
+    width: 32,
+    backgroundColor: "#D9502E",
+    padding: 6,
+    borderRadius: 20,
+  },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "#eee",
+    marginHorizontal: 8,
+  },
   activeCategoryChip: { backgroundColor: "#D9502E" },
   categoryText: { fontSize: 14, fontWeight: "500" },
   activeCategoryText: { color: "#fff" },
@@ -329,8 +385,19 @@ const styles = StyleSheet.create({
 
   /* -------------------- ROOMS TAB -------------------- */
 
-  roomactions: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 16 },
+  roomactions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 16,
+  },
   roomAmenity: { fontSize: 16, fontWeight: "500" },
   roomPrice: { fontSize: 18, fontWeight: "700", marginTop: 4 },
-  viewRoomButton: { fontWeight: "700", backgroundColor: "#D9502E", paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8  },
+  viewRoomButton: {
+    fontWeight: "700",
+    backgroundColor: "#D9502E",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
 });

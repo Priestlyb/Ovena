@@ -28,16 +28,23 @@ export default function TabLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="orders"
         options={{
           title: "Orders",
           tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={22}
-              name="OrderIcon"
-              color={color}
-            />
+            <IconSymbol size={22} name="OrderIcon" color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={22} name="ProfileIcon" color={color} />
           ),
         }}
       />

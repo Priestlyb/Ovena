@@ -13,7 +13,7 @@ export default function SafeViewScreen({ children }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 25,
+    paddingTop: -50,
     flex: 1,
     backgroundColor: "#ffff",
     overflow: "hidden",
