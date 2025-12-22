@@ -39,7 +39,7 @@ export default function Login() {
         {/* Promo Card */}
         <View style={styles.promoCard}>
           <View style={styles.promoIcon}>
-            <Image source={require("../assets/images/delieveryguy.png")} style={{ width: 54, height: 59 }} />
+            <Image source={require("../assets/images/Deliveryguy.png")} style={{ width: 54, height: 59 }} />
           </View>
           <View>
             <Text style={styles.promoTitle}>

@@ -1,53 +1,54 @@
 // IconSymbol.tsx
+import React from "react";
 import { ComponentProps } from "react";
 import { OpaqueColorValue, StyleProp, TextStyle } from "react-native";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import AntDesignIcon from "@expo/vector-icons/AntDesign";
 
 /* ======================================================
    ICON MAPS (GROUPED BY ICON FAMILY)
 ====================================================== */
 
 /* ---------- IONICONS (General UI) ---------- */
-const IONICONS = {
+export const IONICONS = {
   HomeIcon: "home",
   SearchIcon: "search",
-  CartIcon: "cart-outline",
+  FilterIcon: "options-outline",
   OrderIcon: "receipt-outline",
   ProfileIcon: "person-outline",
   HeartIcon: "heart",
-  emailIcon: "mail-outline",
+  EmailIcon: "mail-outline",
   BellIcon: "notifications-outline",
   SettingsIcon: "settings-outline",
   CloseIcon: "close",
-} as const satisfies Record<
-  string,
-  ComponentProps<typeof Ionicons>["name"]
->;
+} as const satisfies Record<string, ComponentProps<typeof Ionicons>["name"]>;
+
+/* ---------- ANT DESIGN ICONS ---------- */
+export const ANT_DESIGN_ICONS = {
+  StarIcon: "star",
+  HeartIcon: "heart",
+  UserIcon: "user",
+} as const satisfies Record<string, ComponentProps<typeof AntDesignIcon>["name"]>;
 
 /* ---------- MATERIAL ICONS (Facilities / Navigation) ---------- */
-const MATERIAL_ICONS = {
+export const MATERIAL_ICONS = {
   PoolIcon: "pool",
   SpaIcon: "spa",
   RestaurantIcon: "restaurant",
   ParkingIcon: "local-parking",
   MapIcon: "map",
-} as const satisfies Record<
-  string,
-  ComponentProps<typeof MaterialIcons>["name"]
->;
+  CartIcon: "shopping-cart",
+} as const satisfies Record<string, ComponentProps<typeof MaterialIcons>["name"]>;
 
 /* ---------- MATERIAL COMMUNITY ICONS (Amenities / Activities) ---------- */
-const COMMUNITY_ICONS = {
+export const COMMUNITY_ICONS = {
   SwimmerIcon: "swim",
   GymIcon: "dumbbell",
   WifiIcon: "wifi",
-} as const satisfies Record<
-  string,
-  ComponentProps<typeof MaterialCommunityIcons>["name"]
->;
+} as const satisfies Record<string, ComponentProps<typeof MaterialCommunityIcons>["name"]>;
 
 /* ======================================================
    TYPES
@@ -56,7 +57,8 @@ const COMMUNITY_ICONS = {
 export type IconName =
   | keyof typeof IONICONS
   | keyof typeof MATERIAL_ICONS
-  | keyof typeof COMMUNITY_ICONS;
+  | keyof typeof COMMUNITY_ICONS
+  | keyof typeof ANT_DESIGN_ICONS;
 
 type IconProps = {
   name: IconName;
@@ -69,12 +71,7 @@ type IconProps = {
    ICON REGISTRY COMPONENT
 ====================================================== */
 
-export function IconSymbol({
-  name,
-  size = 24,
-  color,
-  style,
-}: IconProps) {
+export function IconSymbol({ name, size = 24, color, style }: IconProps) {
   if (name in IONICONS) {
     return (
       <Ionicons
@@ -97,12 +94,28 @@ export function IconSymbol({
     );
   }
 
-  return (
-    <MaterialCommunityIcons
-      name={COMMUNITY_ICONS[name as keyof typeof COMMUNITY_ICONS]}
-      size={size}
-      color={color}
-      style={style}
-    />
-  );
+  if (name in COMMUNITY_ICONS) {
+    return (
+      <MaterialCommunityIcons
+        name={COMMUNITY_ICONS[name as keyof typeof COMMUNITY_ICONS]}
+        size={size}
+        color={color}
+        style={style}
+      />
+    );
+  }
+
+  if (name in ANT_DESIGN_ICONS) {
+    return (
+      <AntDesignIcon
+        name={ANT_DESIGN_ICONS[name as keyof typeof ANT_DESIGN_ICONS]}
+        size={size}
+        color={color}
+        style={style}
+      />
+    );
+  }
+
+  // fallback if name not found
+  return null;
 }

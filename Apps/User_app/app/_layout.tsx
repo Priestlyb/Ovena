@@ -43,6 +43,16 @@ export default function RootLayout() {
           name="screens/HotelDetails"
           options={{ title: "HotelDetails", headerShown: false }}
         />
+
+        <Stack.Screen
+        name="screens/Favorite"
+        options={{ title: "Favorite", headerShown: false}}
+         />
+
+         <Stack.Screen
+        name="screens/SpinWheelScreen"
+        options={{ title: "Favorite", headerShown: false}}
+         />
       </Stack>
     </SafeViewScreen>
     </GestureHandlerRootView>

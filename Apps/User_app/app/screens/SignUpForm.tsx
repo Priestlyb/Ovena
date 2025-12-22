@@ -313,6 +313,7 @@ const styles = StyleSheet.create({
   banner: { flexDirection: "row", padding: 50, alignItems: "center" },
   bannerText: {
     marginLeft: -100,
+    marginBottom: 50,
     fontSize: 22,
     fontWeight: "bold",
     lineHeight: 35,

@@ -10,10 +10,11 @@ import {
   Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import HomePageTabView from "../../components/HomePageTabView";
 import { useHomeData } from "../../src/utils/controllers/useHomeData";
+import { router } from "expo-router";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 
 export default function Homepage() {
   const navigation = useNavigation<any>();
@@ -47,8 +48,8 @@ export default function Homepage() {
             Order Your Favourite{"\n"}Fast Food!
           </Text>
 
-          <TouchableOpacity style={styles.cart}>
-            <Ionicons name="cart-outline" size={22} color="#fff" />
+          <TouchableOpacity style={styles.cart} onPress={() => router.replace("/screens/Favorite")}>
+            <IconSymbol name="CartIcon" size={22} color="#fff" />
             <View style={styles.cartBadge}>
               <Text style={styles.cartBadgeText}>0</Text>
             </View>
@@ -57,12 +58,12 @@ export default function Homepage() {
 
         {/* ================= SEARCH ================= */}
         <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={18} color="#999" />
+          <IconSymbol name="SearchIcon" size={18} color="#999" />
           <TextInput
             placeholder="Search food, drinks and dessert"
             style={styles.searchInput}
           />
-          <Ionicons name="options-outline" size={18} color="#f5a623" />
+          <IconSymbol name="FilterIcon" size={18} color="#f5a623" />
         </View>
 
         {/* ================= CATEGORIES ================= */}
@@ -135,7 +136,7 @@ export default function Homepage() {
                 style={styles.restaurantImage}
               />
               <TouchableOpacity style={styles.RCheart}>
-                <Ionicons name="heart" size={22} color="#fff" />
+                <IconSymbol name="HeartIcon" size={22} color="#fff" />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -151,7 +152,7 @@ export default function Homepage() {
                   Reviews ({item.reviews})
                 </Text>
                 <Text>
-                  <Ionicons name="star" size={14} color="#f5a623" />{" "}
+                  <IconSymbol name="StarIcon" size={14} color="#f5a623" />{" "}
                   {item.rating}
                 </Text>
               </View>
@@ -168,7 +169,7 @@ export default function Homepage() {
             <Text style={styles.deliverySub}>It's time to treat yourself</Text>
           </View>
           <Image
-            source={require("../../assets/images/delieveryguy.png")}
+            source={require("../../assets/images/Deliveryguy.png")}
             style={styles.deliveryImg}
           />
         </View>
@@ -183,7 +184,7 @@ export default function Homepage() {
                 style={styles.restaurantImage}
               />
               <TouchableOpacity style={styles.RCheart}>
-                <Ionicons name="heart" size={22} color="#fff" />
+                <IconSymbol name="HeartIcon" size={22} color="#fff" />
               </TouchableOpacity>
 
               <Text style={styles.restaurantName}>{item.name}</Text>
@@ -194,7 +195,7 @@ export default function Homepage() {
                   Reviews ({item.reviews})
                 </Text>
                 <Text>
-                  <Ionicons name="star" size={14} color="#f5a623" />{" "}
+                  <IconSymbol name="StarIcon" size={14} color="#f5a623" />{" "}
                   {item.rating}
                 </Text>
               </View>

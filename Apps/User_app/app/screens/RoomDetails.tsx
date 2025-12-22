@@ -196,17 +196,18 @@ export default function RoomDetailsScreen() {
           </View>
         </View>
 
-  {/* Extra Additional */}
+        {/* Extra Additional */}
         <View>
           <Text style={{ fontWeight: "medium", marginTop: 10, fontSize: 18 }}>
             Add Extra Additional
           </Text>
-          <View 
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-evenly",
-              }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-evenly",
+            }}
+          >
             <View style={styles.redcirle} />
             <Text style={{ fontSize: 16, marginTop: 10 }}>
               Prep Room For Val’s Day
@@ -215,13 +216,11 @@ export default function RoomDetailsScreen() {
           </View>
         </View>
 
-
         <TouchableOpacity style={styles.bookbutton}>
-          <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 20 }}>Book  |  $336,870</Text>
+          <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 20 }}>
+            Book | $336,870
+          </Text>
         </TouchableOpacity>
-
-
-        
       </View>
     </ScrollView>
   );
