@@ -10,10 +10,10 @@ interface ConfirmationScreenProps {
   totalPrice: number;
 }
 
-export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ 
+const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
   onConfirm,
   onBack,
-  totalPrice 
+  totalPrice,
 }) => {
   const [protein, setProtein] = useState(0);
   const [drinks, setDrinks] = useState(0);
@@ -35,23 +35,20 @@ export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
         <View style={styles.confirmationSection}>
           <View style={styles.confirmationHeader}>
             <Text style={styles.confirmationSectionTitle}>Protein</Text>
-            <Counter 
-              value={1}
-              onIncrement={() => {}}
-              onDecrement={() => {}}
-            />
+            <Counter value={1} onIncrement={() => {}} onDecrement={() => {}} />
           </View>
+
           <View style={styles.selectionGrid}>
-            <SelectionBox 
-              icon="🚫" 
+            <SelectionBox
+              icon="🚫"
               selected={protein === 0}
               onPress={() => setProtein(0)}
             />
-            <SelectionBox 
+            <SelectionBox
               selected={protein === 1}
               onPress={() => setProtein(1)}
             />
-            <SelectionBox 
+            <SelectionBox
               selected={protein === 2}
               onPress={() => setProtein(2)}
             />
@@ -61,23 +58,20 @@ export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
         <View style={styles.confirmationSection}>
           <View style={styles.confirmationHeader}>
             <Text style={styles.confirmationSectionTitle}>Drinks</Text>
-            <Counter 
-              value={1}
-              onIncrement={() => {}}
-              onDecrement={() => {}}
-            />
+            <Counter value={1} onIncrement={() => {}} onDecrement={() => {}} />
           </View>
+
           <View style={styles.selectionGrid}>
-            <SelectionBox 
-              icon="🚫" 
+            <SelectionBox
+              icon="🚫"
               selected={drinks === 0}
               onPress={() => setDrinks(0)}
             />
-            <SelectionBox 
+            <SelectionBox
               selected={drinks === 1}
               onPress={() => setDrinks(1)}
             />
-            <SelectionBox 
+            <SelectionBox
               selected={drinks === 2}
               onPress={() => setDrinks(2)}
             />
@@ -86,7 +80,7 @@ export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
 
         <View style={styles.spacer} />
 
-        <CustomButton 
+        <CustomButton
           title={`Confirm Order  |  $${totalPrice.toFixed(2)}`}
           onPress={() => onConfirm(protein, drinks)}
         />
@@ -94,6 +88,8 @@ export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
     </View>
   );
 };
+
+export default ConfirmationScreen;
 
 const styles = StyleSheet.create({
   container: {

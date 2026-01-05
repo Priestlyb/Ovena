@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,22 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Animated,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Picker } from "@react-native-picker/picker";
+import * as Location from "expo-location";
 
-/* -------------------- Date Helpers -------------------- */
+import { IconSymbol, IconName } from "@/components/ui/icon-symbol";
+import { useAuth } from "@/context/AuthContext";
+import { debugSecureStore } from "@/src/utils/debugSecureStore";
+
+/* -------------------- Helpers -------------------- */
 const MONTHS = [
   "Jan",
   "Feb",
@@ -31,125 +37,190 @@ const MONTHS = [
   "Nov",
   "Dec",
 ];
-
 const TODAY = new Date();
 
-const generateYears = () => {
-  const currentYear = TODAY.getFullYear();
-  return Array.from({ length: 100 }, (_, i) => currentYear - i);
-};
+const generateYears = () =>
+  Array.from({ length: 100 }, (_, i) => TODAY.getFullYear() - i);
 
-const isLeapYear = (year: number) =>
-  (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+const isLeapYear = (y: number) =>
+  (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 
-const getDaysInMonth = (month: number, year: number) => {
-  if (month === 1) return isLeapYear(year) ? 29 : 28;
-  if ([3, 5, 8, 10].includes(month)) return 30;
-  return 31;
-};
+const getDaysInMonth = (m: number, y: number) =>
+  m === 1 ? (isLeapYear(y) ? 29 : 28) : [3, 5, 8, 10].includes(m) ? 30 : 31;
 
 const is18Plus = (date: Date) => {
-  const minDate = new Date(
+  const min = new Date(
     TODAY.getFullYear() - 18,
     TODAY.getMonth(),
     TODAY.getDate()
   );
-  return date <= minDate;
+  return date <= min;
 };
-/* ---------------------------------------------------- */
+
+const BASE_URL = "https://ovena-backend-production.up.railway.app/api";
 
 export default function SignUpForm() {
-  /* -------------------- Form State -------------------- */
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [location, setLocation] = useState("");
-  const [dob, setDob] = useState<Date | null>(null);
+  const {
+    phoneNumber,
+    isNewUser,
+    loading: authLoading,
+    getValidAccessToken,
+    logout,
+    completeSignup,
+  } = useAuth();
 
-  /* -------------------- Date Picker State -------------------- */
-  const [day, setDay] = useState<number | null>(null);
-  const [month, setMonth] = useState<number | null>(null);
-  const [year, setYear] = useState<number | null>(null);
-  const [open, setOpen] = useState<"day" | "month" | "year" | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const dropdownAnim = useRef(new Animated.Value(0)).current;
+  /* -------------------- AUTH GUARDS -------------------- */
+  useEffect(() => {
+    if (!authLoading) debugSecureStore();
+  }, [authLoading]);
+
+  useEffect(() => {
+    if (!authLoading && !phoneNumber) {
+      router.replace("/login");
+    } else if (!authLoading && !isNewUser) {
+      router.replace("/(tabs)/homepage");
+    }
+  }, [authLoading, phoneNumber, isNewUser]);
+
+  /* -------------------- DOB -------------------- */
   const years = useMemo(generateYears, []);
+  const [day, setDay] = useState(1);
+  const [month, setMonth] = useState(0);
+  const [year, setYear] = useState(years[0]);
+  const [showPicker, setShowPicker] = useState(false);
 
-  /* -------------------- Days Logic -------------------- */
-  const daysInMonth = useMemo(() => {
-    if (month === null || year === null) return 31;
-    return getDaysInMonth(month, year);
-  }, [month, year]);
-
+  const daysInMonth = useMemo(() => getDaysInMonth(month, year), [month, year]);
   const days = useMemo(
     () => Array.from({ length: daysInMonth }, (_, i) => i + 1),
     [daysInMonth]
   );
 
   useEffect(() => {
-    if (day && day > daysInMonth) setDay(daysInMonth);
+    if (day > daysInMonth) setDay(daysInMonth);
   }, [daysInMonth]);
 
+  /* -------------------- LOCATION -------------------- */
+  const fetchLocation = async () => {
+    try {
+      setLocationLoading(true);
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") return;
+
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      setLatitude(loc.coords.latitude);
+      setLongitude(loc.coords.longitude);
+
+      console.log(
+        "📍 Auto Location:",
+        loc.coords.latitude,
+        loc.coords.longitude
+      );
+    } catch (e) {
+      console.log("❌ Location Error:", e);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (day && month !== null && year) {
-      setDob(new Date(year, month, day));
-    }
-  }, [day, month, year]);
+    fetchLocation();
+  }, []);
 
-  /* -------------------- Dropdown Control -------------------- */
-  const openDropdown = (type: "day" | "month" | "year") => {
-    setOpen(type);
-    dropdownAnim.setValue(0);
-    Animated.timing(dropdownAnim, {
-      toValue: 1,
-      duration: 220,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const closeDropdown = () => {
-    Animated.timing(dropdownAnim, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: false,
-    }).start(() => setOpen(null));
-  };
-
-  /* -------------------- Disabled Logic -------------------- */
-  const isFutureYear = (y: number) => y > TODAY.getFullYear();
-
-  const isFutureMonth = (m: number) =>
-    year === TODAY.getFullYear() && m > TODAY.getMonth();
-
-  const isFutureDay = (d: number) =>
-    year === TODAY.getFullYear() &&
-    month === TODAY.getMonth() &&
-    d > TODAY.getDate();
-
-  /* -------------------- Submit -------------------- */
-  const handleSubmit = () => {
-    if (!name || !email || !location || !dob) {
-      Alert.alert("Error", "Please fill all fields");
+  /* -------------------- SUBMIT -------------------- */
+  const handleSubmit = async () => {
+    if (!fullName.trim()) {
+      Alert.alert("Error", "Full name is required");
       return;
     }
 
+    if (latitude === null || longitude === null) {
+      Alert.alert("Location Required", "Please allow location access");
+      return;
+    }
+
+    const dob = new Date(year, month, day);
     if (!is18Plus(dob)) {
-      Alert.alert("Age Restriction", "You must be at least 18 years old");
+      Alert.alert("Age restriction", "Must be 18+");
       return;
     }
 
-    router.push("/screens/Otp");
+    try {
+      setLoading(true);
+
+      const token = await getValidAccessToken();
+      if (!token || !phoneNumber) {
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      // ✅ Backend-required integer format
+      const latInt = Math.round(latitude * 1000);
+      const longInt = Math.round(longitude * 1000);
+
+      const payload = {
+        phone_number: phoneNumber,
+        name: fullName,
+        lat: latInt,
+        long: longInt,
+        date_of_birth: dob.toISOString().split("T")[0],
+      };
+
+      console.log("📤 Signup Payload:", payload);
+
+      const res = await fetch(`${BASE_URL}/accounts/register-user/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      console.log("📥 Signup Response:", data);
+
+      if (!res.ok) {
+        throw new Error(
+          data?.non_field_errors?.[0] || data?.detail || "Signup failed"
+        );
+      }
+
+      await completeSignup();
+      router.replace("/(tabs)/homepage");
+    } catch (e: any) {
+      Alert.alert("Signup Error", e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size={50} color="#D9502E" />
+      </View>
+    );
+  }
+
+  /* -------------------- UI (UNCHANGED) -------------------- */
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView
-        style={{ flex: 1, backgroundColor: "#F6D44F" }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Back */}
+      <ScrollView style={{ flex: 1, backgroundColor: "#D9502E" }}>
         <TouchableOpacity
           onPress={() => router.replace("/login")}
           style={{ marginTop: 70, marginLeft: 30 }}
@@ -157,163 +228,150 @@ export default function SignUpForm() {
           <Ionicons name="arrow-back" size={25} />
         </TouchableOpacity>
 
-        {/* Banner */}
         <View style={styles.banner}>
           <Image
             source={require("../../assets/images/signupBanner.png")}
             style={{ width: 300, height: 300 }}
           />
           <Text style={styles.bannerText}>
-            A Few Questions {"\n"} to Help Us Create {"\n"} our Perfect Meal
+            A Few Questions{"\n"}to Help Us Create{"\n"}Our Perfect Meal
           </Text>
         </View>
 
-        {/* Form */}
         <View style={styles.formContainer}>
-          {[
-            {
-              label: "Name",
-              value: name,
-              setter: setName,
-              icon: "ProfileIcon",
-            },
-            {
-              label: "Email",
-              value: email,
-              setter: setEmail,
-              icon: "emailIcon",
-            },
-            {
-              label: "Location",
-              value: location,
-              setter: setLocation,
-              icon: "HomeIcon",
-            },
-          ].map((f, i) => (
-            <View key={i}>
-              <Text style={styles.label}>{f.label}</Text>
-              <View style={styles.inputContain}>
-                <IconSymbol name={f.icon as any} size={24} color="#000" />
-                <TextInput
-                  value={f.value}
-                  onChangeText={f.setter}
-                  style={styles.otpInput}
-                />
-              </View>
-            </View>
-          ))}
+          <Input
+            label="Full Name"
+            icon="ProfileIcon"
+            value={fullName}
+            onChange={setFullName}
+          />
 
-          {/* DOB */}
-          <Text style={styles.label}>Date of Birth</Text>
-          <View style={styles.dateRow}>
-            <TouchableOpacity
-              style={styles.dateBox}
-              onPress={() => openDropdown("day")}
-            >
-              <Text>{day ?? "Day"}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dateBox}
-              onPress={() => openDropdown("month")}
-            >
-              <Text>{month !== null ? MONTHS[month] : "Month"}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dateBox}
-              onPress={() => openDropdown("year")}
-            >
-              <Text>{year ?? "Year"}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {open && (
-            <View style={styles.dropdownWrapper}>
-              <Animated.View
-                style={{
-                  height: dropdownAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 260],
-                  }),
-                  overflow: "hidden",
-                }}
-              >
-                <ScrollView
-                  contentContainerStyle={{ paddingVertical: 5 }}
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator
-                >
-                  {(open === "day"
-                    ? days
-                    : open === "month"
-                    ? MONTHS
-                    : years
-                  ).map((item: any, index: number) => {
-                    const disabled =
-                      (open === "year" && isFutureYear(item)) ||
-                      (open === "month" && isFutureMonth(index)) ||
-                      (open === "day" && isFutureDay(item));
-
-                    return (
-                      <TouchableOpacity
-                        key={index}
-                        disabled={disabled}
-                        style={[
-                          styles.option,
-                          disabled && styles.disabledOption,
-                        ]}
-                        onPress={() => {
-                          if (open === "day") setDay(item);
-                          if (open === "month") setMonth(index);
-                          if (open === "year") setYear(item);
-                          closeDropdown();
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.optionText,
-                            disabled && { color: "#aaa" },
-                          ]}
-                        >
-                          {item}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </Animated.View>
-            </View>
-          )}
-
-          <View style={styles.birthdayNote}>
-            <Text>
-              {" "}
-              <Ionicons name="gift-outline" size={20} color="#D9502E" /> Get
-              free delivery and discounts on your birthday
-            </Text>
-          </View>
-
-          <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-            <Text style={styles.submitText}>Done</Text>
+          <TouchableOpacity style={styles.locationBtn} onPress={fetchLocation}>
+            {locationLoading ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={{ fontWeight: "600" }}>
+                {latitude ? "Location Added ✔" : "Allow Location Access"}
+              </Text>
+            )}
           </TouchableOpacity>
-          <Text style={styles.terms}>
-            By continuing you automatically accept our{" "}
-            <Text style={styles.link}>Terms & conditions</Text> and{" "}
-            <Text style={styles.link}>privacy policy</Text>
-          </Text>
+
+          <Text style={styles.label}>Date of Birth</Text>
+          <TouchableOpacity
+            style={styles.dateBox}
+            onPress={() => setShowPicker(true)}
+          >
+            <Text>{`${day} ${MONTHS[month]} ${year}`}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.submitBtn}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitText}>Done</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal visible={showPicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerContainer}>
+            <View style={styles.pickerHeader}>
+              <TouchableOpacity onPress={() => setShowPicker(false)}>
+                <Text style={styles.cancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowPicker(false)}>
+                <Text style={styles.done}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.wheelRow}>
+              <Picker
+                selectedValue={day}
+                style={styles.wheel}
+                onValueChange={setDay}
+              >
+                {days.map((d) => (
+                  <Picker.Item key={d} label={`${d}`} value={d} />
+                ))}
+              </Picker>
+
+              <Picker
+                selectedValue={month}
+                style={styles.wheel}
+                onValueChange={setMonth}
+              >
+                {MONTHS.map((m, i) => (
+                  <Picker.Item key={m} label={m} value={i} />
+                ))}
+              </Picker>
+
+              <Picker
+                selectedValue={year}
+                style={styles.wheel}
+                onValueChange={setYear}
+              >
+                {years.map((y) => (
+                  <Picker.Item key={y} label={`${y}`} value={y} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
+  );
+}
+
+/* -------------------- Input -------------------- */
+function Input({
+  label,
+  icon,
+  value,
+  onChange,
+}: {
+  label: string;
+  icon: IconName;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <View>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.inputContain}>
+        <IconSymbol name={icon} size={24} color="#000" />
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          style={styles.otpInput}
+        />
+      </View>
+    </View>
   );
 }
 
 /* -------------------- Styles -------------------- */
 const styles = StyleSheet.create({
+  label: { fontSize: 16, fontWeight: "600", marginTop: 25 },
+  inputContain: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#ddd",
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    marginTop: 10,
+  },
+  otpInput: { flex: 1, height: 50 },
   banner: { flexDirection: "row", padding: 50, alignItems: "center" },
   bannerText: {
     marginLeft: -100,
-    marginBottom: 50,
     fontSize: 22,
     fontWeight: "bold",
     lineHeight: 35,
@@ -324,49 +382,23 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     padding: 30,
   },
-  label: { fontSize: 16, fontWeight: "600", marginTop: 25 },
-  inputContain: {
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    padding: 10,
-    paddingHorizontal: 20,
-    marginTop: 10,
-  },
-  otpInput: { flex: 1, height: 50 },
-  dateRow: { flexDirection: "row", gap: 10, marginTop: 10 },
   dateBox: {
-    flex: 1,
     height: 55,
     borderWidth: 2,
     borderColor: "#ddd",
     borderRadius: 12,
-    alignItems: "center",
     justifyContent: "center",
-  },
-  dropdownWrapper: {
+    paddingHorizontal: 20,
     marginTop: 10,
+  },
+  locationBtn: {
+    marginTop: 25,
+    padding: 15,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: "#ddd",
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    overflow: "hidden",
+    alignItems: "center",
   },
-
-  dropdown: {
-    marginTop: 10,
-    borderWidth: 2,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "#fff",
-  },
-  option: { padding: 14, borderBottomWidth: 1, borderBottomColor: "#eee" },
-  disabledOption: { backgroundColor: "#f5f5f5" },
-  optionText: { fontSize: 16 },
   submitBtn: {
     marginTop: 40,
     backgroundColor: "#D9502E",
@@ -374,22 +406,24 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
   },
-  birthdayNote: {
-    marginTop: 25,
-    alignItems: "center",
-    backgroundColor: "#FFF3E0",
-    padding: 10,
-    borderRadius: 25,
+  submitText: { color: "#fff", fontSize: 20 },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
-  submitText: { color: "#fff", fontWeight: "500", fontSize: 20 },
-  terms: {
-    fontSize: 11,
-    color: "#777",
-    textAlign: "center",
-    marginHorizontal: 20,
-    marginTop: 25,
+  pickerContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
-  link: {
-    color: "#E4572E",
+  pickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
   },
+  cancel: { color: "#999" },
+  done: { color: "#D9502E", fontWeight: "600" },
+  wheelRow: { flexDirection: "row", height: 220 },
+  wheel: { flex: 1 },
 });

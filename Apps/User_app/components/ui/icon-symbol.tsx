@@ -7,6 +7,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AntDesignIcon from "@expo/vector-icons/AntDesign";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 /* ======================================================
    ICON MAPS (GROUPED BY ICON FAMILY)
@@ -24,16 +25,32 @@ export const IONICONS = {
   BellIcon: "notifications-outline",
   SettingsIcon: "settings-outline",
   CloseIcon: "close",
-} as const satisfies Record<string, ComponentProps<typeof Ionicons>["name"]>;
+  ChevronForwardIcon: "chevron-forward",
+  BagOutline: "bag-outline",
+  HeartOutline: "heart-outline",
+  PersonOutline: "person-outline",
+  GlobeOutline: "globe-outline",
+  HelpCircleOutline: "help-circle-outline",
+  CardOutline: "card-outline",
+  LogOutOutline: "log-out-outline",
+} as const satisfies Record<
+  string,
+  ComponentProps<typeof Ionicons>["name"]
+>;
 
 /* ---------- ANT DESIGN ICONS ---------- */
 export const ANT_DESIGN_ICONS = {
   StarIcon: "star",
   HeartIcon: "heart",
   UserIcon: "user",
-} as const satisfies Record<string, ComponentProps<typeof AntDesignIcon>["name"]>;
+  ChevronRightIcon: "right",
+  QuestionCircle: "question-circle",
+} as const satisfies Record<
+  string,
+  ComponentProps<typeof AntDesignIcon>["name"]
+>;
 
-/* ---------- MATERIAL ICONS (Facilities / Navigation) ---------- */
+/* ---------- MATERIAL ICONS ---------- */
 export const MATERIAL_ICONS = {
   PoolIcon: "pool",
   SpaIcon: "spa",
@@ -41,14 +58,35 @@ export const MATERIAL_ICONS = {
   ParkingIcon: "local-parking",
   MapIcon: "map",
   CartIcon: "shopping-cart",
-} as const satisfies Record<string, ComponentProps<typeof MaterialIcons>["name"]>;
+  TokenIcon: "token",
+} as const satisfies Record<
+  string,
+  ComponentProps<typeof MaterialIcons>["name"]
+>;
 
-/* ---------- MATERIAL COMMUNITY ICONS (Amenities / Activities) ---------- */
+/* ---------- MATERIAL COMMUNITY ICONS ---------- */
 export const COMMUNITY_ICONS = {
   SwimmerIcon: "swim",
   GymIcon: "dumbbell",
   WifiIcon: "wifi",
-} as const satisfies Record<string, ComponentProps<typeof MaterialCommunityIcons>["name"]>;
+} as const satisfies Record<
+  string,
+  ComponentProps<typeof MaterialCommunityIcons>["name"]
+>;
+
+/* ---------- FONT AWESOME 6 ICONS ---------- */
+export const FONT_AWESOME_6_ICONS = {
+  WalletIcon: "wallet",
+  CreditCardIcon: "credit-card",
+  LanguageIcon: "language",
+  ShieldIcon: "shield-halved",
+  UserGroupIcon: "user-group",
+  LogoutIcon: "right-from-bracket",
+  PersonThroughWindowIcon: "person-through-window"
+} as const satisfies Record<
+  string,
+  ComponentProps<typeof FontAwesome6>["name"]
+>;
 
 /* ======================================================
    TYPES
@@ -58,7 +96,8 @@ export type IconName =
   | keyof typeof IONICONS
   | keyof typeof MATERIAL_ICONS
   | keyof typeof COMMUNITY_ICONS
-  | keyof typeof ANT_DESIGN_ICONS;
+  | keyof typeof ANT_DESIGN_ICONS
+  | keyof typeof FONT_AWESOME_6_ICONS;
 
 type IconProps = {
   name: IconName;
@@ -71,7 +110,12 @@ type IconProps = {
    ICON REGISTRY COMPONENT
 ====================================================== */
 
-export function IconSymbol({ name, size = 24, color, style }: IconProps) {
+export function IconSymbol({
+  name,
+  size = 24,
+  color,
+  style,
+}: IconProps) {
   if (name in IONICONS) {
     return (
       <Ionicons
@@ -116,6 +160,17 @@ export function IconSymbol({ name, size = 24, color, style }: IconProps) {
     );
   }
 
-  // fallback if name not found
+  if (name in FONT_AWESOME_6_ICONS) {
+    return (
+      <FontAwesome6
+        name={FONT_AWESOME_6_ICONS[name as keyof typeof FONT_AWESOME_6_ICONS]}
+        size={size}
+        color={color}
+        style={style}
+      />
+    );
+  }
+
+  // fallback
   return null;
 }

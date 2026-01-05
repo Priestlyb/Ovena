@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import type { IconName } from "@/components/ui/icon-symbol";
 
 interface MenuItemProps {
-  iconName: keyof typeof Ionicons.glyphMap;
+  iconName: IconName;
   label: string;
   onPress: () => void;
 }
@@ -15,10 +16,10 @@ const MenuItem: React.FC<MenuItemProps> = ({ iconName, label, onPress }) => (
     style={styles.menuItem}
   >
     <View style={styles.menuItemLeft}>
-      <Ionicons name={iconName} size={20} color="#333" />
+      <IconSymbol name={iconName} size={20} color="#333" />
       <Text style={styles.menuItemLabel}>{label}</Text>
     </View>
-    <Ionicons name="chevron-forward" size={20} color="#999" />
+    <IconSymbol name="ChevronForwardIcon" size={20} color="#999" />
   </TouchableOpacity>
 );
 

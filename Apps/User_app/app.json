@@ -5,13 +5,22 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "userapp",
+    "scheme": "ovena",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ovena.userapp",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "config": {
+        "googleSignIn": {
+          "reservedClientId": "com.googleusercontent.apps.456377512712-xxxxxxx"
+        }
+      }
     },
     "android": {
+      "package": "com.ovena.userapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -19,7 +28,14 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [],
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleSignIn": {
+          "certificateHash": "BA:C0:E1:C7:04:A6:73:ED:92:4C:52:ED:3E:9C:A6:DC:9B:4F:59:36"
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -38,11 +54,26 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/af31e993-2991-46cd-b4ca-21d9586bebce"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "af31e993-2991-46cd-b4ca-21d9586bebce"
+      }
     }
   }
 }

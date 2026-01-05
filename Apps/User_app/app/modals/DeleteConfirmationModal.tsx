@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
@@ -8,10 +7,10 @@ interface DeleteConfirmationModalProps {
   onCancel: () => void;
 }
 
-export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({ 
-  visible, 
-  onConfirm, 
-  onCancel 
+const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
+  visible,
+  onConfirm,
+  onCancel,
 }) => (
   <Modal visible={visible} transparent animationType="fade">
     <View style={styles.deleteModalBackground}>
@@ -21,11 +20,19 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
         <Text style={styles.deleteModalMessage}>
           Are you sure you want to start a new ride to add items again.
         </Text>
+
         <View style={styles.deleteModalActions}>
-          <TouchableOpacity style={styles.deleteConfirmButton} onPress={onConfirm}>
+          <TouchableOpacity
+            style={styles.deleteConfirmButton}
+            onPress={onConfirm}
+          >
             <Text style={styles.deleteConfirmIcon}>✓</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteCancelButton} onPress={onCancel}>
+
+          <TouchableOpacity
+            style={styles.deleteCancelButton}
+            onPress={onCancel}
+          >
             <Text style={styles.deleteCancelIcon}>✕</Text>
           </TouchableOpacity>
         </View>
@@ -33,6 +40,8 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
     </View>
   </Modal>
 );
+
+export default DeleteConfirmationModal;
 
 const styles = StyleSheet.create({
   deleteModalBackground: {
