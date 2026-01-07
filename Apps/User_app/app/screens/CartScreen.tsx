@@ -21,7 +21,7 @@ interface CartScreenProps {
   onClearCart?: () => void;
 }
 
- const CartScreen: React.FC<CartScreenProps> = ({ 
+const CartScreen: React.FC<CartScreenProps> = ({
   cartItems,
   orderSummary,
   onIncrement,
@@ -29,7 +29,7 @@ interface CartScreenProps {
   onDeleteItem,
   onCheckout,
   onBack,
-  onClearCart
+  onClearCart,
 }) => {
   const calculateTotal = (): number => {
     return orderSummary.products + orderSummary.delivery - orderSummary.discount;
@@ -44,7 +44,9 @@ interface CartScreenProps {
         <TouchableOpacity style={styles.iconButton} onPress={onBack}>
           <Text style={styles.iconButtonText}>←</Text>
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Carts</Text>
+
         <TouchableOpacity style={styles.iconButton} onPress={onClearCart}>
           <Text style={styles.iconButtonText}>🗑️</Text>
         </TouchableOpacity>
@@ -56,7 +58,7 @@ interface CartScreenProps {
 
       <ScrollView style={styles.cartListContainer}>
         {cartItems.map((item) => (
-          <CartItemComponent 
+          <CartItemComponent
             key={item.id}
             item={item}
             onIncrement={onIncrement}
@@ -72,35 +74,40 @@ interface CartScreenProps {
 
       <View style={styles.orderSummaryCard}>
         <Text style={styles.orderSummaryTitle}>Order Summary</Text>
-        
+
         <View style={styles.summaryLine}>
           <Text style={styles.summaryLineLabel}>Products</Text>
-          <Text style={styles.summaryLineValue}>${orderSummary.products.toFixed(2)}</Text>
+          <Text style={styles.summaryLineValue}>
+            ${orderSummary.products.toFixed(2)}
+          </Text>
         </View>
-        
+
         <View style={styles.summaryLine}>
           <Text style={styles.summaryLineLabel}>Delivery</Text>
-          <Text style={styles.summaryLineValue}>${orderSummary.delivery.toFixed(2)}</Text>
+          <Text style={styles.summaryLineValue}>
+            ${orderSummary.delivery.toFixed(2)}
+          </Text>
         </View>
-        
+
         <View style={styles.summaryLine}>
           <Text style={styles.summaryLineLabel}>Discount</Text>
-          <Text style={styles.summaryLineValue}>${orderSummary.discount.toFixed(2)}</Text>
+          <Text style={styles.summaryLineValue}>
+            ${orderSummary.discount.toFixed(2)}
+          </Text>
         </View>
-        
+
         <View style={styles.summaryDivider} />
-        
+
         <View style={styles.summaryLine}>
           <Text style={styles.summaryTotalLabel}>Total Payment</Text>
-          <Text style={styles.summaryTotalValue}>${calculateTotal().toFixed(2)}</Text>
+          <Text style={styles.summaryTotalValue}>
+            ${calculateTotal().toFixed(2)}
+          </Text>
         </View>
       </View>
 
       <View style={styles.bottomButtonContainer}>
-        <CustomButton 
-          title="Checkout Now"
-          onPress={onCheckout}
-        />
+        <CustomButton title="Checkout Now" onPress={onCheckout} />
       </View>
     </View>
   );

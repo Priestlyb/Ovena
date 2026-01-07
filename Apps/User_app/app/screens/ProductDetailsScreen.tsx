@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+} from 'react-native';
 import { CustomButton } from '@/components/productComponents/Button';
 import { Counter } from '@/components/productComponents/Counter';
 import { CheckboxItem } from '@/components/productComponents/CheckboxItem';
@@ -13,26 +20,28 @@ interface ProductDetailScreenProps {
   onBack?: () => void;
 }
 
- const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ 
-  product, 
-  extras, 
+const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
+  product,
+  extras,
   onNext,
-  onBack 
+  onBack,
 }) => {
   const [quantity, setQuantity] = useState(1);
-  const [selectedExtras, setSelectedExtras] = useState<Record<string, boolean>>({});
+  const [selectedExtras, setSelectedExtras] = useState<Record<string, boolean>>(
+    {}
+  );
   const [notes, setNotes] = useState('');
 
   const toggleExtra = (extraId: string) => {
-    setSelectedExtras(prev => ({
+    setSelectedExtras((prev) => ({
       ...prev,
-      [extraId]: !prev[extraId]
+      [extraId]: !prev[extraId],
     }));
   };
 
   const calculateTotal = (): number => {
     let total = product.price * quantity;
-    extras.forEach(extra => {
+    extras.forEach((extra) => {
       if (selectedExtras[extra.id]) {
         total += extra.price;
       }
@@ -41,7 +50,7 @@ interface ProductDetailScreenProps {
   };
 
   const handleNext = () => {
-    const selected = extras.filter(extra => selectedExtras[extra.id]);
+    const selected = extras.filter((extra) => selectedExtras[extra.id]);
     onNext(quantity, selected, notes);
   };
 
@@ -62,10 +71,10 @@ interface ProductDetailScreenProps {
         <View style={styles.productSection}>
           <View style={styles.productTitleRow}>
             <Text style={styles.productTitle}>{product.name}</Text>
-            <Counter 
+            <Counter
               value={quantity}
-              onIncrement={() => setQuantity(q => q + 1)}
-              onDecrement={() => setQuantity(q => q - 1)}
+              onIncrement={() => setQuantity((q) => q + 1)}
+              onDecrement={() => setQuantity((q) => q - 1)}
               size="large"
               minValue={1}
             />
@@ -77,15 +86,19 @@ interface ProductDetailScreenProps {
             <NutritionInfo label="Rating" value={product.rating} unit="★" />
             <NutritionInfo label="Kcal" value={product.kcal} unit="" />
             <NutritionInfo label="Time" value={product.time} unit=" min" />
-            <NutritionInfo label="Calories" value={product.calories} unit=" Kcal" />
+            <NutritionInfo
+              label="Calories"
+              value={product.calories}
+              unit=" Kcal"
+            />
           </View>
 
           <View style={styles.sectionDivider} />
 
           <Text style={styles.sectionTitle}>Add Extra Additional</Text>
-          
-          {extras.map(extra => (
-            <CheckboxItem 
+
+          {extras.map((extra) => (
+            <CheckboxItem
               key={extra.id}
               label={extra.label}
               price={extra.price}
@@ -106,7 +119,7 @@ interface ProductDetailScreenProps {
             onChangeText={setNotes}
           />
 
-          <CustomButton 
+          <CustomButton
             title={`Next  |  $${calculateTotal().toFixed(2)}`}
             onPress={handleNext}
           />

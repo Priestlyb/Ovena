@@ -22,7 +22,9 @@ interface RestaurantCartScreenProps {
         <TouchableOpacity style={styles.iconButton} onPress={onBack}>
           <Text style={styles.iconButtonText}>←</Text>
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Restaurants Cart</Text>
+
         <View style={styles.iconButton} />
       </View>
 
@@ -40,16 +42,16 @@ interface RestaurantCartScreenProps {
         ))}
       </ScrollView>
 
-      <TouchableOpacity style={styles.feesInfoButton} onPress={onShowFees}>
+      <TouchableOpacity
+        style={styles.feesInfoButton}
+        onPress={onShowFees}
+      >
         <Text style={styles.feesInfoIcon}>ℹ️</Text>
         <Text style={styles.feesInfoText}>Fees Information</Text>
       </TouchableOpacity>
 
       <View style={styles.bottomButtonContainer}>
-        <CustomButton 
-          title="Go to Cart"
-          onPress={onGoToCart}
-        />
+        <CustomButton title="Go to Cart" onPress={onGoToCart} />
       </View>
     </View>
   );

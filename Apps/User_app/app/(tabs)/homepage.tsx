@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Image,
   TouchableOpacity,
   Animated,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, useNavigation } from "@react-navigation/native";
@@ -15,12 +17,18 @@ import HomePageTabView from "../../components/HomePageTabView";
 import { useHomeData } from "../../src/utils/controllers/useHomeData";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
+
+const BASE_URL = "https://ovena-backend-production.up.railway.app/api";
 
 export default function Homepage() {
   const router = useRouter();
   const { categories, recentlyVisited, topPicks, foodCategories } =
     useHomeData();
+
+  const { accessToken, logout, getValidAccessToken } = useAuth();
+  const [deleting, setDeleting] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(30)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -40,16 +48,97 @@ export default function Homepage() {
     ]).start();
   }, []);
 
+  const handleDeleteUser = () => {
+  Alert.alert(
+    "Delete Account",
+    "This action is permanent. Are you sure?",
+    [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: confirmDelete },
+    ]
+  );
+};
+
+const confirmDelete = async () => {
+  try {
+    setDeleting(true);
+
+    // ✅ Get valid token (refresh if needed)
+    const token = await getValidAccessToken();
+
+    if (!token || token === "guest") {
+      Alert.alert("Session expired", "Please login again");
+      await logout();
+      router.replace("/login");
+      return;
+    }
+
+    const res = await fetch(`${BASE_URL}/accounts/profile/delete/`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const text = await res.text();
+
+    if (res.status === 401) {
+      console.warn("Unauthorized → logging out");
+      await logout();
+      router.replace("/login");
+      return;
+    }
+
+    if (res.status === 404 || text.includes("user_not_found")) {
+      await logout();
+      Alert.alert("Info", "User account already removed.");
+      router.replace("/login");
+      return;
+    }
+
+    if (!res.ok) throw new Error(text || "Failed to delete account");
+
+    await logout();
+    Alert.alert("Success", "Account deleted successfully");
+    router.replace("/login");
+  } catch (err: any) {
+    console.error("Delete account error:", err);
+    Alert.alert("Error", err.message || "Something went wrong");
+  } finally {
+    setDeleting(false);
+  }
+};
+
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* ================= DELETE USER (LOGGED IN ONLY) ================= */}
+        {accessToken && (
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={handleDeleteUser}
+            disabled={deleting}
+          >
+            {deleting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.deleteText}>Delete Account</Text>
+            )}
+          </TouchableOpacity>
+        )}
+
         {/* ================= HEADER ================= */}
         <View style={styles.header}>
           <Text style={styles.headerText}>
             Order Your Favourite{"\n"}Fast Food!
           </Text>
 
-          <TouchableOpacity style={styles.cart} onPress={() => router.replace("/screens/Favorite")}>
+          <TouchableOpacity
+            style={styles.cart}
+            onPress={() => router.replace("/screens/SpinWheelScreen")}
+          >
             <IconSymbol name="CartIcon" size={22} color="#fff" />
             <View style={styles.cartBadge}>
               <Text style={styles.cartBadgeText}>0</Text>
@@ -218,11 +307,7 @@ export default function Homepage() {
 /* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1,
-    marginTop: 55, 
-    backgroundColor: "#fff" 
-  },
+  container: { flex: 1, paddingTop: 60, backgroundColor: "#fff" },
 
   header: {
     flexDirection: "row",
@@ -400,5 +485,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#D9502E",
     padding: 8,
     borderRadius: 10,
+  },
+  deleteBtn: {
+    backgroundColor: "#D9502E",
+    marginHorizontal: 20,
+    marginTop: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+
+  deleteText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });

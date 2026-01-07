@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "612607777794",
+    "project_id": "ovena-f11e6",
+    "storage_bucket": "ovena-f11e6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:612607777794:android:97b24f99c38e6dd823db1b",
+        "android_client_info": {
+          "package_name": "com.ovena.userapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAVgUWTaTTPmxa8OCRzz-tetLCQdEZoy9Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

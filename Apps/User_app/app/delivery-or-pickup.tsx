@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  Animated,
+  Easing,
 } from "react-native";
 import { router } from "expo-router";
 import Svg, { Path, Text as SvgText, TextPath } from "react-native-svg";
@@ -13,120 +15,210 @@ import Svg, { Path, Text as SvgText, TextPath } from "react-native-svg";
 const { width } = Dimensions.get("window");
 
 export default function FoodDeliveryChoiceScreen() {
+  // Animations
+  const leftOptionX = useRef(new Animated.Value(-200)).current;
+  const rightOptionX = useRef(new Animated.Value(200)).current;
+  const optionScale = useRef(new Animated.Value(0.6)).current;
+
+  const logoY = useRef(new Animated.Value(-150)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
+
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const textY = useRef(new Animated.Value(40)).current;
+
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Entry animations
+    Animated.parallel([
+      Animated.spring(leftOptionX, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 10,
+      }),
+      Animated.spring(rightOptionX, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 10,
+      }),
+      Animated.spring(optionScale, {
+        toValue: 1,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 8,
+      }),
+      Animated.spring(logoScale, {
+        toValue: 1,
+        useNativeDriver: true,
+      }),
+      Animated.timing(textOpacity, {
+        toValue: 1,
+        duration: 900,
+        delay: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(textY, {
+        toValue: 0,
+        duration: 900,
+        delay: 600,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Floating loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: -8,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
   return (
     <View style={styles.container}>
       {/* Options */}
       <View style={styles.optionsRow}>
         {/* Pick-up */}
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() => router.replace("/login")}
+        <Animated.View
+          style={{
+            transform: [
+              { translateX: leftOptionX },
+              { scale: optionScale },
+              { translateY: floatAnim },
+            ],
+          }}
         >
-          <Svg width={120} height={100} viewBox="20 -30 120 60">
-            <Path
-              id="pickupCurve"
-              d="M 10 50 A 50 50 0 0 1 110 50"
-              fill="transparent"
-            />
-            <SvgText
-              fill="#E53935"
-              fontSize={27}
-              fontWeight="700"
-            >
-              <TextPath
-                href="#pickupCurve"
-                startOffset="30%"
-                textAnchor="middle"
-              >
-                Pick-up
-              </TextPath>
-            </SvgText>
-          </Svg>
+          <TouchableOpacity
+            style={styles.option}
+            onPress={() => router.replace("/login")}
+          >
+            <Svg width={120} height={100} viewBox="20 -30 120 60">
+              <Path
+                id="pickupCurve"
+                d="M 10 50 A 50 50 0 0 1 110 50"
+                fill="transparent"
+              />
+              <SvgText fill="#E53935" fontSize={27} fontWeight="700">
+                <TextPath
+                  href="#pickupCurve"
+                  startOffset="30%"
+                  textAnchor="middle"
+                >
+                  Pick-up
+                </TextPath>
+              </SvgText>
+            </Svg>
 
-          <Image
-            source={require("../assets/images/Pickup.png")}
-            style={styles.optionImageRight}
-          />
-        </TouchableOpacity>
+            <Image
+              source={require("../assets/images/Pickup.png")}
+              style={styles.optionImageRight}
+            />
+          </TouchableOpacity>
+        </Animated.View>
 
         {/* Delivery */}
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() => router.replace("/login")}
+        <Animated.View
+          style={{
+            transform: [
+              { translateX: rightOptionX },
+              { scale: optionScale },
+              { translateY: floatAnim },
+            ],
+          }}
         >
-          <Svg width={145} height={100} viewBox="38 -4 80 25">
-            <Path
-              id="deliveryCurve"
-              d="M 10 50 A 50 50 0 0 1 110 50"
-              fill="transparent"
-            />
-            <SvgText
-              fill="#E53935"
-              fontSize={17}
-              fontWeight="700"
-              transform="rotate(-80 80 30)"
-            >
-              <TextPath
-                href="#deliveryCurve"
-                startOffset="60%"
-                textAnchor="middle"
+          <TouchableOpacity
+            style={styles.option}
+            onPress={() => router.replace("/login")}
+          >
+            <Svg width={145} height={100} viewBox="38 -4 80 25">
+              <Path
+                id="deliveryCurve"
+                d="M 10 50 A 50 50 0 0 1 110 50"
+                fill="transparent"
+              />
+              <SvgText
+                fill="#E53935"
+                fontSize={17}
+                fontWeight="700"
+                transform="rotate(-80 80 30)"
               >
-                Delivery
-              </TextPath>
-            </SvgText>
-          </Svg>
+                <TextPath
+                  href="#deliveryCurve"
+                  startOffset="60%"
+                  textAnchor="middle"
+                >
+                  Delivery
+                </TextPath>
+              </SvgText>
+            </Svg>
 
-          <View style={styles.optionImageCover}>
-            <Image
-            source={require("../assets/images/Delivery.png")}
-            style={styles.optionImageLeft}
-          />
-          </View>
-        </TouchableOpacity>
+            <View style={styles.optionImageCover}>
+              <Image
+                source={require("../assets/images/Delivery.png")}
+                style={styles.optionImageLeft}
+              />
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
       {/* Center Logo */}
-      <View style={styles.logoWrapper}>
+      <Animated.View
+        style={[
+          styles.logoWrapper,
+          {
+            transform: [{ translateY: logoY }, { scale: logoScale }],
+          },
+        ]}
+      >
         <Image
           source={require("../assets/images/DeliveryOrPickUpLogo.png")}
           style={styles.logo}
         />
-        <View
+
+        <Animated.View
           style={{
             alignItems: "center",
             marginTop: 10,
-            justifyContent: "center",
+            opacity: textOpacity,
+            transform: [{ translateY: textY }],
           }}
         >
-          {/* Bottom Curved Text */}
-        <Svg
-          width={350}
-          height={300}
-          viewBox="55 55 90 150"
-          style={{ marginTop: 0 }}
-        >
-          <Path
-            id="bottomCurve"
-            d="M 20 20 A 130 100 0 0 0 280 20"
-            fill="transparent"
-          />
-          <SvgText
-            fill="#D9502E"
-            fontSize={28}
-            fontWeight="800"
-            letterSpacing={1}
-          >
-            <TextPath
-              href="#bottomCurve"
-              startOffset="27%"
-              textAnchor="middle"
+          <Svg width={350} height={300} viewBox="55 55 90 150">
+            <Path
+              id="bottomCurve"
+              d="M 20 20 A 130 100 0 0 0 280 20"
+              fill="transparent"
+            />
+            <SvgText
+              fill="#D9502E"
+              fontSize={28}
+              fontWeight="800"
+              letterSpacing={1}
             >
-              Food Delivery
-            </TextPath>
-          </SvgText>
-        </Svg>
-        </View>
-      </View>
+              <TextPath
+                href="#bottomCurve"
+                startOffset="27%"
+                textAnchor="middle"
+              >
+                Food Delivery
+              </TextPath>
+            </SvgText>
+          </Svg>
+        </Animated.View>
+      </Animated.View>
     </View>
   );
 }
@@ -138,50 +230,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   logoWrapper: {
     alignItems: "center",
   },
-
   logo: {
     width: 150,
     height: 150,
     resizeMode: "contain",
   },
-
-  brandText: {
-    marginTop: 6,
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#E53935",
-  },
-
   optionsRow: {
     flexDirection: "row",
     gap: 100,
     marginTop: 10,
   },
-
   option: {
     alignItems: "center",
   },
-
-  optionLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#E53935",
-    marginBottom: 10,
-    transform: [{ rotate: "-15deg" }],
-  },
-
   optionImageCover: {
     transform: [{ rotate: "-180deg" }],
   },
-
   optionImageRight: {
     width: width * 0.28,
     height: width * 0.28,
-
     borderBottomLeftRadius: 80,
     borderBottomRightRadius: 50,
     borderTopLeftRadius: 40,
@@ -192,11 +262,9 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 10,
   },
-
   optionImageLeft: {
     width: width * 0.28,
     height: width * 0.28,
-
     borderBottomLeftRadius: 80,
     borderBottomRightRadius: 50,
     borderTopLeftRadius: 40,
@@ -206,13 +274,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 15,
     elevation: 10,
-
     transform: [{ rotate: "-90deg" }],
-  },
-
-  footerText: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#D9502E",
   },
 });
