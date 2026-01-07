@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
@@ -8,7 +7,7 @@ interface DeleteConfirmationModalProps {
   onCancel: () => void;
 }
 
-export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({ 
+ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({ 
   visible, 
   onConfirm, 
   onCancel 
@@ -33,6 +32,8 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
     </View>
   </Modal>
 );
+
+export default DeleteConfirmationModal;
 
 const styles = StyleSheet.create({
   deleteModalBackground: {

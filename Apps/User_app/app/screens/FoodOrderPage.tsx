@@ -25,7 +25,7 @@ export default function FoodOrderPage() {
           style={styles.headerImage}
         />
 
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace("/homepage")}>
           <Ionicons name="arrow-back" size={22} />
         </TouchableOpacity>
 
@@ -89,7 +89,7 @@ export default function FoodOrderPage() {
 
         <View style={styles.metaRow}>
           <Text style={styles.metaText}>⭐ 3.7 (253)</Text>
-          <Text style={styles.metaText}>🕒 30–45 min</Text>
+          <Text style={styles.metaText}>🕒 30-45 min</Text>
         </View>
 
         <Text style={styles.openText}>Open till 8:00 pm</Text>
@@ -106,7 +106,10 @@ export default function FoodOrderPage() {
 /* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { 
+    flex: 1, 
+    backgroundColor: "#fff" 
+  },
 
   headerWrapper: {
     height: 200,
@@ -114,7 +117,10 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
 
-  headerImage: { width: "100%", height: 258, resizeMode: "cover" },
+  headerImage: { 
+    width: "100%", 
+    height: 258, 
+    resizeMode: "cover" },
 
   backBtn: {
     position: "absolute",
@@ -184,8 +190,13 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
 
-  restaurantName: { fontSize: 20, fontWeight: "700" },
-  subText: { color: "#777", marginTop: 4 },
+  restaurantName: { 
+    fontSize: 20, 
+    fontWeight: "700" 
+  },
+  subText: { 
+    color: "#777", 
+    marginTop: 4 },
 
   metaRow: { flexDirection: "row", marginTop: 8 },
   metaText: { fontSize: 13, color: "#555", marginRight: 12 },

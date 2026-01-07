@@ -13,7 +13,7 @@ interface ProductDetailScreenProps {
   onBack?: () => void;
 }
 
-export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ 
+ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ 
   product, 
   extras, 
   onNext,
@@ -115,6 +115,8 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({
     </View>
   );
 };
+
+export default ProductDetailScreen;
 
 const styles = StyleSheet.create({
   container: {

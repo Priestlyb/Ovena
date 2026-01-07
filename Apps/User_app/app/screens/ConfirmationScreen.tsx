@@ -10,7 +10,7 @@ interface ConfirmationScreenProps {
   totalPrice: number;
 }
 
-export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ 
+ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ 
   onConfirm,
   onBack,
   totalPrice 
@@ -94,6 +94,8 @@ export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
     </View>
   );
 };
+
+export default ConfirmationScreen;
 
 const styles = StyleSheet.create({
   container: {

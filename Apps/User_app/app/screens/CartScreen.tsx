@@ -21,7 +21,7 @@ interface CartScreenProps {
   onClearCart?: () => void;
 }
 
-export const CartScreen: React.FC<CartScreenProps> = ({ 
+ const CartScreen: React.FC<CartScreenProps> = ({ 
   cartItems,
   orderSummary,
   onIncrement,
@@ -105,6 +105,8 @@ export const CartScreen: React.FC<CartScreenProps> = ({
     </View>
   );
 };
+
+export default CartScreen;
 
 const styles = StyleSheet.create({
   container: {
