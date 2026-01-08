@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { router } from "expo-router";
+import { router, useRouter } from "expo-router";
 import {
   Text,
   ScrollView,
@@ -34,6 +34,7 @@ export default function HotelDetails() {
   const flatListRef = useRef<FlatList>(null);
   const modalListRef = useRef<FlatList>(null);
   const scale = useRef(new Animated.Value(1)).current;
+  const router = useRouter();
 
   /** ---------------------------
    * Auto Scroll (paused when modal open)
@@ -108,7 +109,7 @@ export default function HotelDetails() {
           <Text style={{ fontSize: 22, fontWeight: "bold" }}>
             Pristina Hotel
           </Text>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.replace("/homepage")}>
             <IconSymbol name="CloseIcon" size={35} color="#000" />
           </TouchableOpacity>
         </View>

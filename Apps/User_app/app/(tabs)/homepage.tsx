@@ -12,17 +12,18 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useNavigation } from "@react-navigation/native";
+import { Link, useNavigation } from "@react-navigation/native";
 import HomePageTabView from "../../components/HomePageTabView";
 import { useHomeData } from "../../src/utils/controllers/useHomeData";
-import { router } from "expo-router";
+
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "expo-router";
 
 const BASE_URL = "https://ovena-backend-production.up.railway.app/api";
 
 export default function Homepage() {
-  const navigation = useNavigation<any>();
+  const router = useRouter();
   const { categories, recentlyVisited, topPicks, foodCategories } =
     useHomeData();
 
@@ -163,7 +164,7 @@ const confirmDelete = async () => {
         >
           {categories.map((item, i) => (
             <View key={i} style={styles.chip}>
-              <Text style={styles.chipText}>{item.name} {item.icon}</Text>
+              <Text style={styles.chipText}>{item.name}</Text>
             </View>
           ))}
         </ScrollView>
@@ -219,7 +220,7 @@ const confirmDelete = async () => {
         <Text style={styles.sectionTitle}>Recently Visited</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {recentlyVisited.map(item => (
-            <View key={item.id} style={styles.restaurantCard}>
+            <TouchableOpacity key={item.id} style={styles.restaurantCard} onPress={() => router.replace("/screens/FoodOrderPage")}>
               <Image
                 source={{ uri: item.image }}
                 style={styles.restaurantImage}
@@ -229,7 +230,7 @@ const confirmDelete = async () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => navigation.navigate("screens/FoodOrderPage")}
+                onPress={() => router.push("/screens/FoodOrderPage")}
               >
                 <Text style={styles.restaurantName}>{item.name}</Text>
               </TouchableOpacity>
@@ -245,7 +246,7 @@ const confirmDelete = async () => {
                   {item.rating}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
 
@@ -267,7 +268,8 @@ const confirmDelete = async () => {
         <Text style={styles.sectionTitle}>Top Picks On Ovena</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {topPicks.map(item => (
-            <View key={item.id} style={styles.restaurantCard}>
+           
+            <TouchableOpacity key={item.id} style={styles.restaurantCard} onPress={() => router.replace("/screens/HotelDetails")}>
               <Image
                 source={{ uri: item.image }}
                 style={styles.restaurantImage}
@@ -288,7 +290,8 @@ const confirmDelete = async () => {
                   {item.rating}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
+           
           ))}
         </ScrollView>
 
@@ -311,7 +314,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 20,
   },
-  headerText: { fontSize: 30, fontWeight: "700" },
+  headerText: { 
+    fontSize: 25, 
+    fontWeight: "700" 
+  },
 
   cart: {
     width: 55,
@@ -336,31 +342,43 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f2f2f2",
     marginHorizontal: 20,
-    padding: 10,
+    padding: 10,  
     borderRadius: 12,
   },
-  searchInput: { flex: 1, marginHorizontal: 8 },
-
-  chipContainer: { paddingHorizontal: 15, marginTop: 25 },
-  chip: {
-    backgroundColor: "#eee",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 8,
+  searchInput: { 
+    flex: 1, 
+    marginHorizontal: 8 
   },
-  chipText: { fontSize: 15 },
 
-  wrapper: { paddingHorizontal: 20, marginVertical: 30 },
+  chipContainer: { 
+    paddingHorizontal: 15, 
+    marginTop: 10 
+  },
+  chip: {
+    backgroundColor: "transparent",
+    paddingHorizontal: 30,
+    paddingVertical: 4,
+    borderRadius: 40,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: "#000000ff",
+  },
+  chipText: { 
+    fontSize: 15 
+  },
+
+  wrapper: { 
+    paddingHorizontal: 20, 
+    marginVertical: 30 
+  },
 
   promoCard: {
     borderRadius: 24,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
-    elevation: 6,
-    paddingLeft: 20,
-    paddingRight: 0,
+    // elevation: 6,
+    padding: 20,
   },
   left: { flex: 1 },
   title: { fontSize: 17, fontWeight: "600" },
@@ -373,21 +391,37 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     paddingVertical: 12,
     paddingHorizontal: 22,
-    borderRadius: 30,
+    borderRadius: 10,
   },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  buttonText: { 
+    color: "#fff", 
+    fontWeight: "600" 
+  },
 
-  jellofimage: { width: 200, marginBottom: -20, height: 200 },
+  jellofimage: { 
+    width: 200, 
+    marginBottom: -20, 
+    height: 200 
+  },
 
-  foodRow: { paddingHorizontal: 20, marginVertical: 10 },
-  foodItem: { alignItems: "center", marginRight: 25 },
+  foodRow: { 
+    paddingHorizontal: 20, 
+    marginVertical: 10 
+  },
+  foodItem: { 
+    alignItems: "center", 
+    marginRight: 25 
+  },
   foodIcon: {
     fontSize: 40,
     backgroundColor: "#0000000a",
     padding: 12,
     borderRadius: 25,
   },
-  foodLabel: { fontSize: 12, marginTop: 4 },
+  foodLabel: { 
+    fontSize: 12, 
+    marginTop: 4 
+  },
 
   sectionTitle: {
     fontSize: 22,
@@ -396,10 +430,24 @@ const styles = StyleSheet.create({
     marginTop: 30,
   },
 
-  restaurantCard: { margin: 15, width: 250 },
-  restaurantImage: { width: 250, height: 150, borderRadius: 16 },
-  restaurantName: { fontSize: 18, fontWeight: "700", marginTop: 6 },
-  opentime: { color: "#B7AFA5", marginTop: 4 },
+  restaurantCard: { 
+    margin: 15, 
+    width: 250 
+  },
+  restaurantImage: { 
+    width: 250, 
+    height: 150, 
+    borderRadius: 16 
+  },
+  restaurantName: { 
+    fontSize: 18, 
+    fontWeight: "700", 
+    marginTop: 6 
+  },
+  opentime: { 
+    color: "#B7AFA5", 
+    marginTop: 4 
+  },
 
   reviewRow: {
     flexDirection: "row",
@@ -417,14 +465,23 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: "space-between",
   },
-  deliveryTitle: { fontSize: 20, fontWeight: "700" },
-  deliverySub: { fontSize: 18 },
-  deliveryImg: { width: 150, height: 150, marginBottom: -75 },
+  deliveryTitle: { 
+    fontSize: 20, 
+    fontWeight: "700" 
+  },
+  deliverySub: { 
+    fontSize: 18 
+  },
+  deliveryImg: { 
+    width: 150, 
+    height: 150, 
+    marginBottom: -75 
+  },
 
   RCheart: {
     position: "absolute",
-    top: 10,
-    right: 10,
+    top: 0,
+    right: 0,
     backgroundColor: "#D9502E",
     padding: 8,
     borderRadius: 10,

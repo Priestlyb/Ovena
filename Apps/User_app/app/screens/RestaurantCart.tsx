@@ -1,26 +1,25 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { CustomButton } from '@/components/productComponents/Button';
+import { Restaurant } from '../types';
 
 interface RestaurantCartScreenProps {
+  restaurants: Restaurant[];
   onShowFees: () => void;
   onGoToCart: () => void;
+  onBack?: () => void;
 }
 
-const RestaurantCartScreen: React.FC<RestaurantCartScreenProps> = ({
+ const RestaurantCartScreen: React.FC<RestaurantCartScreenProps> = ({ 
+  restaurants,
   onShowFees,
   onGoToCart,
+  onBack 
 }) => {
   return (
-    <View style={styles.screenContainer}>
-      <View style={styles.headerWithTitle}>
-        <TouchableOpacity style={styles.iconButton}>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.iconButton} onPress={onBack}>
           <Text style={styles.iconButtonText}>←</Text>
         </TouchableOpacity>
 
@@ -30,27 +29,17 @@ const RestaurantCartScreen: React.FC<RestaurantCartScreenProps> = ({
       </View>
 
       <ScrollView style={styles.restaurantList}>
-        <View style={styles.restaurantCartItem}>
-          <View style={styles.restaurantImageBox} />
-          <View style={styles.restaurantInfo}>
-            <Text style={styles.restaurantName}>Eden Kitchen</Text>
-            <Text style={styles.restaurantSubtext}>Salad - 20 - 1 item</Text>
-            <Text style={styles.restaurantItemCount}>1 item</Text>
+        {restaurants.map(restaurant => (
+          <View key={restaurant.id} style={styles.restaurantCartItem}>
+            <View style={styles.restaurantImageBox} />
+            <View style={styles.restaurantInfo}>
+              <Text style={styles.restaurantName}>{restaurant.name}</Text>
+              <Text style={styles.restaurantSubtext}>{restaurant.details}</Text>
+              <Text style={styles.restaurantItemCount}>{restaurant.itemCount} item</Text>
+            </View>
+            <Text style={styles.restaurantPrice}>${restaurant.totalPrice.toFixed(2)}</Text>
           </View>
-          <Text style={styles.restaurantPrice}>$10.00</Text>
-        </View>
-
-        <View style={styles.restaurantCartItem}>
-          <View style={styles.restaurantImageBox} />
-          <View style={styles.restaurantInfo}>
-            <Text style={styles.restaurantName}>
-              Amado&apos;s Shawarma and Pizza
-            </Text>
-            <Text style={styles.restaurantSubtext}>Salad - 20 - 1 item</Text>
-            <Text style={styles.restaurantItemCount}>2 item</Text>
-          </View>
-          <Text style={styles.restaurantPrice}>$10.00</Text>
-        </View>
+        ))}
       </ScrollView>
 
       <TouchableOpacity
@@ -71,15 +60,17 @@ const RestaurantCartScreen: React.FC<RestaurantCartScreenProps> = ({
 export default RestaurantCartScreen;
 
 const styles = StyleSheet.create({
-  screenContainer: {
+  container: {
     flex: 1,
     backgroundColor: '#fff',
   },
-  headerWithTitle: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   headerTitle: {
     fontSize: 18,
@@ -106,13 +97,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f5f5f5',
   },
   restaurantImageBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
+    width: 60,
+    height: 60,
     backgroundColor: '#e8e8e8',
+    borderRadius: 8,
     marginRight: 12,
   },
   restaurantInfo: {
@@ -122,33 +113,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#000',
+    marginBottom: 4,
   },
   restaurantSubtext: {
     fontSize: 12,
-    color: '#777',
+    color: '#999',
+    marginBottom: 2,
   },
   restaurantItemCount: {
     fontSize: 12,
-    color: '#999',
+    color: '#666',
   },
   restaurantPrice: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#000',
   },
   feesInfoButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
   },
   feesInfoIcon: {
     fontSize: 16,
-    marginRight: 8,
   },
   feesInfoText: {
     fontSize: 14,
-    color: '#555',
+    color: '#666',
   },
   bottomButtonContainer: {
     padding: 16,
