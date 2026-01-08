@@ -68,9 +68,6 @@ export default function ProfileTab() {
       >
         {/* Profile Header */}
         <ProfileHeader
-          name="President Obama"
-          title="..."
-          points="0.00"
         />
 
         {/* Menu Items */}
