@@ -1,4 +1,4 @@
-// constants/styles.ts - Complete stylesheet for all components and pages
+// constants/styles.ts - Complete stylesheet with all phone verification styles
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
@@ -68,7 +68,6 @@ export const styles = StyleSheet.create({
   },
   textInput: {
     backgroundColor: '#ffb47e45',
-
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
@@ -90,14 +89,11 @@ export const styles = StyleSheet.create({
   // ============================================================================
   dropdown: {
     backgroundColor: '#ffb47e45',
-
     borderRadius: 12,
-
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-
     boxShadow: '0px 4px 8px #ff592099',
   },
   dropdownText: {
@@ -156,15 +152,12 @@ export const styles = StyleSheet.create({
   },
   countryCodeBox: {
     backgroundColor: '#ffb47e45',
-   
- 
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-     boxShadow: '0px 4px 8px #ff592099',
-    
+    boxShadow: '0px 4px 8px #ff592099',
   },
   flagEmoji: {
     fontSize: 24,
@@ -177,7 +170,6 @@ export const styles = StyleSheet.create({
   phoneInput: {
     flex: 1,
     backgroundColor: '#ffb47e45',
-
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
@@ -199,15 +191,12 @@ export const styles = StyleSheet.create({
     width: 70,
     height: 70,
     backgroundColor: '#ffb47e45',
-
-
     borderRadius: 12,
     fontSize: 32,
     fontWeight: '600',
     color: '#838383',
     textAlign: 'center',
     boxShadow: '0px 4px 8px #ff592099',
-
   },
   
   // ============================================================================
@@ -246,50 +235,109 @@ export const styles = StyleSheet.create({
   // CHECKLIST STYLES
   // ============================================================================
   checklistItem: {
-    backgroundColor: 'rgba(255, 180, 126, 0.2)',
-    borderRadius: 12,
-    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 30,
-    boxShadow: '0px 4px 8px #ff592099',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
+  
   checklistIconBox: {
     width: 48,
     height: 48,
-    backgroundColor: '#FF5920',
-    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
   },
+  
   checklistIconText: {
     fontSize: 24,
   },
-  checklistItemText: {
+  
+  checklistTextContainer: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#111827',
+    marginRight: 12,
   },
+  
+  checklistItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  
+  checklistLinkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  checklistLinkText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginRight: 4,
+  },
+  
+  chevronIcon: {
+    marginLeft: 2,
+  },
+  
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: '#D1D5DB',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
+  
   checkboxCompleted: {
-    borderColor: '#FF5920',
-    backgroundColor: '#FF5920',
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
   },
-  checkboxInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+  
+  checkboxCheckmark: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  checkboxCheckmarkText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 20,
+  },
+
+  disabledBtn: {
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+
+  disabledBtnText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   
   // ============================================================================
@@ -313,7 +361,7 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  disabledBtn: {
+  disabledBtn1: {
     backgroundColor: '#9CA3AF',
     borderRadius: 12,
     padding: 16,
@@ -326,7 +374,7 @@ export const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  disabledBtnText: {
+  disabledBtnText1: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
@@ -345,20 +393,6 @@ export const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 24,
   },
-  resendSection: {
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  resendText: {
-    fontSize: 16,
-    color: '#111827',
-    marginBottom: 8,
-  },
-  resendLink: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FF5920',
-  },
   
   // ============================================================================
   // PHONE VERIFICATION PAGE SPECIFIC (OLD LAYOUT - KEPT FOR COMPATIBILITY)
@@ -376,12 +410,7 @@ export const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 24,
-  },
+
   infoBox: {
     backgroundColor: 'rgba(255, 180, 126, 0.2)',
     borderWidth: 2,
@@ -393,9 +422,7 @@ export const styles = StyleSheet.create({
     gap: 12,
     marginTop: 16,
   },
-  infoIcon: {
-    fontSize: 20,
-  },
+
   infoText: {
     flex: 1,
     fontSize: 14,
@@ -420,12 +447,28 @@ export const styles = StyleSheet.create({
     marginRight: 16,
   },
   phoneVerificationTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '600',
     color: '#111827',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  phoneVerificationSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  phoneVerificationNumber: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: 60,
   },
   phoneVerificationContent: {
     flex: 1,
+    alignItems: 'center',
+    paddingTop: 20,
   },
   phoneVerificationSectionTitle: {
     fontSize: 20,
@@ -438,13 +481,11 @@ export const styles = StyleSheet.create({
   },
   phoneVerificationInput: {
     backgroundColor: 'rgba(255, 180, 126, 0.2)',
-
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     color: '#111827',
     boxShadow: '0px 4px 8px #ff592099',
-    
   },
   phoneVerificationInfoBox: {
     backgroundColor: 'rgba(255, 180, 126, 0.2)',
@@ -475,6 +516,23 @@ export const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 20,
   },
+  otpWrapper: {
+    width: '100%',
+    marginBottom: 40,
+  },
+  phoneVerificationResendSection: {
+    alignItems: 'center',
+  },
+  phoneVerificationResendText: {
+    fontSize: 14,
+    color: '#111827',
+    marginBottom: 4,
+  },
+  phoneVerificationResendLink: {
+    fontSize: 14,
+    color: '#FF6B35',
+    fontWeight: '500',
+  },
   phoneVerificationContinueBtn: {
     backgroundColor: '#FF5920',
     borderRadius: 12,
@@ -485,5 +543,241 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+  },
+  phoneVerificationContinueBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  phoneDisplay: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 8,
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+
+  resendSection: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+
+  resendText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+
+  resendLink: {
+    fontSize: 14,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+
+  dividerLine: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginBottom: 20,
+  },
+
+  addAmenitiesBtn: {
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+
+  addAmenitiesText: {
+    fontSize: 14,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+
+  openingTimesSection: {
+    marginTop: 24,
+  },
+
+  openingTimesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  openingTimesLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+    flex: 1,
+  },
+
+  infoIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  infoIconSmall: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#111827',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+
+  infoIconText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+
+  openingTimesBox: {
+    backgroundColor: '#FEF3E7',
+    padding: 16,
+    borderRadius: 12,
+  },
+
+  openingTimesSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+
+  timeRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  timeDropdown: {
+    flex: 1,
+  },
+
+  bvnInfoBox: {
+    backgroundColor: '#FEF3E7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+
+  bvnInfoText: {
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 18,
+  },
+
+  preOrderInfoBox: {
+    backgroundColor: '#FEF3E7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+
+  preOrderInfoText: {
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 18,
+  },
+
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+
+  profileHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginLeft: 16,
+  },
+
+  profileImageSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+
+  profileImageCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FEF3E7',
+    position: 'relative',
+    marginBottom: 12,
+  },
+
+  profileImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
+  },
+
+  profileImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
+  },
+
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FF6B35',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+
+  imageSizeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3E7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+
+  imageSizeText: {
+    fontSize: 12,
+    color: '#92400E',
+    marginLeft: 8,
+  },
+
+  uploadInfoBox: {
+    backgroundColor: '#FEF3E7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+
+  uploadInfoText: {
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 18,
+  },
+
+  addCategoryBtn: {
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+
+  addCategoryText: {
+    fontSize: 14,
+    color: '#FF6B35',
+    fontWeight: '600',
   },
 });

@@ -8,7 +8,7 @@ import { ArrowLeft } from 'lucide-react-native';
 /**
  * Page 5: Phone Verification
  */
-const PhoneVerificationPage: React.FC<PageProps> = ({ data, setData, onNext, onBack }) => {
+const PhoneVerificationPage1: React.FC<PageProps> = ({ data, setData, onNext, onBack }) => {
   // Initialize with existing phone data if available
   const [phoneNumber, setPhoneNumber] = useState(data?.phone || '');
 
@@ -70,4 +70,4 @@ const PhoneVerificationPage: React.FC<PageProps> = ({ data, setData, onNext, onB
   );
 };
 
-export default PhoneVerificationPage;
+export default PhoneVerificationPage1;

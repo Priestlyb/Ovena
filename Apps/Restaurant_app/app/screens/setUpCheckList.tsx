@@ -1,35 +1,44 @@
 // setUpCheckList.tsx - Updated version
-import React, { useState } from 'react';
+import React from 'react';
 import { SafeAreaView, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { ChecklistItem } from '@/components/CheckListItem';
 import { styles } from '@/constants/styles';
 import { ArrowLeft } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+
+interface CompletionStatus {
+  location: boolean;
+  businessDetails: boolean;
+  password: boolean;
+  emailVerification: boolean;
+}
 
 interface SetupChecklistPageProps {
+  completionStatus: CompletionStatus;
   onBack?: () => void;
   onSubmit?: () => void;
+  onNavigateToPage?: (page: number) => void;
 }
 
 /**
- * Page 7: Setup Checklist
+ * Onboarding Checklist Page
  */
-const SetupChecklistPage: React.FC<SetupChecklistPageProps> = ({ onBack, onSubmit }) => {
-  const [checklist, setChecklist] = useState({
-    business: false,
-    profile: false,
-    payments: false,
-    operations: false,
-    menu: false,
-  });
+const SetupChecklistPage: React.FC<SetupChecklistPageProps> = ({ 
+  completionStatus,
+  onBack, 
+  onSubmit,
+  onNavigateToPage 
+}) => {
+  // Calculate if all initial onboarding steps are completed
+  const onboardingCompleted = Object.values(completionStatus).every(item => item === true);
 
-  // Check if all items are completed
-  const allCompleted = Object.values(checklist).every(item => item === true);
-
-  const handleSubmit = () => {
-    if (allCompleted && onSubmit) {
-      onSubmit();
+  const handleNavigateToPage = (page: number) => {
+    if (onNavigateToPage) {
+      onNavigateToPage(page);
     }
   };
+
+  const router = useRouter();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -39,53 +48,113 @@ const SetupChecklistPage: React.FC<SetupChecklistPageProps> = ({ onBack, onSubmi
         </TouchableOpacity>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.pageTitle}>Just one more click away to get started</Text>
-          <Text style={styles.subtitle}>Your final steps to process orders today!</Text>
+          <Text style={styles.pageTitle}>Complete your setup to get started</Text>
+          <Text style={styles.subtitle}>Finish these steps to start processing orders!</Text>
+
+          {/* <ChecklistItem
+            iconName="📍"
+            text="Set your location"
+            completed={completionStatus.location}
+            link={completionStatus.location ? "Location added" : "Add location"}
+            onPress={() => handleNavigateToPage(1)}
+          />
 
           <ChecklistItem
             iconName="🏢"
-            text="Verify your business"
-            completed={checklist.business}
-            onClick={() => setChecklist({ ...checklist, business: !checklist.business })}
+            text="Business details"
+            completed={completionStatus.businessDetails}
+            link={completionStatus.businessDetails ? "Details added" : "Add business details"}
+            onPress={() => handleNavigateToPage(2)}
           />
+
+          <ChecklistItem
+            iconName="🔒"
+            text="Create password"
+            completed={completionStatus.password}
+            link={completionStatus.password ? "Password set" : "Set your password"}
+            onPress={() => handleNavigateToPage(3)}
+          />
+
+          <ChecklistItem
+            iconName="✉️"
+            text="Verify email"
+            completed={completionStatus.emailVerification}
+            link={completionStatus.emailVerification ? "Email verified" : "Verify your email"}
+            onPress={() => handleNavigateToPage(4)}
+          /> */}
+
+          {/* Additional setup items - these could link to other pages/features */}
+          {/* <View style={styles.divider} /> */}
+          
+          <Text style={styles.sectionTitle}>Additional Setup (Optional)</Text>
 
           <ChecklistItem
             iconName="👤"
             text="Complete your profile"
-            completed={checklist.profile}
-            onClick={() => setChecklist({ ...checklist, profile: !checklist.profile })}
+            completed={false}
+            link="Go to profile settings"
+            onPress={() => {
+              router.push('/superForm2');
+              console.log('Navigate to superForm2');
+            }}
           />
 
           <ChecklistItem
             iconName="💳"
-            text="Set up Payments"
-            completed={checklist.payments}
-            onClick={() => setChecklist({ ...checklist, payments: !checklist.payments })}
+            text="Set up payments"
+            completed={false}
+            link="Configure payment methods"
+            onPress={() => {
+              // Navigate to payment setup
+              console.log('Navigate to payment setup');
+            }}
           />
 
           <ChecklistItem
             iconName="⚙️"
-            text="Set up your operations"
-            completed={checklist.operations}
-            onClick={() => setChecklist({ ...checklist, operations: !checklist.operations })}
+            text="Set up operations"
+            completed={false}
+            link="View operations setup"
+            onPress={() => {
+              // Navigate to operations setup
+              console.log('Navigate to operations setup');
+            }}
           />
 
           <ChecklistItem
             iconName="📋"
             text="Add menu items"
-            completed={checklist.menu}
-            onClick={() => setChecklist({ ...checklist, menu: !checklist.menu })}
+            completed={false}
+            link="Create your menu"
+            onPress={() => {
+              // Navigate to menu creation
+              console.log('Navigate to menu creation');
+            }}
           />
+
+          <ChecklistItem
+            iconName="📋"
+            text="Add menu items"
+            completed={false}
+            link="Create your menu"
+            onPress={() => {
+              // Navigate to menu creation
+              console.log('Navigate to menu creation');
+            }}
+          />
+
+
+
         </ScrollView>
 
         <TouchableOpacity 
-          style={allCompleted ? styles.continueBtn : styles.disabledBtn} 
+          style={onboardingCompleted ? styles.continueBtn : styles.disabledBtn} 
           activeOpacity={0.8}
-          onPress={handleSubmit}
-          disabled={!allCompleted}
+          onPress={onSubmit}
+          disabled={!onboardingCompleted}
         >
-          <Text style={allCompleted ? styles.continueBtnText : styles.disabledBtnText}>
-            Begin order handling
+          <Text style={onboardingCompleted ? styles.continueBtnText : styles.disabledBtnText}>
+            {onboardingCompleted ? 'Begin order handling' : 'Complete required steps'}
           </Text>
         </TouchableOpacity>
       </View>

@@ -5,8 +5,6 @@ import LocationPage from './screens/locationPage';
 import BusinessDetailsPage from './screens/businessDetails';
 import PasswordPage from './screens/passwordCreation';
 import EmailVerificationPage from './screens/emailVerification';
-import PhoneVerificationPage from './screens/phoneVerification';
-import BusinessDocumentsPage from './screens/businessDocuments';
 import SetupChecklistPage from './screens/setUpCheckList';
 import { OvenaFormData, SubmissionData } from '@/types';
 
@@ -44,10 +42,14 @@ export default function SuperForm() {
     fullName: '',
     password: '',
     confirmPassword: '',
-    docBusinessType: '',
-    registeredBusinessName: '',
-    taxId: '',
-    rcNumber: '',
+  });
+
+  // Track completion status of onboarding steps
+  const [completionStatus, setCompletionStatus] = useState({
+    location: false,
+    businessDetails: false,
+    password: false,
+    emailVerification: false,
   });
 
   // Function to prepare data for API submission
@@ -62,10 +64,6 @@ export default function SuperForm() {
       phone: formData.phone,
       fullName: formData.fullName,
       password: formData.password,
-      registeredBusinessName: formData.registeredBusinessName,
-      taxId: formData.taxId,
-      rcNumber: formData.rcNumber,
-      documentBusinessType: formData.docBusinessType,
     };
   };
 
@@ -102,14 +100,20 @@ export default function SuperForm() {
         <LocationPage
           data={formData}
           setData={setFormData}
-          onNext={() => setPage(2)}
+          onNext={() => {
+            setCompletionStatus({ ...completionStatus, location: true });
+            setPage(2);
+          }}
         />
       )}
       {page === 2 && (
         <BusinessDetailsPage
           data={formData}
           setData={setFormData}
-          onNext={() => setPage(3)}
+          onNext={() => {
+            setCompletionStatus({ ...completionStatus, businessDetails: true });
+            setPage(3);
+          }}
           onBack={() => setPage(1)}
         />
       )}
@@ -117,39 +121,31 @@ export default function SuperForm() {
         <PasswordPage
           data={formData}
           setData={setFormData}
-          onNext={() => setPage(4)}
+          onNext={() => {
+            setCompletionStatus({ ...completionStatus, password: true });
+            setPage(4);
+          }}
           onBack={() => setPage(2)}
         />
       )}
       {page === 4 && (
         <EmailVerificationPage
           data={formData}
-          onNext={() => setPage(5)}
+          onNext={() => {
+            setCompletionStatus({ ...completionStatus, emailVerification: true });
+            setPage(5);
+          }}
           onBack={() => setPage(3)}
         />
       )}
       {page === 5 && (
-        <PhoneVerificationPage
-          data={formData}
-          setData={setFormData}
-          onNext={() => setPage(6)}
-          onBack={() => setPage(4)}
-        />
-      )}
-      {page === 6 && (
-        <BusinessDocumentsPage
-          data={formData}
-          setData={setFormData}
-          onNext={() => setPage(7)}
-          onBack={() => setPage(5)}
-        />
-      )}
-      {page === 7 && (
         <SetupChecklistPage 
-          onBack={() => setPage(6)}
+          completionStatus={completionStatus}
+          onBack={() => setPage(4)}
           onSubmit={handleSubmit}
+          onNavigateToPage={(pageNumber: number) => setPage(pageNumber)}
         />
       )}
     </View>
   );
-}
+} 

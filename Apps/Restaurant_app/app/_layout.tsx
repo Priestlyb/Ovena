@@ -9,6 +9,8 @@ function RootLayoutNav() {
     >
         <Stack.Screen name="index" />
         <Stack.Screen name="superForm" />
+        <Stack.Screen name="superForm2" />
+
 
     </Stack>
     </>

@@ -44,9 +44,11 @@ export interface ChecklistItemProps {
   iconName: string;
   text: string;
   completed: boolean;
-  onClick: () => void;
+  link?: string; // Optional link text to display with chevron
+  onPress: () => void; // Function to call when item is pressed (for navigation)
 }
 
+// Form data interface
 export interface OvenaFormData {
   countries: string[];
   businessTypes: string[];
@@ -61,12 +63,9 @@ export interface OvenaFormData {
   fullName: string;
   password: string;
   confirmPassword: string;
-  docBusinessType: string;
-  registeredBusinessName: string;
-  taxId: string;
-  rcNumber: string;
 }
 
+// Page props interface
 export interface PageProps {
   data?: OvenaFormData;
   setData?: (data: OvenaFormData) => void;
@@ -74,7 +73,7 @@ export interface PageProps {
   onBack?: () => void;
 }
 
-// Type for the final submission data (ready to POST to API)
+// Submission data interface (what gets sent to API)
 export interface SubmissionData {
   country: string;
   businessAddress: string;
@@ -85,8 +84,120 @@ export interface SubmissionData {
   phone: string;
   fullName: string;
   password: string;
+}
+
+// types.ts - Updated ChecklistItemProps interface
+
+export interface ChecklistItemProps {
+  iconName: string;
+  text: string;
+  completed: boolean;
+  onPress: () => void;
+  link?: string; // Optional link text to display with chevron
+  linkAddress?: string; // Optional route/screen name to navigate to
+}
+
+// SuperForm2 complete data structure
+export interface SuperForm2Data {
+  // Dropdown options
+  businessTypes: string[];
+
+  // Business Documents (Page 1)
+  docBusinessType: string;
   registeredBusinessName: string;
   taxId: string;
   rcNumber: string;
-  documentBusinessType: string;
+  uploadedDocument: any;
+
+  // Phone Verification Page 1 (Page 2)
+  phone: string;
+
+  // Phone Verification Page 2 - OTP (Page 3)
+  otp: string;
+
+  // Profile Completion (Page 4)
+  shopName: string;
+  shopType: string;
+  profileImage: any;
+  businessImage: any;
+
+  // Payment Setup (Page 5)
+  selectedBank: string;
+  accountNumber: string;
+  accountName: string;
+  bvn: string;
+
+  // Operations Setup (Page 6)
+  deliveryMethod: string;
+  preOrderTime: string;
+  finalOrderTime: string;
+  selectedDay: string;
+  openingTime: string;
+  closingTime: string;
+
+  // Menu Items (Page 7)
+  menuCategory: string;
+  menuItemName: string;
+  menuItemDescription: string;
+  menuItemImage: any;
+
+  // Room Menu (Page 8)
+  roomName: string;
+  roomNumber: string;
+  roomDescription: string;
+  roomAmenities: string;
+}
+
+// Data structure for API submission
+export interface SuperForm2SubmissionData {
+  // Business Documents
+  businessType: string;
+  registeredBusinessName: string;
+  taxId: string;
+  rcNumber: string;
+  businessDocument: any;
+
+  // Phone Verification
+  phone: string;
+  phoneVerified: boolean;
+
+  // Profile
+  shopName: string;
+  shopType: string;
+  profileImage: any;
+  businessImage: any;
+
+  // Payment
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  bvn: string;
+
+  // Operations
+  deliveryMethod: string;
+  preOrderTime: string;
+  finalOrderTime: string;
+  operatingDay: string;
+  openingTime: string;
+  closingTime: string;
+
+  // Menu Items
+  menuCategory: string;
+  menuItemName: string;
+  menuItemDescription: string;
+  menuItemImage: any;
+
+  // Room Details
+  roomName: string;
+  roomNumber: string;
+  roomDescription: string;
+  roomAmenities: string;
+}
+
+// Props for pages that need data and setData
+export interface SuperForm2PageProps {
+  data?: SuperForm2Data;
+  setData?: (data: SuperForm2Data) => void;
+  onNext?: () => void;
+  onBack?: () => void;
 }
