@@ -9,7 +9,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
   completed,
   link,
   onPress,
-  
 }) => {
   return (
     <TouchableOpacity 
@@ -27,13 +26,15 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             <Text style={styles.checklistLinkText}>{link}</Text>
             <ChevronRight size={16} color="#666" style={styles.chevronIcon} />
           </View>
-        )}~
+        )}
       </View>
       <View style={[styles.checkbox, completed && styles.checkboxCompleted]}>
-        {completed && (
+        {completed ? (
           <View style={styles.checkboxCheckmark}>
             <Text style={styles.checkboxCheckmarkText}>✓</Text>
           </View>
+        ) : (
+          <View style={styles.checkboxOrangeIndicator} />
         )}
       </View>
     </TouchableOpacity>

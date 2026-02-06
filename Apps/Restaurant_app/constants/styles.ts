@@ -780,4 +780,42 @@ export const styles = StyleSheet.create({
     color: '#FF6B35',
     fontWeight: '600',
   },
+
+  // Orange indicator for incomplete checklist items
+  checkboxOrangeIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FF6B35', // Orange color
+  },
+
+  // Progress Section
+  progressSection: {
+    marginTop: 32,
+    marginBottom: 16,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+
+  progressText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
+  progressBar: {
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#FF6B35', // Orange color
+    borderRadius: 4,
+  },
 });
