@@ -1,22 +1,21 @@
-// payments.tsx - Updated with SuperForm2 integration
+// app/superForm2/payments.tsx - Group 3 (LAST AND ONLY PAGE OF GROUP 3)
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, View, Text, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { CustomInput } from '@/components/CustomInput';
 import { CustomDropdown } from '@/components/CustomDropDown';
 import { styles } from '@/constants/styles';
-import { ArrowLeft } from 'lucide-react-native';
-import { SuperForm2PageProps } from '@/types';
+import { useCompletionStore } from '@/stores/completionStore';
 
-const PaymentPage: React.FC<SuperForm2PageProps> = ({ 
-  data, 
-  setData, 
-  onNext, 
-  onBack 
-}) => {
-  const [selectedBank, setSelectedBank] = useState(data?.selectedBank || '');
-  const [accountNumber, setAccountNumber] = useState(data?.accountNumber || '');
-  const [accountName, setAccountName] = useState(data?.accountName || '');
-  const [bvn, setBvn] = useState(data?.bvn || '');
+export default function PaymentsPage() {
+  const router = useRouter();
+  const markGroupComplete = useCompletionStore((state) => state.markGroupComplete);
+  
+  const [selectedBank, setSelectedBank] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [bvn, setBvn] = useState('');
 
   const banks = [
     'Access Bank',
@@ -32,24 +31,21 @@ const PaymentPage: React.FC<SuperForm2PageProps> = ({
   ];
 
   const handleContinue = () => {
-    // Save data before proceeding
-    if (setData && data) {
-      setData({
-        ...data,
-        selectedBank,
-        accountNumber,
-        accountName,
-        bvn,
-      });
-    }
-    onNext?.();
+    console.log('[Payments] Marking Group 3 (setupPayments) as complete');
+    
+    // Mark Group 3 as complete
+    markGroupComplete('setupPayments');
+    
+    // Return to checklist
+    console.log('[Payments] Returning to checklist');
+    router.push('/superForm2/checklist');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft />
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
 
         <Text style={styles.pageTitle}>Set up your payment</Text>
@@ -115,6 +111,4 @@ const PaymentPage: React.FC<SuperForm2PageProps> = ({
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default PaymentPage;
+}

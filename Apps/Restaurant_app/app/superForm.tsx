@@ -5,8 +5,8 @@ import LocationPage from './screens/locationPage';
 import BusinessDetailsPage from './screens/businessDetails';
 import PasswordPage from './screens/passwordCreation';
 import EmailVerificationPage from './screens/emailVerification';
-import SetupChecklistPage from './screens/setUpCheckList';
 import { OvenaFormData, SubmissionData } from '@/types';
+import ChecklistPage from './superForm2/checklist';
 
 export default function SuperForm() {
   const [page, setPage] = useState(1);
@@ -139,7 +139,7 @@ export default function SuperForm() {
         />
       )}
       {page === 5 && (
-        <SetupChecklistPage 
+        <ChecklistPage
           completionStatus={completionStatus}
           onBack={() => setPage(4)}
           onSubmit={handleSubmit}

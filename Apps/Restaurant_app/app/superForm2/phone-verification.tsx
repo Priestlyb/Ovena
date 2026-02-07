@@ -1,31 +1,29 @@
-// phoneVerification.tsx - Updated version
+// app/superForm2/phone-verification.tsx - Group 1, Page 2
 import React, { useState } from 'react';
 import { SafeAreaView, View, Text, TextInput, TouchableOpacity } from 'react-native';
-import { styles } from '@/constants/styles';
-import { PageProps } from '@/types';
+import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
+import { styles } from '@/constants/styles';
 
-/**
- * Page 5: Phone Verification
- */
-const PhoneVerificationPage1: React.FC<PageProps> = ({ data, setData, onNext, onBack }) => {
-  // Initialize with existing phone data if available
-  const [phoneNumber, setPhoneNumber] = useState(data?.phone || '');
+export default function PhoneVerificationPage() {
+  const router = useRouter();
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   const handleContinue = () => {
-    // Save the phone number to form data before proceeding
-    if (setData && data) {
-      setData({ ...data, phone: phoneNumber });
-    }
-    onNext?.();
+    console.log('[PhoneVerification] Navigating to Phone OTP');
+    // Pass phone number as query param
+    router.push({
+      pathname: '/superForm2/phone-otp',
+      params: { phoneNumber },
+    });
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.phoneVerificationContainer}>
         <View style={styles.phoneVerificationHeader}>
-          <TouchableOpacity style={styles.phoneVerificationBackBtn} onPress={onBack}>
-            <ArrowLeft/>
+          <TouchableOpacity style={styles.phoneVerificationBackBtn} onPress={() => router.back()}>
+            <ArrowLeft size={24} color="#111827" />
           </TouchableOpacity>
           <Text style={styles.phoneVerificationTitle}>Complete your profile</Text>
         </View>
@@ -68,6 +66,4 @@ const PhoneVerificationPage1: React.FC<PageProps> = ({ data, setData, onNext, on
       </View>
     </SafeAreaView>
   );
-};
-
-export default PhoneVerificationPage1;
+}

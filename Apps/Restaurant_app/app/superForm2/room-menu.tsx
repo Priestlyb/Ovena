@@ -1,22 +1,21 @@
-// roomMenu.tsx - Updated with SuperForm2 integration
+// app/superForm2/room-menu.tsx - Group 5, Page 2 (LAST PAGE OF GROUP 5)
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, View, Text, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { CustomInput } from '@/components/CustomInput';
 import { CustomDropdown } from '@/components/CustomDropDown';
 import { styles } from '@/constants/styles';
-import { ArrowLeft } from 'lucide-react-native';
-import { SuperForm2PageProps } from '@/types';
+import { useCompletionStore } from '@/stores/completionStore';
 
-const RoomMenuPage: React.FC<SuperForm2PageProps> = ({ 
-  data, 
-  setData, 
-  onNext, 
-  onBack 
-}) => {
-  const [roomName, setRoomName] = useState(data?.roomName || '');
-  const [roomNumber, setRoomNumber] = useState(data?.roomNumber || '');
-  const [description, setDescription] = useState(data?.roomDescription || '');
-  const [amenities, setAmenities] = useState(data?.roomAmenities || '');
+export default function RoomMenuPage() {
+  const router = useRouter();
+  const markGroupComplete = useCompletionStore((state) => state.markGroupComplete);
+  
+  const [roomName, setRoomName] = useState('');
+  const [roomNumber, setRoomNumber] = useState('');
+  const [description, setDescription] = useState('');
+  const [amenities, setAmenities] = useState('');
 
   const amenitiesOptions = [
     'WiFi',
@@ -29,25 +28,21 @@ const RoomMenuPage: React.FC<SuperForm2PageProps> = ({
   ];
 
   const handleContinue = () => {
-    // Save data before proceeding (this is the final page)
-    if (setData && data) {
-      setData({
-        ...data,
-        roomName,
-        roomNumber,
-        roomDescription: description,
-        roomAmenities: amenities,
-      });
-    }
-    // Trigger final submission
-    onNext?.();
+    console.log('[RoomMenu] Marking Group 5 (addMenuItems) as complete');
+    
+    // Mark Group 5 as complete
+    markGroupComplete('addMenuItems');
+    
+    // Return to checklist
+    console.log('[RoomMenu] Returning to checklist');
+    router.push('/superForm2/checklist');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft />
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
 
         <Text style={styles.pageTitle}>Set up your Menu</Text>
@@ -101,6 +96,4 @@ const RoomMenuPage: React.FC<SuperForm2PageProps> = ({
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default RoomMenuPage;
+}

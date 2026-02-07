@@ -1,46 +1,40 @@
-// phoneVerification2.tsx - Updated with SuperForm2 integration
+// app/superForm2/phone-otp.tsx - Group 1, Page 3 (LAST PAGE OF GROUP 1)
 import React, { useState } from 'react';
 import { SafeAreaView, View, Text, TouchableOpacity } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { OTPInput } from '@/components/OtpInput';
 import { styles } from '@/constants/styles';
-import { ArrowLeft } from 'lucide-react-native';
-import { SuperForm2PageProps } from '@/types';
+import { useCompletionStore } from '@/stores/completionStore';
 
-interface PhoneVerificationPage2Props extends SuperForm2PageProps {
-  phoneNumber?: string;
-}
-
-const PhoneVerificationPage2: React.FC<PhoneVerificationPage2Props> = ({ 
-  data,
-  setData,
-  phoneNumber,
-  onNext, 
-  onBack 
-}) => {
-  const [otp, setOTP] = useState(data?.otp || '');
+export default function PhoneOTPPage() {
+  const router = useRouter();
+  const { phoneNumber } = useLocalSearchParams<{ phoneNumber: string }>();
+  const [otp, setOTP] = useState('');
+  const markGroupComplete = useCompletionStore((state) => state.markGroupComplete);
 
   const handleContinue = () => {
-    // Save OTP before proceeding
-    if (setData && data) {
-      setData({
-        ...data,
-        otp,
-      });
-    }
-    onNext?.();
+    console.log('[PhoneOTP] Marking Group 1 (verifyBusiness) as complete');
+    
+    // Mark Group 1 as complete
+    markGroupComplete('verifyBusiness');
+    
+    // Return to checklist
+    console.log('[PhoneOTP] Returning to checklist');
+    router.push('/superForm2/checklist');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.phoneVerificationContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#000" />
         </TouchableOpacity>
 
         <View style={styles.phoneVerificationContent}>
           <Text style={styles.phoneVerificationTitle}>Verify your phone number</Text>
           <Text style={styles.phoneVerificationSubtitle}>Check your Inbox for the code.</Text>
-          <Text style={styles.phoneVerificationNumber}>{phoneNumber || data?.phone || '{user_Phone-number}'}</Text>
+          <Text style={styles.phoneVerificationNumber}>{phoneNumber || '{user_Phone-number}'}</Text>
 
           <View style={styles.otpWrapper}>
             <OTPInput value={otp} onChange={setOTP} length={4} />
@@ -64,6 +58,4 @@ const PhoneVerificationPage2: React.FC<PhoneVerificationPage2Props> = ({
       </View>
     </SafeAreaView>
   );
-};
-
-export default PhoneVerificationPage2;
+}

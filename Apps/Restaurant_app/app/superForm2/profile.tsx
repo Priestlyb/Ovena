@@ -1,23 +1,22 @@
-// profilecompletion.tsx - Updated with SuperForm2 integration
-import React, { useState, useEffect } from 'react';
+// app/superForm2/profile.tsx - Group 2 (LAST AND ONLY PAGE OF GROUP 2)
+import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, View, Text, TouchableOpacity, Image } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, Camera } from 'lucide-react-native';
 import { CustomInput } from '@/components/CustomInput';
 import { CustomDropdown } from '@/components/CustomDropDown';
 import { FileUpload } from '@/components/FIleUpload';
 import { styles } from '@/constants/styles';
-import { ArrowLeft, Camera } from 'lucide-react-native';
-import { SuperForm2PageProps } from '@/types';
+import { useCompletionStore } from '@/stores/completionStore';
 
-const ProfileCompletionPage: React.FC<SuperForm2PageProps> = ({ 
-  data, 
-  setData, 
-  onNext, 
-  onBack 
-}) => {
-  const [shopName, setShopName] = useState(data?.shopName || '');
-  const [shopType, setShopType] = useState(data?.shopType || '');
-  const [profileImage, setProfileImage] = useState<any>(data?.profileImage || null);
-  const [businessImage, setBusinessImage] = useState<any>(data?.businessImage || null);
+export default function ProfilePage() {
+  const router = useRouter();
+  const markGroupComplete = useCompletionStore((state) => state.markGroupComplete);
+  
+  const [shopName, setShopName] = useState('');
+  const [shopType, setShopType] = useState('');
+  const [profileImage, setProfileImage] = useState<any>(null);
+  const [businessImage, setBusinessImage] = useState<any>(null);
 
   const shopTypes = [
     'Restaurant',
@@ -31,25 +30,22 @@ const ProfileCompletionPage: React.FC<SuperForm2PageProps> = ({
   ];
 
   const handleContinue = () => {
-    // Save data before proceeding
-    if (setData && data) {
-      setData({
-        ...data,
-        shopName,
-        shopType,
-        profileImage,
-        businessImage,
-      });
-    }
-    onNext?.();
+    console.log('[Profile] Marking Group 2 (completeProfile) as complete');
+    
+    // Mark Group 2 as complete
+    markGroupComplete('completeProfile');
+    
+    // Return to checklist
+    console.log('[Profile] Returning to checklist');
+    router.push('/superForm2/checklist');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <ArrowLeft />
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={24} color="#111827" />
           </TouchableOpacity>
           <Text style={styles.profileHeaderTitle}>Complete your profile</Text>
         </View>
@@ -67,10 +63,7 @@ const ProfileCompletionPage: React.FC<SuperForm2PageProps> = ({
             )}
             <TouchableOpacity 
               style={styles.cameraButton}
-              onPress={() => {
-                // Handle image upload
-                console.log('Upload profile image');
-              }}
+              onPress={() => console.log('Upload profile image')}
             >
               <Camera size={20} color="#fff" />
             </TouchableOpacity>
@@ -131,6 +124,4 @@ const ProfileCompletionPage: React.FC<SuperForm2PageProps> = ({
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default ProfileCompletionPage;
+}

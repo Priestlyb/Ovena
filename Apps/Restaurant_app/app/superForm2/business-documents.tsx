@@ -1,22 +1,38 @@
+// app/superForm2/business-documents.tsx - Group 1, Page 1
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, Text, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { FileUpload } from '@/components/FIleUpload';
 import { CustomInput } from '@/components/CustomInput';
 import { CustomDropdown } from '@/components/CustomDropDown';
 import { styles } from '@/constants/styles';
-import { PageProps } from '@/types';
-import { ArrowLeft } from 'lucide-react-native';
 
-const BusinessDocumentsPage: React.FC<PageProps> = ({ data, setData, onNext, onBack }) => {
+export default function BusinessDocumentsPage() {
+  const router = useRouter();
   const [uploadedFile, setUploadedFile] = useState<any>(null);
+  const [businessType, setBusinessType] = useState('');
+  const [registeredName, setRegisteredName] = useState('');
+  const [taxId, setTaxId] = useState('');
+  const [rcNumber, setRcNumber] = useState('');
 
-  if (!data || !setData) return null;
+  const businessTypes = [
+    'Limited Liability Company',
+    'Sole Proprietorship',
+    'Partnership',
+    'Corporation',
+  ];
+
+  const handleContinue = () => {
+    console.log('[BusinessDocuments] Navigating to Phone Verification');
+    router.push('/superForm2/phone-verification');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft />
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
 
         <Text style={styles.pageTitle}>Upload your business documents</Text>
@@ -32,43 +48,41 @@ const BusinessDocumentsPage: React.FC<PageProps> = ({ data, setData, onNext, onB
 
         <CustomDropdown
           label="Business Type"
-          options={data.businessTypes}
+          options={businessTypes}
           placeholder="Limited Liability Company"
-          value={data.docBusinessType}
-          onChange={(val) => setData({ ...data, docBusinessType: val })}
+          value={businessType}
+          onChange={setBusinessType}
           required
         />
 
         <CustomInput
           label="Registered Business Name"
           placeholder="e.g Pristina mall"
-          value={data.registeredBusinessName}
-          onChange={(val) => setData({ ...data, registeredBusinessName: val })}
+          value={registeredName}
+          onChange={setRegisteredName}
           required
         />
 
         <CustomInput
           label="Tax Identification Number"
           placeholder="e.g Ovena123456789"
-          value={data.taxId}
-          onChange={(val) => setData({ ...data, taxId: val })}
+          value={taxId}
+          onChange={setTaxId}
           required
         />
 
         <CustomInput
           label="RC Number"
           placeholder="e.g 123456789"
-          value={data.rcNumber}
-          onChange={(val) => setData({ ...data, rcNumber: val })}
+          value={rcNumber}
+          onChange={setRcNumber}
           required
         />
 
-        <TouchableOpacity style={styles.continueBtn} onPress={onNext} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.continueBtn} onPress={handleContinue} activeOpacity={0.8}>
           <Text style={styles.continueBtnText}>Continue</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default BusinessDocumentsPage;
+}

@@ -1,23 +1,22 @@
-// operations.tsx - Updated with SuperForm2 integration
+// app/superForm2/operations.tsx - Group 4 (LAST AND ONLY PAGE OF GROUP 4)
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, View, Text, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { CustomDropdown } from '@/components/CustomDropDown';
 import { styles } from '@/constants/styles';
-import { ArrowLeft } from 'lucide-react-native';
-import { SuperForm2PageProps } from '@/types';
+import { useCompletionStore } from '@/stores/completionStore';
 
-const OperationsPage: React.FC<SuperForm2PageProps> = ({ 
-  data, 
-  setData, 
-  onNext, 
-  onBack 
-}) => {
-  const [deliveryMethod, setDeliveryMethod] = useState(data?.deliveryMethod || '');
-  const [selectedDay, setSelectedDay] = useState(data?.selectedDay || 'Default');
-  const [openingTime, setOpeningTime] = useState(data?.openingTime || '00:00 PM');
-  const [closingTime, setClosingTime] = useState(data?.closingTime || '00:00 PM');
-  const [preOrderTime, setPreOrderTime] = useState(data?.preOrderTime || '00:00 AM');
-  const [finalOrderTime, setFinalOrderTime] = useState(data?.finalOrderTime || '00:00 PM');
+export default function OperationsPage() {
+  const router = useRouter();
+  const markGroupComplete = useCompletionStore((state) => state.markGroupComplete);
+  
+  const [deliveryMethod, setDeliveryMethod] = useState('');
+  const [selectedDay, setSelectedDay] = useState('Default');
+  const [openingTime, setOpeningTime] = useState('00:00 PM');
+  const [closingTime, setClosingTime] = useState('00:00 PM');
+  const [preOrderTime, setPreOrderTime] = useState('00:00 AM');
+  const [finalOrderTime, setFinalOrderTime] = useState('00:00 PM');
 
   const deliveryMethods = ['Instant', 'Pre-order'];
   const days = ['Default', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -28,30 +27,24 @@ const OperationsPage: React.FC<SuperForm2PageProps> = ({
     '06:00 PM', '07:00 PM', '08:00 PM', '09:00 PM', '10:00 PM', '11:00 PM',
   ];
 
-  // Check if Pre-order is selected
   const isPreOrder = deliveryMethod === 'Pre-order';
 
   const handleContinue = () => {
-    // Save data before proceeding
-    if (setData && data) {
-      setData({
-        ...data,
-        deliveryMethod,
-        selectedDay,
-        openingTime,
-        closingTime,
-        preOrderTime,
-        finalOrderTime,
-      });
-    }
-    onNext?.();
+    console.log('[Operations] Marking Group 4 (setupOperations) as complete');
+    
+    // Mark Group 4 as complete
+    markGroupComplete('setupOperations');
+    
+    // Return to checklist
+    console.log('[Operations] Returning to checklist');
+    router.push('/superForm2/checklist');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft />
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
 
         <Text style={styles.pageTitle}>Set up your operations</Text>
@@ -172,6 +165,4 @@ const OperationsPage: React.FC<SuperForm2PageProps> = ({
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default OperationsPage;
+}

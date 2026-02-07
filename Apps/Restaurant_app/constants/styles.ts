@@ -818,4 +818,432 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FF6B35', // Orange color
     borderRadius: 4,
   },
+
+   passwordInputWrapper: {
+    position: 'relative',
+  },
+
+  passwordIcon: {
+    position: 'absolute',
+    right: 16,
+    top: '50%',
+    transform: [{ translateY: -10 }],
+  },
+
+  passwordStrength: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+
+  passwordStrengthBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E5E7EB',
+  },
+
+  passwordStrengthBarFilled: {
+    backgroundColor: '#10B981',
+  },
+
+  // ============================================================================
+  // STORE PROFILE IMAGE STYLES
+  // ============================================================================
+  storeProfileSection: {
+    alignItems: 'center',
+  },
+
+  storeProfileImageContainer: {
+    position: 'relative',
+  },
+
+  storeCameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FF6B35',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+
+  // ============================================================================
+  // STORE HUB TIME ROW STYLES
+  // ============================================================================
+  storeHubTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  storeHubTimeDropdown: {
+    flex: 1,
+  },
+
+   checklistContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+
+  checklistContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+
+  // ============================================================================
+  // CHECKLIST TITLES
+  // ============================================================================
+  checklistMainTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+
+  checklistSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 32,
+  },
+
+  // ============================================================================
+  // CHECKLIST ITEM CARD
+  // ============================================================================
+  checklistItemCard: {
+    backgroundColor: '#FEF3E7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+
+  checklistItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  // ============================================================================
+  // ORANGE ICON BOX
+  // ============================================================================
+  checklistOrangeIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#FF6B35',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  checklistIconEmoji: {
+    fontSize: 24,
+  },
+
+  // ============================================================================
+  // TEXT SECTION
+  // ============================================================================
+  checklistItemTextSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  checklistItemLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+  },
+
+  // ============================================================================
+  // COMPLETION CIRCLE
+  // ============================================================================
+  checklistCompletionCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+
+  checklistCompletionCircleCompleted: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+
+  checklistCheckmark: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+  },
+
+  // ============================================================================
+  // BEGIN ORDER BUTTON
+  // ============================================================================
+  beginOrderBtn: {
+    backgroundColor: '#6B7280',
+    borderRadius: 12,
+    paddingVertical: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+
+  beginOrderBtnDisabled: {
+    backgroundColor: '#D1D5DB',
+    borderRadius: 12,
+    paddingVertical: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+
+  beginOrderBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // Login Page Styles
+  loginToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 4,
+    gap: 4,
+  },
+  loginToggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  loginToggleButtonActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  qrCodeContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrCodePlaceholder: {
+    width: 200,
+    height: 200,
+    backgroundColor: '#000000',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // PIN Input Styles
+  pinInputContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  pinInputBox: {
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    backgroundColor: '#FEF3E7',
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+    fontSize: 32,
+    fontWeight: '600',
+    color: '#FF6B35',
+    textAlign: 'center',
+  },
+
+  // Store Analytics Styles
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  statItem: {
+    width: '48%',
+  },
+  chartContainer: {
+    height: 250,
+  },
+  yAxisContainer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 40,
+  },
+  yAxisLabel: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  barsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    height: '100%',
+    paddingLeft: 60,
+    paddingBottom: 30,
+  },
+  barColumn: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  barLabelAbove: {
+    position: 'absolute',
+    top: -30,
+    backgroundColor: '#FCD34D',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  bar: {
+    width: 30,
+    backgroundColor: '#FF6B35',
+    borderRadius: 4,
+  },
+  periodDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  periodMenu: {
+    position: 'absolute',
+    right: 20,
+    top: 40,
+    backgroundColor: '#FEF3E7',
+    borderRadius: 8,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 1000,
+  },
+  periodMenuItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+  },
+  periodMenuItemActive: {
+    backgroundColor: '#FF6B35',
+  },
+
+  // Manage Users Styles
+  userCard: {
+    backgroundColor: '#FEF3E7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+  },
+  deviceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  deviceIcon: {
+    width: 50,
+    height: 50,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deviceInfo: {
+    flex: 1,
+  },
+  illustrationContainer: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+
+  // Your Finances Styles
+  balanceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateImage: {
+    width: 200,
+    height: 200,
+  },
+
+  // Transaction History
+  transactionCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionAmount: {
+    fontWeight: '600',
+  },
+  transactionAmountCredit: {
+    color: '#10B981',
+  },
+  transactionAmountDebit: {
+    color: '#EF4444',
+  },
+
+  // Filter Button
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  // General
+  headerWithAction: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  inviteUserButton: {
+    color: '#FF6B35',
+  },
 });

@@ -1,23 +1,19 @@
-// menuItem.tsx - Updated with SuperForm2 integration
+// app/superForm2/menu-items.tsx - Group 5, Page 1
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, View, Text, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { CustomInput } from '@/components/CustomInput';
 import { CustomDropdown } from '@/components/CustomDropDown';
 import { FileUpload } from '@/components/FIleUpload';
 import { styles } from '@/constants/styles';
-import { ArrowLeft } from 'lucide-react-native';
-import { SuperForm2PageProps } from '@/types';
 
-const MenuItemsPage: React.FC<SuperForm2PageProps> = ({ 
-  data, 
-  setData, 
-  onNext, 
-  onBack 
-}) => {
-  const [category, setCategory] = useState(data?.menuCategory || '');
-  const [name, setName] = useState(data?.menuItemName || '');
-  const [description, setDescription] = useState(data?.menuItemDescription || '');
-  const [productImage, setProductImage] = useState<any>(data?.menuItemImage || null);
+export default function MenuItemsPage() {
+  const router = useRouter();
+  const [category, setCategory] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [productImage, setProductImage] = useState<any>(null);
 
   const categories = [
     'Appetizers',
@@ -32,24 +28,15 @@ const MenuItemsPage: React.FC<SuperForm2PageProps> = ({
   ];
 
   const handleContinue = () => {
-    // Save data before proceeding
-    if (setData && data) {
-      setData({
-        ...data,
-        menuCategory: category,
-        menuItemName: name,
-        menuItemDescription: description,
-        menuItemImage: productImage,
-      });
-    }
-    onNext?.();
+    console.log('[MenuItems] Navigating to Room Menu');
+    router.push('/superForm2/room-menu');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft />
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
 
         <Text style={styles.pageTitle}>Set up your Menu</Text>
@@ -123,6 +110,4 @@ const MenuItemsPage: React.FC<SuperForm2PageProps> = ({
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default MenuItemsPage;
+}
