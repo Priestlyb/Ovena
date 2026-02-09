@@ -15,7 +15,7 @@ import { Header } from '@/components/molecules/Header';
 
 // Existing Components
 import { ToggleSwitch } from '@/components/ToggleSwitch';
-import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { FloatingChatButton } from '@/components/FloatingChatButton';
 
 export default function NotificationsPage() {
   const router = useRouter();
@@ -62,7 +62,7 @@ export default function NotificationsPage() {
       </ScrollView>
 
       {/* Floating Chat Button */}
-      <FloatingActionButton
+      <FloatingChatButton
         icon={<MessageCircle size={28} color="#fff" />}
         onPress={() => console.log('Chat')}
         position="primary"

@@ -14,7 +14,8 @@ import { Card } from '@/components/molecules/Card';
 import { Header } from '@/components/molecules/Header';
 
 // Existing Components
-import { FloatingActionButton } from '@/components/FloatingActionButton';
+
+import { FloatingChatButton } from '@/components/FloatingChatButton';
 
 export default function StoreAnalyticsPage() {
   const router = useRouter();
@@ -251,7 +252,7 @@ export default function StoreAnalyticsPage() {
       </ScrollView>
 
       {/* Floating Chat Button */}
-      <FloatingActionButton
+      <FloatingChatButton
         icon={<MessageCircle size={28} color="#fff" />}
         onPress={() => console.log('Chat')}
         position="primary"

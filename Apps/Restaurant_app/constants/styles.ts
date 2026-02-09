@@ -689,12 +689,6 @@ export const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-
   profileHeaderTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -1245,5 +1239,131 @@ export const styles = StyleSheet.create({
   },
   inviteUserButton: {
     color: '#FF6B35',
+  },
+
+    // Container
+  toggleContainer: {
+    gap: 8,
+  },
+
+  // Label
+  toggleLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#111827',
+    marginBottom: 4,
+  },
+
+  // Row with status text and switch
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+
+  // Status Text (Open/Closed, etc.)
+  toggleStatusText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+
+  // Switch Track (Background)
+  toggleSwitch: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#D1D5DB', // Gray (inactive)
+    padding: 2,
+    justifyContent: 'center',
+  },
+
+  toggleSwitchActive: {
+    backgroundColor: '#FF6B35', // Orange (active)
+  },
+
+  // Switch Thumb (Circle)
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+    transform: [{ translateX: 0 }], // Left position (inactive)
+  },
+
+  toggleThumbActive: {
+    transform: [{ translateX: 20 }], // Right position (active)
+  },
+
+   // Profile Page Styles
+  profileHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  profileUserInfo: {
+    alignItems: 'center',
+    position: 'relative',
+  },
+  profileRatingBadge: {
+    position: 'absolute',
+    top: 0,
+    right: '30%',
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+
+  // Booking Details Page Styles
+  bookingCodeContainer: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  stayInfoGrid: {
+    flexDirection: 'row',
+    gap: 24,
+  },
+  stayInfoColumn: {
+    flex: 1,
+  },
+  guestDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  guestDetail: {
+    alignItems: 'center',
+    gap: 4,
   },
 });

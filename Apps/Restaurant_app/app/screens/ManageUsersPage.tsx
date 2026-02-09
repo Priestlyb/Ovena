@@ -16,8 +16,8 @@ import { Card } from '@/components/molecules/Card';
 import { Header } from '@/components/molecules/Header';
 
 // Existing Components
-import { TabBar } from '@/components/TabBar';
-import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { TabSelector} from '@/components/TabSelector';
+import { FloatingChatButton } from '@/components/FloatingChatButton';
 
 interface Device {
   id: string;
@@ -56,7 +56,7 @@ export default function ManageUsersPage() {
         <Spacer size="md" />
 
         {/* Tab Bar */}
-        <TabBar
+        <TabSelector
           tabs={[
             { id: 'admin', label: 'Admin Staff' },
             { id: 'vendor', label: 'Vendor Agent' },
@@ -126,7 +126,7 @@ export default function ManageUsersPage() {
               marginBottom: 24,
             }}>
               <Image
-                source={require('@/assets/images/team-illustration.png')}
+                source={require('@/assets/images/OBJECTS.png')}
                 style={{ width: 300, height: 200 }}
                 resizeMode="contain"
               />
@@ -183,7 +183,7 @@ export default function ManageUsersPage() {
               variant="primary"
               size="large"
               fullWidth
-              onPress={() => router.push('/link-device')}
+              // onPress={() => router.push('/link-device')}
             />
           </View>
         )}
@@ -192,7 +192,7 @@ export default function ManageUsersPage() {
       </ScrollView>
 
       {/* Floating Chat Button */}
-      <FloatingActionButton
+      <FloatingChatButton
         icon={<MessageCircle size={28} color="#fff" />}
         onPress={() => console.log('Chat')}
         position="primary"

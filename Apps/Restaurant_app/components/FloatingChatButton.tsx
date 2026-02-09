@@ -2,10 +2,11 @@ import { TouchableOpacity, StyleSheet } from 'react-native';
 import { MessageCircle } from 'lucide-react-native';
 
 interface FloatingChatButtonProps {
+  icon?: React.ReactNode;
   onPress?: () => void;
 }
 
-export function FloatingChatButton({ onPress }: FloatingChatButtonProps) {
+export function FloatingChatButton({ onPress, icon }: FloatingChatButtonProps) {
   return (
     <TouchableOpacity
       style={styles.button}

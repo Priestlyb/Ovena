@@ -11,8 +11,8 @@ import { Button } from '@/components/atoms/Button';
 import { Spacer } from '@/components/atoms/Spacer';
 
 // Components
-import { PINInput } from '@/components/PINInput';
-import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { PINInput } from '@/components/PINinput';
+import { FloatingChatButton } from '@/components/FloatingChatButton';
 
 type Step = 'verify' | 'create' | 'confirm';
 
@@ -162,7 +162,7 @@ export default function ResetTransactionPINPage() {
       </View>
 
       {/* Floating Chat Button */}
-      <FloatingActionButton
+      <FloatingChatButton
         icon={<MessageCircle size={28} color="#fff" />}
         onPress={() => console.log('Chat')}
         position="primary"

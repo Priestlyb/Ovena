@@ -16,7 +16,7 @@ import { Card } from '@/components/molecules/Card';
 import { Header } from '@/components/molecules/Header';
 
 // Existing Components
-import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { FloatingChatButton } from '@/components/FloatingChatButton';
 
 export default function YourFinancesPage() {
   const router = useRouter();
@@ -108,7 +108,7 @@ export default function YourFinancesPage() {
         {transactions.length === 0 && (
           <View style={{ paddingHorizontal: 20, alignItems: 'center' }}>
             <Image
-              source={require('@/assets/images/empty-wallet.png')}
+              source={require('@/assets/images/wallet 1.png')}
               style={{ width: 200, height: 200 }}
               resizeMode="contain"
             />
@@ -127,7 +127,7 @@ export default function YourFinancesPage() {
       </ScrollView>
 
       {/* Floating Chat Button */}
-      <FloatingActionButton
+      <FloatingChatButton
         icon={<MessageCircle size={28} color="#fff" />}
         onPress={() => console.log('Chat')}
         position="primary"

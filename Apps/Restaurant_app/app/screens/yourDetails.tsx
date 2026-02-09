@@ -106,7 +106,7 @@ const YourDetailsPage: React.FC<YourDetailsPageProps> = ({ onBack, onSave }) => 
       </ScrollView>
 
       {/* Floating Chat Button */}
-      <FloatingActionButton
+      <FloatingChatButton
         icon={<MessageCircle size={28} color="#fff" />}
         onPress={() => console.log('Chat')}
         position="primary"
