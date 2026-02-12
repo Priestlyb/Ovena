@@ -1,4 +1,6 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+// components/FilterChips.tsx - Filter chips component
+import React from 'react';
+import { View, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-native';
 
 interface Filter {
   key: string;
@@ -12,34 +14,21 @@ interface FilterChipsProps {
   onFilterChange: (key: string) => void;
 }
 
-export function FilterChips({
-  filters,
-  activeFilter,
-  onFilterChange,
-}: FilterChipsProps) {
+export function FilterChips({ filters, activeFilter, onFilterChange }: FilterChipsProps) {
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={styles.container}
     >
       {filters.map((filter) => (
         <TouchableOpacity
           key={filter.key}
-          style={[
-            styles.chip,
-            activeFilter === filter.key && styles.activeChip,
-          ]}
+          style={[styles.chip, activeFilter === filter.key && styles.activeChip]}
           onPress={() => onFilterChange(filter.key)}
           activeOpacity={0.7}
         >
-          <Text
-            style={[
-              styles.chipText,
-              activeFilter === filter.key && styles.activeChipText,
-            ]}
-          >
+          <Text style={[styles.chipText, activeFilter === filter.key && styles.activeChipText]}>
             {filter.label}
             {filter.count !== undefined && ` (${filter.count})`}
           </Text>
@@ -51,28 +40,30 @@ export function FilterChips({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
-  },
-  contentContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 8,
     paddingRight: 16,
   },
   chip: {
-    paddingVertical: 8,
     paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    marginRight: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   activeChip: {
-    backgroundColor: '#FFCCBC',
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
   },
   chipText: {
     fontSize: 14,
-    color: '#666',
     fontWeight: '500',
+    color: '#6B7280',
   },
   activeChipText: {
-    color: '#000',
+    color: '#FFFFFF',
     fontWeight: '600',
   },
 });

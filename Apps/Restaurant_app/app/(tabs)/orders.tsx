@@ -1,3 +1,4 @@
+// app/(tabs)/orders.tsx - Orders page with mock data
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -12,24 +13,17 @@ import { OrderCard } from '@/components/OrderCard';
 import { TabSelector } from '@/components/TabSelector';
 import { FilterChips } from '@/components/FilterChips';
 import { FloatingChatButton } from '@/components/FloatingChatButton';
-
-
-interface Order {
-  id: string;
-  item_name: string;
-  order_id: string;
-  price: number;
-  status: string;
-  type: string;
-  created_at: string;
-}
+import { MessageCircle } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { mockOrders, Order } from '@/data/mockOrders';
 
 export default function OrdersScreen() {
+  const router = useRouter();
   const [orderType, setOrderType] = useState<'food' | 'rooms'>('food');
   const [statusFilter, setStatusFilter] = useState('incoming');
   const [historyFilter, setHistoryFilter] = useState('completed');
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const typeTabs = [
     { key: 'food', label: 'Food' },
@@ -43,43 +37,50 @@ export default function OrdersScreen() {
     { key: 'history', label: 'History' },
   ];
 
+  // Calculate counts for history filters
+  const getHistoryCounts = () => {
+    const filtered = mockOrders.filter((order) => order.type === orderType);
+    return {
+      in_transit: filtered.filter((o) => o.status === 'in_transit').length,
+      completed: filtered.filter((o) => o.status === 'completed').length,
+      rejected: filtered.filter((o) => o.status === 'rejected').length,
+    };
+  };
+
+  const counts = getHistoryCounts();
+
   const historyFilters = [
-    { key: 'in_transit', label: 'In transit', count: 1 },
-    { key: 'completed', label: 'Completed', count: 1 },
-    { key: 'rejected', label: 'Rejected', count: 1 },
+    { key: 'in_transit', label: 'In transit', count: counts.in_transit },
+    { key: 'completed', label: 'Completed', count: counts.completed },
+    { key: 'rejected', label: 'Rejected', count: counts.rejected },
   ];
 
   useEffect(() => {
     fetchOrders();
   }, [orderType, statusFilter, historyFilter]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = () => {
     setLoading(true);
-    // try {
-    //   let query = supabase
-    //     .from('orders')
-    //     .select('*')
-    //     .eq('type', orderType)
-    //     .order('created_at', { ascending: false });
 
-    //   if (statusFilter === 'history') {
-    //     query = query.eq('status', historyFilter);
-    //   } else {
-    //     query = query.eq('status', statusFilter);
-    //   }
+    // Filter orders based on current selections
+    let filteredOrders = mockOrders.filter((order) => order.type === orderType);
 
-    //   const { data, error } = await query;
+    if (statusFilter === 'history') {
+      filteredOrders = filteredOrders.filter((order) => order.status === historyFilter);
+    } else {
+      filteredOrders = filteredOrders.filter((order) => order.status === statusFilter);
+    }
 
-    //   if (error) throw error;
-    //   setOrders(data || []);
-    // } catch (error) {
-    //   console.error('Error fetching orders:', error);
-    // } finally {
-    //   setLoading(false);
-    // }
+    // Sort by created_at (newest first)
+    filteredOrders.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    setOrders(filteredOrders);
+    setLoading(false);
   };
 
-  const handleStatusUpdate = async (orderId: string, currentStatus: string) => {
+  const handleStatusUpdate = (orderId: string, currentStatus: string) => {
     const statusFlow: Record<string, string> = {
       incoming: 'preparing',
       preparing: 'ready',
@@ -89,17 +90,12 @@ export default function OrdersScreen() {
     const newStatus = statusFlow[currentStatus];
     if (!newStatus) return;
 
-    // try {
-    //   const { error } = await supabase
-    //     .from('orders')
-    //     .update({ status: newStatus, updated_at: new Date().toISOString() })
-    //     .eq('id', orderId);
-
-    //   if (error) throw error;
-    //   fetchOrders();
-    // } catch (error) {
-    //   console.error('Error updating order:', error);
-    // }
+    // Update order status in mock data
+    const orderIndex = mockOrders.findIndex((o) => o.id === orderId);
+    if (orderIndex !== -1) {
+      mockOrders[orderIndex].status = newStatus as any;
+      fetchOrders(); // Refresh the list
+    }
   };
 
   const formatTime = (dateString: string) => {
@@ -160,18 +156,24 @@ export default function OrdersScreen() {
             orders.map((order) => (
               <OrderCard
                 key={order.id}
+                id={order.id}
                 itemName={order.item_name}
                 orderId={order.order_id}
                 price={order.price}
                 time={formatTime(order.created_at)}
                 status={order.status}
+                type={order.type}
                 onStatusPress={() => handleStatusUpdate(order.id, order.status)}
               />
             ))
           )}
         </ScrollView>
 
-        <FloatingChatButton />
+        <FloatingChatButton
+          icon={<MessageCircle size={28} color="#fff" />}
+          onPress={() => router.push('/screens/SupportPage')}
+          position="primary"
+        />
       </View>
     </SafeAreaView>
   );

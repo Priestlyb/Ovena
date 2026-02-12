@@ -1,4 +1,6 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+// components/TabSelector.tsx - Tab selector component
+import React from 'react';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 
 interface Tab {
   key: string;
@@ -17,19 +19,11 @@ export function TabSelector({ tabs, activeTab, onTabChange }: TabSelectorProps) 
       {tabs.map((tab) => (
         <TouchableOpacity
           key={tab.key}
-          style={[
-            styles.tab,
-            activeTab === tab.key && styles.activeTab,
-          ]}
+          style={[styles.tab, activeTab === tab.key && styles.activeTab]}
           onPress={() => onTabChange(tab.key)}
           activeOpacity={0.7}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === tab.key && styles.activeTabText,
-            ]}
-          >
+          <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>
             {tab.label}
           </Text>
         </TouchableOpacity>
@@ -41,28 +35,28 @@ export function TabSelector({ tabs, activeTab, onTabChange }: TabSelectorProps) 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F3F4F6',
     borderRadius: 8,
     padding: 4,
-    marginBottom: 16,
+    gap: 4,
   },
   tab: {
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    alignItems: 'center',
     borderRadius: 6,
+    alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#FFCCBC',
+    backgroundColor: '#FFFFFF',
   },
   tabText: {
     fontSize: 14,
-    color: '#666',
     fontWeight: '500',
+    color: '#6B7280',
   },
   activeTabText: {
-    color: '#000',
+    color: '#111827',
     fontWeight: '600',
   },
 });

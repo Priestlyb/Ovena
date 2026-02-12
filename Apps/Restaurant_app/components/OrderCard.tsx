@@ -1,25 +1,45 @@
-import { View, Text, StyleSheet } from 'react-native';
+// components/OrderCard.tsx - Order card with navigation to details
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { StatusButton } from './StatusButton';
 
 interface OrderCardProps {
+  id: string;
   itemName: string;
   orderId: string;
   price: number;
   time: string;
   status: string;
+  type: string;
   onStatusPress?: () => void;
 }
 
 export function OrderCard({
+  id,
   itemName,
   orderId,
   price,
   time,
   status,
+  type,
   onStatusPress,
 }: OrderCardProps) {
+  const router = useRouter();
+
+  const handleCardPress = () => {
+    router.push({
+      pathname: '/screens/OrderDetailsPage',
+      params: { orderId: id },
+    });
+  };
+
   return (
-    <View style={styles.container}>
+    <TouchableOpacity
+      style={styles.container}
+      onPress={handleCardPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.contentContainer}>
         <View style={styles.leftSection}>
           <Text style={styles.itemName}>{itemName}</Text>
@@ -32,7 +52,7 @@ export function OrderCard({
           <StatusButton status={status} onPress={onStatusPress} />
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

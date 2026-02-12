@@ -11,7 +11,7 @@ import { Button } from '@/components/atoms/Button';
 import { Spacer } from '@/components/atoms/Spacer';
 
 // Components
-import { PINInput } from '@/components/PINinput';
+import { PINInput } from '@/components/PINInput';
 import { FloatingChatButton } from '@/components/FloatingChatButton';
 
 type Step = 'verify' | 'create' | 'confirm';

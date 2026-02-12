@@ -303,8 +303,8 @@ export const styles = StyleSheet.create({
   },
   
   checkboxCompleted: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: '#FF6B35',
+  
   },
   
   checkboxCheckmark: {
@@ -913,9 +913,8 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FEF3E7',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#FF6B35',
+    marginBottom: 22,
+    boxShadow: '0px 4px 8px #ff592099',
   },
 
   checklistItemContent: {
@@ -965,29 +964,29 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#FF6B35',
-    backgroundColor: '#FFFFFF',
+    backgroundColor:  '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
   },
 
   checklistCompletionCircleCompleted: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
   },
 
   checklistCheckmark: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FF6B35',
   },
 
   // ============================================================================
   // BEGIN ORDER BUTTON
   // ============================================================================
   beginOrderBtn: {
-    backgroundColor: '#6B7280',
+    backgroundColor: '#ff5920',
     borderRadius: 12,
     paddingVertical: 16,
     marginHorizontal: 20,
@@ -996,7 +995,7 @@ export const styles = StyleSheet.create({
   },
 
   beginOrderBtnDisabled: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: '#2F292680',
     borderRadius: 12,
     paddingVertical: 16,
     marginHorizontal: 20,

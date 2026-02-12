@@ -105,6 +105,7 @@ const StoreDetailsPage: React.FC<StoreDetailsPageProps> = ({ onBack, onSave }) =
           onChange={setShopName}
           required
         />
+        <Spacer size="md" />
 
         {/* Description */}
         <CustomInput
@@ -114,7 +115,56 @@ const StoreDetailsPage: React.FC<StoreDetailsPageProps> = ({ onBack, onSave }) =
           onChange={setDescription}
         />
 
+        <Spacer size="md" />
+        {/* Email */}
+        <CustomInput
+          label="Official Email"
+          placeholder="e.g example@company.com"
+          value={description}
+          onChange={setDescription}
+        />
+        <Spacer size="md" />
+
+        {/* Phone Number */}
+        <CustomInput
+          label="Official Phone Number"
+          placeholder="e.g +234 801 234 5678"
+          value={description}
+          onChange={setDescription}
+        />
+
         <Spacer size="xxl" />
+
+        {/* Address */}
+        <CustomInput
+          label="Address"
+          placeholder="e.g 123 Main Street, City"
+          value={description}
+          onChange={setDescription}
+        />
+
+        <Spacer size="xxl" />
+
+        {/* Save Button */}
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={() => {
+            const data: StoreDetails = {
+              profileImage,
+              businessImage,
+              shopName,
+              description,
+            };
+            onSave && onSave(data);
+          }}
+          activeOpacity={0.7}
+        >
+          <Text variant="body" weight="semibold" style={{ color: '#fff' }}>
+            Save Changes
+          </Text>
+        </TouchableOpacity>
+
+       
       </ScrollView>
 
       {/* Floating Chat Button */}

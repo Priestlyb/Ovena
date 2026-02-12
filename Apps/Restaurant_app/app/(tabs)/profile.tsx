@@ -17,7 +17,7 @@ import { Avatar } from '@/components/atoms/Avatar';
 
 // Custom Components
 import { CollapsibleSection } from '@/components/CollapsibleSection';
-import { ProfileMenuItem } from '@/components/ProfilemenuItem';
+import { ProfileMenuItem } from '@/components/ProfileMenuItem';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -104,7 +104,7 @@ export default function ProfilePage() {
             <ProfileMenuItem
               icon={Settings}
               label="Store Hub"
-              onPress={() => router.push('/screens/StoreHubPage')}
+              onPress={() => router.push('/(tabs)/StoreHubPage')}
             />
             <ProfileMenuItem
               icon={Users}

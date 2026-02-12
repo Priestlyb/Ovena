@@ -40,7 +40,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="store"
+        name="StoreHubPage"
         options={{
           title: 'Store',
           tabBarIcon: ({ size, color }) => <Store size={size} color={color} />,
