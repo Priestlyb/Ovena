@@ -1,0 +1,43 @@
+# node modules (EAS installs fresh, don't upload)
+node_modules
+
+# local env files
+.env
+.env.*
+
+# build output
+dist
+build
+out
+android/app/build
+ios/build
+ios/Pods
+
+# cache & temp
+.expo
+.expo-shared
+.cache
+.tmp
+.temp
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# IDE / OS junk
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# test files
+__tests__
+coverage
+
+# assets you don’t actually use
+assets/raw
+assets/backup
+assets/temp
+assets/large

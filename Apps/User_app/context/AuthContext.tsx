@@ -1,231 +1,214 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-} from "react";
+// context/AuthContext.tsx
+import { createContext, useContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
+import { jwtDecode } from "jwt-decode";
 
-/* =========================
-   TYPES
-========================= */
-type AuthState = {
+type AuthStatus =
+  | "booting"
+  | "unauthenticated"
+  | "signup_pending"
+  | "authenticated"
+  | "guest";
+
+type AuthMethod = "otp" | "google" | "apple" | null;
+
+type StoredAuth = {
   accessToken: string | null;
   refreshToken: string | null;
-  phoneNumber: string | null;
+  authMethod: AuthMethod;
   isNewUser: boolean;
-  isOtpVerified: boolean;
 };
 
-type AuthContextType = AuthState & {
-  loading: boolean;
+type AuthContextType = {
+  authStatus: AuthStatus;
+  accessToken: string | null;
+  authMethod: AuthMethod;
+  signupRoute: string | null;
+
+  loginWithOAuth: (
+    provider: "google" | "apple",
+    access: string,
+    refresh: string | null,
+    isNewUser: boolean
+  ) => Promise<void>;
+
   loginWithOtp: (
     access: string,
-    refresh: string,
-    isNewUser: boolean,
-    phone: string
-  ) => Promise<AuthState>;
-  logout: () => Promise<void>;
-  getValidAccessToken: () => Promise<string | null>;
+    refresh: string | null,
+    isNewUser: boolean
+  ) => Promise<void>;
+
+  completeOAuthSignup: (data: { access: string; refresh: string | null }) => Promise<void>;
+  completeOtpSignup: () => Promise<void>;
+
   loginAsGuest: () => Promise<void>;
-  completeSignup: () => Promise<AuthState>;
+  logout: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType>(null!);
 
-/* =========================
-   CONSTANTS
-========================= */
 const AUTH_KEY = "auth_state";
-const BASE_URL =
-  "https://ovena-backend-production.up.railway.app/api";
+const BASE_URL = "https://ovena-backend-production.up.railway.app/api";
 
-/* =========================
-   PROVIDER
-========================= */
-export const AuthProvider = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
-  const [state, setState] = useState<AuthState>({
-    accessToken: null,
-    refreshToken: null,
-    phoneNumber: null,
-    isNewUser: false,
-    isOtpVerified: false,
-  });
+/* ---------------- UTILS ---------------- */
+const isExpired = (token: string) => {
+  try {
+    const { exp }: any = jwtDecode(token);
+    return exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+};
 
-  const [loading, setLoading] = useState(true);
+/* ---------------- PROVIDER ---------------- */
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("booting");
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [authMethod, setAuthMethod] = useState<AuthMethod>(null);
+  const [signupRoute, setSignupRoute] = useState<string | null>(null);
 
-  /* ---------------------------
-     HYDRATE FROM STORAGE
-  ---------------------------- */
+  /* ---------------- BOOTSTRAP ---------------- */
   useEffect(() => {
-    let mounted = true;
-
     (async () => {
       try {
         const stored = await SecureStore.getItemAsync(AUTH_KEY);
-        if (stored && mounted) {
-          setState(JSON.parse(stored));
+        if (!stored) {
+          setAuthStatus("unauthenticated");
+          return;
         }
+
+        const parsed: StoredAuth = JSON.parse(stored);
+        if (parsed.accessToken && !isExpired(parsed.accessToken)) {
+          setAccessToken(parsed.accessToken);
+          setAuthMethod(parsed.authMethod);
+          if (parsed.isNewUser) {
+            const route = parsed.authMethod === "otp" ? "/OtpSignUpForm" : "/GoogleSignUpForm";
+            setSignupRoute(route);
+            setAuthStatus("signup_pending");
+          } else {
+            setAuthStatus("authenticated");
+          }
+          return;
+        }
+
+        if (parsed.refreshToken) {
+          const res = await fetch(`${BASE_URL}/accounts/refresh/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh: parsed.refreshToken }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const updated = { ...parsed, accessToken: data.access };
+            await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(updated));
+
+            setAccessToken(data.access);
+            setAuthMethod(parsed.authMethod);
+            if (parsed.isNewUser) {
+              const route = parsed.authMethod === "otp" ? "/OtpSignUpForm" : "/GoogleSignUpForm";
+              setSignupRoute(route);
+              setAuthStatus("signup_pending");
+            } else {
+              setAuthStatus("authenticated");
+            }
+            return;
+          }
+        }
+
+        await SecureStore.deleteItemAsync(AUTH_KEY);
+        setAuthStatus("unauthenticated");
       } catch (err) {
-        console.warn("Failed to load auth state");
-      } finally {
-        if (mounted) setLoading(false);
+        console.log("❌ Bootstrap error:", err);
+        setAuthStatus("unauthenticated");
       }
     })();
-
-    return () => {
-      mounted = false;
-    };
   }, []);
 
-  /* ---------------------------
-     PERSIST STATE (SINGLE SOURCE)
-  ---------------------------- */
-  const persistState = async (
-    nextState: AuthState
-  ): Promise<AuthState> => {
-    await SecureStore.setItemAsync(
-      AUTH_KEY,
-      JSON.stringify(nextState)
-    );
-    setState(nextState);
-    return nextState;
-  };
-
-  /* ---------------------------
-     LOGIN WITH OTP
-  ---------------------------- */
-  const loginWithOtp = async (
+  /* ---------------- LOGIN METHODS ---------------- */
+  const loginWithOAuth = async (
+    provider: "google" | "apple",
     access: string,
-    refresh: string,
-    isNewUser: boolean,
-    phone: string
-  ): Promise<AuthState> => {
-    return persistState({
-      accessToken: access,
-      refreshToken: refresh,
-      phoneNumber: phone,
-      isNewUser,
-      isOtpVerified: true, // ✅ OTP confirmed here
-    });
+    refresh: string | null,
+    isNewUser: boolean
+  ) => {
+    const payload: StoredAuth = { accessToken: access, refreshToken: refresh, authMethod: provider, isNewUser };
+    await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(payload));
+
+    setAccessToken(access);
+    setAuthMethod(provider);
+    setSignupRoute(isNewUser ? "/GoogleSignUpForm" : null);
+    setAuthStatus(isNewUser ? "signup_pending" : "authenticated");
   };
 
-  /* ---------------------------
-     LOGOUT (CENTRAL)
-  ---------------------------- */
-  const logout = useCallback(async () => {
-    await SecureStore.deleteItemAsync(AUTH_KEY);
-    setState({
-      accessToken: null,
-      refreshToken: null,
-      phoneNumber: null,
-      isNewUser: false,
-      isOtpVerified: false,
-    });
-  }, []);
+  const loginWithOtp = async (access: string, refresh: string | null, isNewUser: boolean) => {
+    const payload: StoredAuth = { accessToken: access, refreshToken: refresh, authMethod: "otp", isNewUser };
+    await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(payload));
 
-  /* ---------------------------
-     REFRESH ACCESS TOKEN
-  ---------------------------- */
-  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
-    if (!state.refreshToken) return null;
-
-    try {
-      const res = await fetch(
-        `${BASE_URL}/accounts/refresh/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            refresh: state.refreshToken,
-          }),
-        }
-      );
-
-      if (!res.ok) throw new Error("Refresh failed");
-
-      const data = await res.json();
-
-      const updatedState: AuthState = {
-        ...state,
-        accessToken: data.access,
-      };
-
-      await persistState(updatedState);
-      return data.access;
-    } catch (error) {
-      await logout();
-      return null;
-    }
-  }, [state, logout]);
-
-  /* ---------------------------
-     GET VALID ACCESS TOKEN
-  ---------------------------- */
-  const getValidAccessToken = async (): Promise<string | null> => {
-    if (state.accessToken) return state.accessToken;
-    return refreshAccessToken();
+    setAccessToken(access);
+    setAuthMethod("otp");
+    setSignupRoute(isNewUser ? "/OtpSignUpForm" : null);
+    setAuthStatus(isNewUser ? "signup_pending" : "authenticated");
   };
 
-  /* ---------------------------
-     COMPLETE SIGNUP
-     (USED IN _layout.tsx)
-  ---------------------------- */
-  const completeSignup = async (): Promise<AuthState> => {
-    const nextState: AuthState = {
-      ...state,
-      isNewUser: false,
-    };
+  /* ---------------- COMPLETE SIGNUP ---------------- */
+  const completeOAuthSignup = async (data: { access: string; refresh: string | null }) => {
+    const payload: StoredAuth = { accessToken: data.access, refreshToken: data.refresh, authMethod: "google", isNewUser: false };
+    await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(payload));
 
-    return persistState(nextState);
+    setAccessToken(data.access);
+    setAuthMethod("google");
+    setSignupRoute(null);
+    setAuthStatus("authenticated");
   };
 
-  /* ---------------------------
-     GUEST LOGIN
-  ---------------------------- */
+  const completeOtpSignup = async () => {
+    const stored = await SecureStore.getItemAsync(AUTH_KEY);
+    if (!stored) return;
+    const parsed: StoredAuth = JSON.parse(stored);
+    const updated = { ...parsed, isNewUser: false };
+    await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(updated));
+
+    setSignupRoute(null);
+    setAuthStatus("authenticated");
+  };
+
+  /* ---------------- GUEST ---------------- */
   const loginAsGuest = async () => {
-    await persistState({
-      accessToken: "guest",
-      refreshToken: null,
-      phoneNumber: null,
-      isNewUser: false,
-      isOtpVerified: true,
-    });
+    await SecureStore.deleteItemAsync(AUTH_KEY);
+    setAccessToken(null);
+    setAuthMethod(null);
+    setSignupRoute(null);
+    setAuthStatus("guest");
+  };
+
+  /* ---------------- LOGOUT ---------------- */
+  const logout = async () => {
+    await SecureStore.deleteItemAsync(AUTH_KEY);
+    setAccessToken(null);
+    setAuthMethod(null);
+    setSignupRoute(null);
+    setAuthStatus("unauthenticated");
   };
 
   return (
     <AuthContext.Provider
       value={{
-        ...state,
-        loading,
+        authStatus,
+        accessToken,
+        authMethod,
+        signupRoute,
+        loginWithOAuth,
         loginWithOtp,
-        logout,
+        completeOAuthSignup,
+        completeOtpSignup,
         loginAsGuest,
-        getValidAccessToken,
-        completeSignup,
+        logout,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-/* =========================
-   HOOK
-========================= */
-export const useAuth = (): AuthContextType => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error(
-      "useAuth must be used within AuthProvider"
-    );
-  }
-  return ctx;
-};
+export const useAuth = () => useContext(AuthContext);

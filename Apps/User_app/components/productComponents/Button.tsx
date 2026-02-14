@@ -9,7 +9,7 @@ interface CustomButtonProps {
   disabled?: boolean;
 }
 
- const CustomButton: React.FC<CustomButtonProps> = ({ 
+export const CustomButton: React.FC<CustomButtonProps> = ({ 
   title, 
   onPress, 
   style, 
@@ -42,5 +42,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-export { CustomButton };

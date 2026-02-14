@@ -1,13 +1,17 @@
 {
   "expo": {
-    "name": "User_app",
-    "slug": "User_app",
+    "name": "Ovena_app",
+    "slug": "Ovena_app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
+
     "scheme": "ovena",
+
+    "platforms": ["ios", "android", "web"],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ovena.userapp",
@@ -18,6 +22,7 @@
         }
       }
     },
+
     "android": {
       "package": "com.ovena.userapp",
       "versionCode": 1,
@@ -27,50 +32,25 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "permissions": [],
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleSignIn": {
-          "certificateHash": "BA:C0:E1:C7:04:A6:73:ED:92:4C:52:ED:3E:9C:A6:DC:9B:4F:59:36"
+          "certificateHash": "55:46:72:00:48:8E:4F:6C:01:4C:E3:9C:6E:92:C9:23:FE:1C:8A:E3"
         }
       }
     },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
+
     "plugins": [
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
-      ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      ["@react-native-google-signin/google-signin",
+      {
+        "iosUrlScheme": "com.googleusercontent.apps.759419359264-2540h17bf79g058j39fkte6qu48dgri5"
+      }]
     ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
-    "updates": {
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/af31e993-2991-46cd-b4ca-21d9586bebce"
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+
     "extra": {
-      "router": {},
       "eas": {
         "projectId": "af31e993-2991-46cd-b4ca-21d9586bebce"
       }

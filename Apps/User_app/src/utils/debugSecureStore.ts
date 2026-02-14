@@ -3,21 +3,27 @@ import * as SecureStore from "expo-secure-store";
 export const debugSecureStore = async () => {
   if (!__DEV__) return;
 
-  const keys = [
-    "access_token",
-    "refresh_token",
-    "token_expiry",
-    "phone_number",
-    "is_new_user",
-    "otp_verified",
-  ];
+  console.log("🔐 ================= SECURE STORE DEBUG =================");
 
-  console.log("🔐 SecureStore dump ↓↓↓");
+  const raw = await SecureStore.getItemAsync("auth_state");
 
-  for (const key of keys) {
-    const value = await SecureStore.getItemAsync(key);
-    console.log(`${key}:`, value);
+  if (!raw) {
+    console.log("❌ auth_state: <empty>");
+    console.log("🔐 ================= END =================");
+    return;
   }
 
-  console.log("🔐 End dump ↑↑↑");
+  try {
+    const state = JSON.parse(raw);
+
+    console.log("🛡️ accessToken:", state.accessToken ? "✅ present" : "❌ empty");
+    console.log("🔄 refreshToken:", state.refreshToken ? "✅ present" : "❌ empty");
+    console.log("📞 phoneNumber:", state.phoneNumber);
+    console.log("🆕 isNewUser:", state.isNewUser);
+    console.log("🔐 otpVerified:", state.isOtpVerified);
+  } catch (err) {
+    console.log("❌ auth_state corrupted");
+  }
+
+  console.log("🔐 ================= END =================");
 };

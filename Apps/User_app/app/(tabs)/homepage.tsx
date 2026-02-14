@@ -12,26 +12,30 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Link, useNavigation } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import HomePageTabView from "../../components/HomePageTabView";
 import { useHomeData } from "../../src/utils/controllers/useHomeData";
-
+import { router } from "expo-router";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "expo-router";
 
 const BASE_URL = "https://ovena-backend-production.up.railway.app/api";
 
 export default function Homepage() {
-  const router = useRouter();
+  const navigation = useNavigation<any>();
   const { categories, recentlyVisited, topPicks, foodCategories } =
     useHomeData();
 
-  const { accessToken, logout, getValidAccessToken } = useAuth();
+  const { accessToken, logout } = useAuth();
+
   const [deleting, setDeleting] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(30)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // ✅ Guest vs Auth detection
+  const { authStatus } = useAuth();
+  const isAuthenticated = authStatus === "authenticated" && !!accessToken;
 
   useEffect(() => {
     Animated.parallel([
@@ -48,74 +52,103 @@ export default function Homepage() {
     ]).start();
   }, []);
 
+  /* ================= DELETE ACCOUNT ================= */
+
   const handleDeleteUser = () => {
-  Alert.alert(
-    "Delete Account",
-    "This action is permanent. Are you sure?",
-    [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: confirmDelete },
-    ]
-  );
-};
-
-const confirmDelete = async () => {
-  try {
-    setDeleting(true);
-
-    // ✅ Get valid token (refresh if needed)
-    const token = await getValidAccessToken();
-
-    if (!token || token === "guest") {
-      Alert.alert("Session expired", "Please login again");
-      await logout();
-      router.replace("/login");
+    if (!isAuthenticated) {
+      Alert.alert(
+        "Login required",
+        "You must be logged in to delete your account.",
+      );
       return;
     }
 
-    const res = await fetch(`${BASE_URL}/accounts/profile/delete/`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    Alert.alert(
+      "Delete Account",
+      "This action is permanent and cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: confirmDelete,
+        },
+      ],
+    );
+  };
 
-    const text = await res.text();
+  const confirmDelete = async () => {
+    try {
+      setDeleting(true);
+      console.log("🗑️ DELETE → started");
 
-    if (res.status === 401) {
-      console.warn("Unauthorized → logging out");
+      // ✅ Use accessToken directly
+      const token = accessToken;
+      console.log("🗝️ DELETE → using token:", token);
+
+      // 🚫 Guest or invalid token
+      if (!token) {
+        console.warn("🚪 DELETE → invalid / guest token");
+        router.replace("/login");
+        setTimeout(() => logout(), 0);
+
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/accounts/profile/delete/`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("📬 DELETE → status:", res.status);
+
+      const raw = await res.text();
+      console.log("📦 DELETE → response:", raw);
+
+      // 🔐 Auth failure
+      if (res.status === 401 || res.status === 403) {
+        console.warn("🚪 DELETE → unauthorized");
+        await logout();
+        router.replace("/login");
+        return;
+      }
+
+      // ℹ️ No profile exists
+      if (res.status === 404) {
+        Alert.alert(
+          "Profile not found",
+          "No customer profile exists for this account.",
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(raw || "Failed to delete account");
+      }
+
+      console.log("✅ DELETE → success");
+
       await logout();
+      Alert.alert("Success", "Account deleted successfully");
       router.replace("/login");
-      return;
+    } catch (err: any) {
+      console.error("❌ DELETE → error:", err);
+      Alert.alert("Error", err?.message || "Something went wrong");
+    } finally {
+      setDeleting(false);
     }
+  };
 
-    if (res.status === 404 || text.includes("user_not_found")) {
-      await logout();
-      Alert.alert("Info", "User account already removed.");
-      router.replace("/login");
-      return;
-    }
-
-    if (!res.ok) throw new Error(text || "Failed to delete account");
-
-    await logout();
-    Alert.alert("Success", "Account deleted successfully");
-    router.replace("/login");
-  } catch (err: any) {
-    console.error("Delete account error:", err);
-    Alert.alert("Error", err.message || "Something went wrong");
-  } finally {
-    setDeleting(false);
-  }
-};
-
+  /* ================= UI ================= */
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* ================= DELETE USER (LOGGED IN ONLY) ================= */}
-        {accessToken && (
+        {/* 🔥 DELETE BUTTON (AUTH USERS ONLY) */}
+        {isAuthenticated && (
           <TouchableOpacity
             style={styles.deleteBtn}
             onPress={handleDeleteUser}
@@ -164,12 +197,14 @@ const confirmDelete = async () => {
         >
           {categories.map((item, i) => (
             <View key={i} style={styles.chip}>
-              <Text style={styles.chipText}>{item.name}</Text>
+              <Text style={styles.chipText}>
+                {item.name} {item.icon}
+              </Text>
             </View>
           ))}
         </ScrollView>
 
-        {/* ================= PROMO BANNER ================= */}
+        {/* ================= PROMO ================= */}
         <Animated.View
           style={[
             styles.wrapper,
@@ -202,100 +237,7 @@ const confirmDelete = async () => {
           </LinearGradient>
         </Animated.View>
 
-        {/* ================= FOOD ICON ROW ================= */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.foodRow}
-        >
-          {foodCategories.map((item, i) => (
-            <View key={i} style={styles.foodItem}>
-              <Text style={styles.foodIcon}>{item.icon}</Text>
-              <Text style={styles.foodLabel}>{item.name}</Text>
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* ================= RECENTLY VISITED ================= */}
-        <Text style={styles.sectionTitle}>Recently Visited</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {recentlyVisited.map(item => (
-            <TouchableOpacity key={item.id} style={styles.restaurantCard} onPress={() => router.replace("/screens/FoodOrderPage")}>
-              <Image
-                source={{ uri: item.image }}
-                style={styles.restaurantImage}
-              />
-              <TouchableOpacity style={styles.RCheart}>
-                <IconSymbol name="HeartIcon" size={22} color="#fff" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => router.push("/screens/FoodOrderPage")}
-              >
-                <Text style={styles.restaurantName}>{item.name}</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.opentime}>Opens at {item.openTime}</Text>
-
-              <View style={styles.reviewRow}>
-                <Text style={{ fontWeight: "700" }}>
-                  Reviews ({item.reviews})
-                </Text>
-                <Text>
-                  <IconSymbol name="StarIcon" size={14} color="#f5a623" />{" "}
-                  {item.rating}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* ================= FREE DELIVERY ================= */}
-        <View style={styles.delivery}>
-          <View>
-            <Text style={styles.deliveryTitle}>
-              Free delivery on your first order
-            </Text>
-            <Text style={styles.deliverySub}>It's time to treat yourself</Text>
-          </View>
-          <Image
-            source={require("../../assets/images/Deliveryguy.png")}
-            style={styles.deliveryImg}
-          />
-        </View>
-
-        {/* ================= TOP PICKS ================= */}
-        <Text style={styles.sectionTitle}>Top Picks On Ovena</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {topPicks.map(item => (
-           
-            <TouchableOpacity key={item.id} style={styles.restaurantCard} onPress={() => router.replace("/screens/HotelDetails")}>
-              <Image
-                source={{ uri: item.image }}
-                style={styles.restaurantImage}
-              />
-              <TouchableOpacity style={styles.RCheart}>
-                <IconSymbol name="HeartIcon" size={22} color="#fff" />
-              </TouchableOpacity>
-
-              <Text style={styles.restaurantName}>{item.name}</Text>
-              <Text style={styles.opentime}>Opens at {item.openTime}</Text>
-
-              <View style={styles.reviewRow}>
-                <Text style={{ fontWeight: "700" }}>
-                  Reviews ({item.reviews})
-                </Text>
-                <Text>
-                  <IconSymbol name="StarIcon" size={14} color="#f5a623" />{" "}
-                  {item.rating}
-                </Text>
-              </View>
-            </TouchableOpacity>
-           
-          ))}
-        </ScrollView>
-
-        {/* ================= RESTAURANTS TAB ================= */}
+        {/* ================= REST OF PAGE ================= */}
         <View style={{ height: 650 }}>
           <HomePageTabView />
         </View>
@@ -309,15 +251,26 @@ const confirmDelete = async () => {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60, backgroundColor: "#fff" },
 
+  deleteBtn: {
+    backgroundColor: "#D9502E",
+    marginHorizontal: 20,
+    marginTop: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  deleteText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 20,
   },
-  headerText: { 
-    fontSize: 25, 
-    fontWeight: "700" 
-  },
+  headerText: { fontSize: 30, fontWeight: "700" },
 
   cart: {
     width: 55,
@@ -342,162 +295,50 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f2f2f2",
     marginHorizontal: 20,
-    padding: 10,  
+    padding: 10,
     borderRadius: 12,
   },
-  searchInput: { 
-    flex: 1, 
-    marginHorizontal: 8 
-  },
+  searchInput: { flex: 1, marginHorizontal: 8 },
 
-  chipContainer: { 
-    paddingHorizontal: 15, 
-    marginTop: 10 
+  chipContainer: {
+    paddingHorizontal: 15,
+    marginTop: 25,
   },
   chip: {
-    backgroundColor: "transparent",
-    paddingHorizontal: 30,
-    paddingVertical: 4,
-    borderRadius: 40,
+    backgroundColor: "#eee",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
     marginRight: 8,
-    borderWidth: 1,
-    borderColor: "#000000ff",
   },
-  chipText: { 
-    fontSize: 15 
-  },
+  chipText: { fontSize: 15 },
 
-  wrapper: { 
-    paddingHorizontal: 20, 
-    marginVertical: 30 
-  },
+  wrapper: { paddingHorizontal: 20, marginVertical: 30 },
 
   promoCard: {
     borderRadius: 24,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
-    // elevation: 6,
-    padding: 20,
+    elevation: 6,
+    paddingLeft: 20,
   },
   left: { flex: 1 },
   title: { fontSize: 17, fontWeight: "600" },
   subtitle: { fontSize: 20, fontWeight: "800" },
   button: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
     marginTop: 16,
     backgroundColor: "#000",
     paddingVertical: 12,
     paddingHorizontal: 22,
-    borderRadius: 10,
-  },
-  buttonText: { 
-    color: "#fff", 
-    fontWeight: "600" 
-  },
-
-  jellofimage: { 
-    width: 200, 
-    marginBottom: -20, 
-    height: 200 
-  },
-
-  foodRow: { 
-    paddingHorizontal: 20, 
-    marginVertical: 10 
-  },
-  foodItem: { 
-    alignItems: "center", 
-    marginRight: 25 
-  },
-  foodIcon: {
-    fontSize: 40,
-    backgroundColor: "#0000000a",
-    padding: 12,
-    borderRadius: 25,
-  },
-  foodLabel: { 
-    fontSize: 12, 
-    marginTop: 4 
-  },
-
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    paddingHorizontal: 20,
-    marginTop: 30,
-  },
-
-  restaurantCard: { 
-    margin: 15, 
-    width: 250 
-  },
-  restaurantImage: { 
-    width: 250, 
-    height: 150, 
-    borderRadius: 16 
-  },
-  restaurantName: { 
-    fontSize: 18, 
-    fontWeight: "700", 
-    marginTop: 6 
-  },
-  opentime: { 
-    color: "#B7AFA5", 
-    marginTop: 4 
-  },
-
-  reviewRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 6,
-  },
-
-  delivery: {
-    display: "flex",
+    borderRadius: 30,
     alignItems: "center",
+  },
+  buttonText: { color: "#fff", fontWeight: "600" },
+
+  jellofimage: {
+    width: 200,
     height: 200,
-    flexDirection: "row",
-    backgroundColor: "#f5a623",
-    marginVertical: 50,
-    padding: 20,
-    justifyContent: "space-between",
-  },
-  deliveryTitle: { 
-    fontSize: 20, 
-    fontWeight: "700" 
-  },
-  deliverySub: { 
-    fontSize: 18 
-  },
-  deliveryImg: { 
-    width: 150, 
-    height: 150, 
-    marginBottom: -75 
-  },
-
-  RCheart: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    backgroundColor: "#D9502E",
-    padding: 8,
-    borderRadius: 10,
-  },
-  deleteBtn: {
-    backgroundColor: "#D9502E",
-    marginHorizontal: 20,
-    marginTop: 10,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-
-  deleteText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
+    marginBottom: -20,
   },
 });
