@@ -86,7 +86,7 @@ function SplashScreen({ navigation }: SplashProps) {
         ]}
         resizeMode="contain"
       />
-      <StatusBar hidden />
+      <StatusBar style="light" />
     </View>
   );
 }
