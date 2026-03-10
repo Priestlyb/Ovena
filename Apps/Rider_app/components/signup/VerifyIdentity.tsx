@@ -83,7 +83,7 @@ export default function VerifyIdentity({
             <CameraView
               ref={cameraRef}
               style={styles.camera}
-              facing={CameraType.front}
+              facing={"front" as CameraType}
             />
 
             <View style={styles.circleMask} />

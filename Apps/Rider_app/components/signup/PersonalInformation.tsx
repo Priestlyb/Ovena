@@ -6,15 +6,18 @@ import { IconSymbol } from "../../components/ui/icon-symbol";
 
 interface PersonalStepProps {
   personalInfo: {
-    firstName: string;
-    lastName: string;
-    phone: string;
+    first_name: string;
+    last_name: string;
+    phone_number: string;
     email: string;
+    password: string;
     gender: string;
-    dob: { day: string; month: string; year: string };
-    address: string;
-    nextOfKinName?: string;
-    nextOfKinPhone?: string;
+    birth_date: { day: string; month: string; year: string };
+    residential_address: string;
+    next_of_kin_name?: string;
+    next_of_kin_phone?: string;
+    next_of_kin_address?: string;
+    referre_code?: string;
   };
   setPersonalInfo: (state: any) => void;
 }
@@ -29,9 +32,11 @@ export default function PersonalStep({
     lastName: "UserIcon",
     phone: "PhoneIcon",
     email: "EmailIcon",
+    password: "PassWordIcon",
     address: "HomeIcon",
     nextOfKinName: "UserIcon",
     nextOfKinPhone: "PhoneIcon",
+    ticket: "Ticket"
   };
 
   const renderInput = (
@@ -40,27 +45,29 @@ export default function PersonalStep({
     value: string,
     onChange: (text: string) => void,
     iconName: string,
-    keyboardType?: any
+    keyboardType?: any,
+    error?: string
   ) => (
     <View style={styles.inputWrapper}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputContainer}>
-        <IconSymbol
-          name={iconName as any}
-          size={22}
-          color="#555"
-          style={{ marginRight: 10 }}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder={placeholder}
-          value={value}
-          onChangeText={onChange}
-          keyboardType={keyboardType || "default"}
-          placeholderTextColor="#999"
-        />
-      </View>
-    </View>
+  <Text style={styles.label}>{label}</Text>
+  <View style={[styles.inputContainer, error && styles.inputContainerError]}>
+    <IconSymbol
+      name={iconName as any}
+      size={22}
+      color="#555"
+      style={{ marginRight: 10 }}
+    />
+    <TextInput
+      style={styles.input}
+      placeholder={placeholder}
+      value={value}
+      onChangeText={onChange}
+      keyboardType={keyboardType || "default"}
+      placeholderTextColor="#999"
+    />
+  </View>
+  {error ? <Text style={styles.errorText}>{error}</Text> : null}
+</View>
   );
 
   return (
@@ -72,22 +79,22 @@ export default function PersonalStep({
         {renderInput(
           "First Name",
           "Enter your first name",
-          personalInfo.firstName,
-          (text) => setPersonalInfo({ ...personalInfo, firstName: text }),
+          personalInfo.first_name,
+          (text) => setPersonalInfo({ ...personalInfo, first_name: text }),
           icons.firstName
         )}
         {renderInput(
           "Last Name",
           "Enter your last name",
-          personalInfo.lastName,
-          (text) => setPersonalInfo({ ...personalInfo, lastName: text }),
+          personalInfo.last_name,
+          (text) => setPersonalInfo({ ...personalInfo, last_name: text }),
           icons.lastName
         )}
         {renderInput(
           "Phone Number",
           "e.g 08XXXXXXXXX",
-          personalInfo.phone,
-          (text) => setPersonalInfo({ ...personalInfo, phone: text }),
+          personalInfo.phone_number,
+          (text) => setPersonalInfo({ ...personalInfo, phone_number: text }),
           icons.phone,
           "phone-pad"
         )}
@@ -99,6 +106,40 @@ export default function PersonalStep({
           icons.email,
           "email-address"
         )}
+
+        {renderInput(
+          "Password",
+          "Enter your password",
+          personalInfo.password,
+          (text) => setPersonalInfo({ ...personalInfo, password: text }),
+          icons.password,
+          "default"
+          )}
+
+        {renderInput(
+         "Referal code (optional)",
+         "Enter your referal code",
+          personalInfo.referre_code || "",          // ✅ reads from correct field
+          (text) => setPersonalInfo({ ...personalInfo, referre_code: text || "" }), // ✅ returns "" when empty
+          icons.ticket,
+          "default"
+          )}
+          
+
+        {/* {renderInput(
+          "Confirm Password",
+          "Re-enter your password",
+          personalInfo.confirmPassword || "",
+          (text) => setPersonalInfo({ ...personalInfo, confirmPassword: text }),
+          icons.password,
+          "default",
+           personalInfo.confirmPassword && personalInfo.confirmPassword !== personalInfo.password
+           ? "Passwords do not match"
+           : undefined  // 👈 only shows error after user starts typing
+        )} */}
+        
+
+          
 
         {/* Gender Picker */}
         <View style={styles.inputWrapper}>
@@ -126,11 +167,11 @@ export default function PersonalStep({
             {/* Day */}
             <View style={styles.dobPickerContainer}>
               <Picker
-                selectedValue={personalInfo.dob.day}
+                selectedValue={personalInfo.birth_date.day}
                 onValueChange={(itemValue) =>
                   setPersonalInfo({
                     ...personalInfo,
-                    dob: { ...personalInfo.dob, day: itemValue },
+                    birth_date: { ...personalInfo.birth_date, day: itemValue },
                   })
                 }
               >
@@ -143,11 +184,11 @@ export default function PersonalStep({
             {/* Month */}
             <View style={styles.dobPickerContainer}>
               <Picker
-                selectedValue={personalInfo.dob.month}
+                selectedValue={personalInfo.birth_date.month}
                 onValueChange={(itemValue) =>
                   setPersonalInfo({
                     ...personalInfo,
-                    dob: { ...personalInfo.dob, month: itemValue },
+                    birth_date: { ...personalInfo.birth_date, month: itemValue },
                   })
                 }
               >
@@ -160,11 +201,11 @@ export default function PersonalStep({
             {/* Year */}
             <View style={styles.dobPickerContainer}>
               <Picker
-                selectedValue={personalInfo.dob.year}
+                selectedValue={personalInfo.birth_date.year}
                 onValueChange={(itemValue) =>
                   setPersonalInfo({
                     ...personalInfo,
-                    dob: { ...personalInfo.dob, year: itemValue },
+                    birth_date: { ...personalInfo.birth_date, year: itemValue },
                   })
                 }
               >
@@ -181,25 +222,35 @@ export default function PersonalStep({
         {renderInput(
           "Residential Address",
           "Enter your residential address",
-          personalInfo.address,
-          (text) => setPersonalInfo({ ...personalInfo, address: text }),
+          personalInfo.residential_address,
+          (text) => setPersonalInfo({ ...personalInfo, residential_address: text }),
           icons.address
         )}
         {renderInput(
           "Next of Kin Name",
           "Enter next of kin name",
-          personalInfo.nextOfKinName || "",
-          (text) => setPersonalInfo({ ...personalInfo, nextOfKinName: text }),
+          personalInfo.next_of_kin_name || "",
+          (text) => setPersonalInfo({ ...personalInfo, next_of_kin_name: text }),
           icons.nextOfKinName
         )}
         {renderInput(
           "Next of Kin Phone Number",
           "e.g 08XXXXXXXXX",
-          personalInfo.nextOfKinPhone || "",
-          (text) => setPersonalInfo({ ...personalInfo, nextOfKinPhone: text }),
+          personalInfo.next_of_kin_phone || "",
+          (text) => setPersonalInfo({ ...personalInfo, next_of_kin_phone: text }),
           icons.nextOfKinPhone,
           "phone-pad"
         )}
+        {renderInput(
+          "Next of Kin Address",
+          "Road 77",
+          personalInfo.next_of_kin_address || "",
+          (text) => setPersonalInfo({ ...personalInfo, next_of_kin_address: text }),
+          icons.address,
+          "address"
+        )}
+
+
       </ScrollView>
     </>
   );
@@ -242,4 +293,14 @@ const styles = StyleSheet.create({
     elevation: 3,
     overflow: "hidden",
   },
+  inputContainerError: {
+  borderColor: "#e53935",
+  borderWidth: 1,
+},
+errorText: {
+  color: "#e53935",
+  fontSize: 12,
+  marginTop: 4,
+  marginLeft: 4,
+},
 });

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  ScrollView,
 } from "react-native";
 
 export interface SafetyReliabilityState {
@@ -34,6 +35,7 @@ const SafetyAndReliability: FC<SafetyAndReliabilityProps> = ({
 }) => {
   return (
     <View style={{ flex: 1, paddingHorizontal: 20 }}>
+      <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>Safety & Reliability</Text>
 
       {/* Traffic Rules */}
@@ -148,6 +150,13 @@ const SafetyAndReliability: FC<SafetyAndReliabilityProps> = ({
       <TouchableOpacity style={styles.continueBtn} onPress={onContinue}>
         <Text style={styles.continueText}>Continue</Text>
       </TouchableOpacity>
+      </ScrollView>
+
+      {/* <View style={{ position: "absolute", top: 40, left: 20 }}>
+        <TouchableOpacity onPress={onBack} style={{ padding: 8 }}>
+          <Text style={{ color: "#D44C0C" }}>Back</Text>
+        </TouchableOpacity>
+      </View> */}
     </View>
   );
 };
@@ -225,6 +234,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 18,
+  },
+  ScrollView: {
+    paddingBottom: 20,
   },
 });
 

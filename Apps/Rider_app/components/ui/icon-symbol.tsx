@@ -26,6 +26,7 @@ export const IONICONS = {
   BellIcon: "notifications-outline",
   SettingsIcon: "settings-outline",
   CloseIcon: "close",
+  PassWordIcon: "lock-closed-outline",
   ChevronForwardIcon: "chevron-forward",
   BagOutline: "bag-outline",
   HeartOutline: "heart-outline",
@@ -102,6 +103,7 @@ export const FONT_AWESOME_6_ICONS = {
     "person-walking-dashed-line-arrow-right",
   ClockIcon: "clock",
   LocationArrowIcon: "location-arrow",
+  Ticket: "ticket"
 } as const satisfies Record<
   string,
   ComponentProps<typeof FontAwesome6>["name"]
