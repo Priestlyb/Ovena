@@ -36,7 +36,19 @@ export const IONICONS = {
   CardOutline: "card-outline",
   LogOutOutline: "log-out-outline",
   LocationOutline: "location-outline",
-  Location: "location"
+  Location: "location",
+  ArrowBack: "arrow-back-outline",
+  BankIcon: "cash-outline",
+  Bicycle: "bicycle-outline",
+  WhatsAppIcon: "logo-whatsapp",  
+  FacebookIcon: "logo-facebook",
+  InstagramIcon: "logo-instagram",
+  SnapchatIcon: "logo-snapchat",
+  MessageIcon: "chatbubble-outline",
+  ClockIcon: "time-outline",
+  ChevronDownIcon: "chevron-down-outline",
+  CheckmarkIcon: "checkmark-outline"
+  
 } as const satisfies Record<
   string,
   ComponentProps<typeof Ionicons>["name"]
@@ -103,7 +115,12 @@ export const FONT_AWESOME_6_ICONS = {
     "person-walking-dashed-line-arrow-right",
   ClockIcon: "clock",
   LocationArrowIcon: "location-arrow",
-  Ticket: "ticket"
+  Ticket: "ticket",
+  GmailIcon: "envelope",
+  SnapChatIcon: "snapchat",
+  Message: "comment",
+  TelegramIcon:"telegram",
+  XMarkIcon: "x"
 } as const satisfies Record<
   string,
   ComponentProps<typeof FontAwesome6>["name"]

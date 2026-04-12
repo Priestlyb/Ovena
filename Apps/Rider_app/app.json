@@ -34,7 +34,13 @@
       }
     },
     "plugins": [
-      "expo-font"
+     [
+        "expo-file-system",
+        {
+          "supportsOpeningDocumentsInPlace": true,
+          "enableFileSharing": true
+        }
+      ]
     ]
   }
 }

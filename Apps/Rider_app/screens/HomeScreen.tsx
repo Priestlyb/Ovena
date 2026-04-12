@@ -10,6 +10,7 @@ import {
   Modal,
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
+import { useTheme } from "../context/ThemeContext";
 
 // Modals
 import PickUpModal from "../modals/PickUpModal";
@@ -21,6 +22,7 @@ import OrderSuccessModal from "../modals/OrderSuccessModal";
 
 // Navigation
 import NavDrawer, { NavRoute } from "../components/NavDrawer";
+import DriverMapView from "../components/DriverMapView";
 
 // Page screens (rendered as full-screen modals)
 import ProfileScreen from "../screens/ProfileScreen";
@@ -30,6 +32,7 @@ import EarningsScreen from "../screens/EarningsScreen";
 import OpportunitiesScreen from "./OpportunitiesScreen";
 import ReferFriendsScreen from "../screens/ReferFriendsScreen";
 import HelpScreen from "../screens/HelpScreen";
+import OvenaBankScreen from "../screens/OvenaBankScreen";
 
 type ActiveScreen =
   | null
@@ -37,11 +40,14 @@ type ActiveScreen =
   | "Account"
   | "Inbox"
   | "Earnings"
+  | "OvenaBank"
   | "Opportunities"
   | "ReferFriends"
   | "Help";
 
 const HomeScreen = () => {
+  const { colors, isDark } = useTheme();
+
   const [online, setOnline] = useState(false);
 
   // Nav drawer
@@ -93,7 +99,7 @@ const HomeScreen = () => {
 
   // ── Navigation ───────────────────────────────────────────────────────────
   const handleNavigate = (route: NavRoute) => {
-    if (route === "TipsInfo") return; // placeholder
+    if (route === "TipsInfo") return;
     setActiveScreen(route as ActiveScreen);
   };
 
@@ -104,7 +110,8 @@ const HomeScreen = () => {
       case "Profile":       return <ProfileScreen onBack={closeScreen} />;
       case "Account":       return <AccountScreen onBack={closeScreen} />;
       case "Inbox":         return <InboxScreen onBack={closeScreen} />;
-      case "Earnings":      return <EarningsScreen onBack={closeScreen} />;
+      case "Earnings":      return <EarningsScreen onBack={closeScreen} onOpenBank={() => setActiveScreen("OvenaBank")} />;
+      case "OvenaBank":     return <OvenaBankScreen onBack={closeScreen} />;
       case "Opportunities": return <OpportunitiesScreen onBack={closeScreen} />;
       case "ReferFriends":  return <ReferFriendsScreen onBack={closeScreen} />;
       case "Help":          return <HelpScreen onBack={closeScreen} />;
@@ -113,30 +120,19 @@ const HomeScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-
-      {/* BACKGROUND IMAGE */}
-      <Image
-        source={require("../assets/road.jpg")}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      />
-
-      {/* DARK OVERLAY */}
-      <View style={styles.overlay} />
+    <View style={[styles.container, { backgroundColor: isDark ? "#0D0D0D" : "#000" }]}>
+      <StatusBar barStyle={colors.statusBarStyle} />
 
       {/* TOP BAR */}
       <View style={styles.topBar}>
-        {/* Hamburger → opens NavDrawer */}
         <TouchableOpacity
-          style={styles.menuBtn}
+          style={[styles.menuBtn, { backgroundColor: colors.card }]}
           onPress={() => setDrawerOpen(true)}
         >
-          <Text style={styles.menuIcon}>☰</Text>
+          <Text style={[styles.menuIcon, { color: colors.textPrimary }]}>☰</Text>
         </TouchableOpacity>
 
-        <View style={styles.statusContainer}>
+        <View style={[styles.statusContainer, { backgroundColor: colors.card }]}>
           <View
             style={[
               styles.statusDot,
@@ -147,24 +143,28 @@ const HomeScreen = () => {
       </View>
 
       {/* BOTTOM PANEL */}
-      <View style={styles.bottomPanel}>
-        <Text style={styles.earningsTitle}>TODAY</Text>
+      <View style={[styles.bottomPanel, { backgroundColor: isDark ? colors.card : "transparent" }]}>
+        <Text style={[styles.earningsTitle, { backgroundColor: colors.card, color: colors.textPrimary }]}>
+          TODAY
+        </Text>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 75 }}>
           <IconSymbol
             name="GymIcon"
             size={26}
-            color="#000"
+            color={colors.iconColor}
             style={{ opacity: 0 }}
           />
           <TouchableOpacity onPress={handleEarningsPress}>
-            <Text style={styles.earnAmount}>₦1,125.00</Text>
+            <Text style={[styles.earnAmount, { backgroundColor: isDark ? colors.cardSecondary : "#000", color: colors.accentGreen }]}>
+              ₦1,125.00
+            </Text>
           </TouchableOpacity>
           <IconSymbol
             name="SunCompass"
             size={26}
-            color="#000"
-            style={{ backgroundColor: "#FFF", borderRadius: 50, padding: 4 }}
+            color={colors.iconColor}
+            style={{ backgroundColor: colors.card, borderRadius: 50, padding: 4 }}
           />
         </View>
 
@@ -172,7 +172,7 @@ const HomeScreen = () => {
           style={[
             styles.toggleButton,
             {
-              backgroundColor: online ? "#D44C0C" : "#18C55D",
+              backgroundColor: online ? colors.accentOrange : colors.accentGreen,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
@@ -197,12 +197,12 @@ const HomeScreen = () => {
           />
         </TouchableOpacity>
 
-        <Text style={styles.toggleHint}>
+        <Text style={[styles.toggleHint, { color: isDark ? colors.textMuted : "#6B6B78" }]}>
           Tap the button to change your availability
         </Text>
       </View>
 
-      {/* ── NAV DRAWER (rendered on top of everything) ───────────────────── */}
+      {/* ── NAV DRAWER ───────────────────────────────────────────────────── */}
       <NavDrawer
         visible={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -260,12 +260,7 @@ const HomeScreen = () => {
 export default HomeScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
-  backgroundImage: { position: "absolute", width: "100%", height: "100%" },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
+  container: { flex: 1 },
   topBar: {
     position: "absolute",
     top: 50,
@@ -276,7 +271,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuBtn: {
-    backgroundColor: "#FFFFFF",
     padding: 12,
     borderRadius: 50,
     elevation: 4,
@@ -287,7 +281,6 @@ const styles = StyleSheet.create({
     height: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
     padding: 8,
     borderRadius: 50,
     marginRight: 10,
@@ -301,11 +294,11 @@ const styles = StyleSheet.create({
     elevation: 12,
     gap: 12,
     alignItems: "center",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   earningsTitle: {
     fontSize: 15,
-    color: "#000",
-    backgroundColor: "#FFFFFF",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
@@ -315,10 +308,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "500",
     marginVertical: 6,
-    color: "#10AA08",
     padding: 10,
     borderRadius: 20,
-    backgroundColor: "#000",
   },
   toggleButton: {
     width: "100%",
@@ -336,7 +327,7 @@ const styles = StyleSheet.create({
   toggleHint: {
     marginTop: 12,
     fontSize: 12,
-    color: "#6B6B78",
     textAlign: "center",
   },
 });
+

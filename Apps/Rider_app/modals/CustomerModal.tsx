@@ -1,5 +1,5 @@
 // modals/CustomerModal.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Modal,
   View,
@@ -12,6 +12,7 @@ import {
   PanResponder,
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
+import { useTheme } from "../context/ThemeContext";
 
 interface CustomerModalProps {
   visible: boolean;
@@ -31,27 +32,23 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
   onCompleteDelivery,
   photoTaken,
 }) => {
-  // Card entrance animation
+  const { colors } = useTheme();
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
-  // Single mutable bag — PanResponder reads these refs directly at call time,
-  // so there are zero stale closures regardless of how many times the modal opens.
   const gesture = useRef({
     dragX: new Animated.Value(0),
-    dragXValue: 0,          // JS mirror, always current
-    startX: 0,              // pill position at gesture start
-    trackWidth: 0,          // measured from onLayout
-    onComplete: onCompleteDelivery, // always points to latest prop
+    dragXValue: 0,
+    startX: 0,
+    trackWidth: 0,
+    onComplete: onCompleteDelivery,
   });
 
-  // Keep the callback ref fresh on every render so the PanResponder always
-  // calls the latest version of onCompleteDelivery.
   gesture.current.onComplete = onCompleteDelivery;
 
   const { dragX } = gesture.current;
 
-  // Keep JS mirror in sync
   useEffect(() => {
     const id = dragX.addListener(({ value }) => {
       gesture.current.dragXValue = value;
@@ -93,7 +90,6 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
     if (!photoTaken) resetPill();
   }, [photoTaken]);
 
-  // PanResponder reads everything from gesture.current — never from a closure.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -141,27 +137,31 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
       animationType="none"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: colors.overlayBg }]}>
         <Animated.View
           style={[
             styles.card,
-            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+            {
+              backgroundColor: colors.card,
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
           ]}
         >
           {/* Header row */}
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, { borderBottomColor: colors.separatorColor }]}>
             <TouchableOpacity onPress={onClose} style={styles.headerIcon}>
-              <IconSymbol name="ChevronDownIcon" size={20} color="#000" />
+              <IconSymbol name="ChevronDownIcon" size={20} color={colors.iconColor} />
             </TouchableOpacity>
 
             <View style={styles.headerCenter}>
-              <Text style={styles.headerStat}>10 min</Text>
-              <IconSymbol name="BikeIcon" size={20} color="#000" />
-              <Text style={styles.headerStat}>1.9 mil</Text>
+              <Text style={[styles.headerStat, { color: colors.textPrimary }]}>10 min</Text>
+              <IconSymbol name="BikeIcon" size={20} color={colors.iconColor} />
+              <Text style={[styles.headerStat, { color: colors.textPrimary }]}>1.9 mil</Text>
             </View>
 
             <TouchableOpacity style={styles.headerIcon}>
-              <IconSymbol name="NavListIcon" size={20} color="#000" />
+              <IconSymbol name="NavListIcon" size={20} color={colors.iconColor} />
             </TouchableOpacity>
           </View>
 
@@ -171,45 +171,45 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
           >
             {/* Customer name + actions */}
             <View style={styles.nameRow}>
-              <Text style={styles.customerName}>David D.</Text>
+              <Text style={[styles.customerName, { color: colors.textPrimary }]}>David D.</Text>
               <View style={styles.actionButtons}>
-                <TouchableOpacity style={styles.actionBtn}>
-                  <IconSymbol name="MessageIcon" size={22} color="#000" />
+                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.actionBtnBg, borderColor: colors.actionBtnBorder }]}>
+                  <IconSymbol name="MessageIcon" size={22} color={colors.iconColor} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn}>
-                  <IconSymbol name="PhoneIcon" size={22} color="#000" />
+                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.actionBtnBg, borderColor: colors.actionBtnBorder }]}>
+                  <IconSymbol name="PhoneIcon" size={22} color={colors.iconColor} />
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Delivery type */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Delivery type</Text>
-              <Text style={styles.sectionValue}>Meet at door</Text>
-              <Text style={styles.sectionLabel}>Note from customer</Text>
-              <Text style={styles.noteItem}>• Leave at door</Text>
+              <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Delivery type</Text>
+              <Text style={[styles.sectionValue, { color: colors.textPrimary }]}>Meet at door</Text>
+              <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Note from customer</Text>
+              <Text style={[styles.noteItem, { color: colors.textSecondary }]}>• Leave at door</Text>
             </View>
 
             {/* Address card */}
-            <View style={styles.addressCard}>
-              <IconSymbol name="LocationArrowIcon" size={18} color="#D44C0C" />
-              <Text style={styles.addressText}>
+            <View style={[styles.addressCard, { backgroundColor: colors.accentYellow }]}>
+              <IconSymbol name="LocationArrowIcon" size={18} color={colors.accentOrange} />
+              <Text style={[styles.addressText, { color: "#1a1a1a" }]}>
                 149 Westminster Crescent, Sheffield, S10 4EW
               </Text>
             </View>
 
             {/* Order row */}
-            <View style={styles.orderRow}>
+            <View style={[styles.orderRow, { borderColor: colors.separatorColor }]}>
               <View style={{ flex: 1, marginRight: 12 }}>
-                <Text style={styles.orderCode}>4593C</Text>
-                <Text style={styles.orderDesc}>
+                <Text style={[styles.orderCode, { color: colors.textPrimary }]}>4593C</Text>
+                <Text style={[styles.orderDesc, { color: colors.textSecondary }]}>
                   KFC - Nottingham - Cross Street Retail Park . 3 items
                 </Text>
               </View>
               <View
                 style={[
                   styles.checkCircle,
-                  { backgroundColor: photoTaken ? "#10AA08" : "#1a1a1a" },
+                  { backgroundColor: photoTaken ? colors.accentGreen : colors.cardSecondary },
                 ]}
               >
                 <IconSymbol name="CheckmarkIcon" size={14} color="#fff" />
@@ -217,56 +217,54 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
             </View>
 
             {/* Take photo button */}
-            <TouchableOpacity style={styles.takePhotoBtn} onPress={onTakePhoto}>
+            <TouchableOpacity style={[styles.takePhotoBtn, { backgroundColor: colors.accentOrange }]} onPress={onTakePhoto}>
               <IconSymbol name="CameraIcon" size={20} color="#fff" />
               <Text style={styles.takePhotoBtnText}>Take photo</Text>
             </TouchableOpacity>
 
             {/* Help and Support */}
             <View style={styles.helpSection}>
-              <Text style={styles.helpTitle}>Help and Support</Text>
+              <Text style={[styles.helpTitle, { color: colors.textPrimary }]}>Help and Support</Text>
               <View style={styles.helpRow}>
                 <IconSymbol name="Warning" size={18} color="#f59e0b" />
-                <Text style={styles.helpText}>Trip support</Text>
+                <Text style={[styles.helpText, { color: colors.textSecondary }]}>Trip support</Text>
               </View>
             </View>
 
-            {/* Complete delivery — drag the black pill to complete */}
+            {/* Complete delivery — drag the pill to complete */}
             <View
               style={styles.completeRow}
               onLayout={(e) => { gesture.current.trackWidth = e.nativeEvent.layout.width; }}
             >
-              {/* Full-width background layer */}
               <View
                 style={[
                   styles.completeYellowBg,
-                  { backgroundColor: photoTaken ? "#FFDA71" : "#e0e0e0" },
+                  { backgroundColor: photoTaken ? colors.accentYellow : colors.inputBg },
                 ]}
               >
                 <Text
                   style={[
                     styles.completeText,
-                    { color: photoTaken ? "#1a1a1a" : "#aaa" },
+                    { color: photoTaken ? "#1a1a1a" : colors.textMuted },
                   ]}
                 >
                   {photoTaken ? "Slide to complete →" : "Complete delivery"}
                 </Text>
               </View>
 
-              {/* Black arrow pill — drag left→right to trigger */}
               <Animated.View
                 style={[
                   styles.completeArrowBox,
-                  { transform: [{ translateX: photoTaken ? gesture.current.dragX : 0 }] },
+                  { backgroundColor: colors.accentDark, transform: [{ translateX: photoTaken ? gesture.current.dragX : 0 }] },
                 ]}
                 {...(photoTaken ? panResponder.panHandlers : {})}
               >
-                <IconSymbol name="ArrowRightLongIcon" size={18} color="#fff" />
+                <IconSymbol name="ArrowRightLongIcon" size={18} color={colors.card} />
               </Animated.View>
             </View>
 
             {!photoTaken && (
-              <Text style={styles.lockedHint}>
+              <Text style={[styles.lockedHint, { color: colors.textMuted }]}>
                 📷 Take a photo first to unlock
               </Text>
             )}
@@ -282,15 +280,12 @@ export default CustomerModal;
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 16,
   },
-
   card: {
     width: "100%",
-    backgroundColor: "#fff",
     borderRadius: 24,
     maxHeight: "88%",
     shadowColor: "#000",
@@ -300,8 +295,6 @@ const styles = StyleSheet.create({
     elevation: 24,
     overflow: "hidden",
   },
-
-  /* Header */
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -309,82 +302,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
   },
-  headerIcon: {
-    padding: 4,
-  },
+  headerIcon: { padding: 4 },
   headerCenter: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  headerStat: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111",
-  },
-
-  /* Scroll */
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 28,
-  },
-
-  /* Customer name */
+  headerStat: { fontSize: 15, fontWeight: "600" },
+  scrollContent: { padding: 20, paddingBottom: 28 },
   nameRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 18,
   },
-  customerName: {
-    fontSize: 26,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-    color: "#111",
-  },
-  actionButtons: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  customerName: { fontSize: 26, fontWeight: "700", letterSpacing: -0.5 },
+  actionButtons: { flexDirection: "row", gap: 10 },
   actionBtn: {
-    backgroundColor: "#f5f5f5",
     borderWidth: 1,
-    borderColor: "#e8e8e8",
     borderRadius: 12,
     width: 46,
     height: 46,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  /* Section */
-  section: {
-    marginBottom: 18,
-    gap: 2,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    color: "#999",
-    fontWeight: "500",
-  },
-  sectionValue: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111",
-    marginTop: 2,
-  },
-  noteItem: {
-    fontSize: 13,
-    color: "#555",
-    marginTop: 2,
-    marginLeft: 4,
-  },
-
-  /* Address */
+  section: { marginBottom: 18, gap: 2 },
+  sectionLabel: { fontSize: 13, fontWeight: "500" },
+  sectionValue: { fontSize: 15, fontWeight: "600", marginTop: 2 },
+  noteItem: { fontSize: 13, marginTop: 2, marginLeft: 4 },
   addressCard: {
-    backgroundColor: "#FFDA71",
     borderRadius: 14,
     padding: 14,
     flexDirection: "row",
@@ -392,14 +339,7 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 20,
   },
-  addressText: {
-    flex: 1,
-    fontWeight: "600",
-    fontSize: 15,
-    lineHeight: 22,
-  },
-
-  /* Order row */
+  addressText: { flex: 1, fontWeight: "600", fontSize: 15, lineHeight: 22 },
   orderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -407,19 +347,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
     marginBottom: 20,
   },
-  orderCode: {
-    fontSize: 17,
-    fontWeight: "700",
-    marginBottom: 4,
-    color: "#111",
-  },
-  orderDesc: {
-    fontSize: 13,
-    color: "#555",
-  },
+  orderCode: { fontSize: 17, fontWeight: "700", marginBottom: 4 },
+  orderDesc: { fontSize: 13 },
   checkCircle: {
     width: 32,
     height: 32,
@@ -427,45 +358,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  /* Take photo */
   takePhotoBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "#D44C0C",
     borderRadius: 50,
     paddingVertical: 16,
     marginBottom: 20,
   },
-  takePhotoBtnText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-
-  /* Help */
-  helpSection: {
-    marginBottom: 20,
-    gap: 8,
-  },
-  helpTitle: {
-    fontWeight: "700",
-    fontSize: 15,
-    color: "#111",
-  },
-  helpRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  helpText: {
-    fontSize: 14,
-    color: "#555",
-  },
-
-  /* Complete delivery */
+  takePhotoBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  helpSection: { marginBottom: 20, gap: 8 },
+  helpTitle: { fontWeight: "700", fontSize: 15 },
+  helpRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  helpText: { fontSize: 14 },
   completeRow: {
     height: 56,
     borderRadius: 50,
@@ -484,19 +390,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     width: PILL_WIDTH,
-    backgroundColor: "#1a1a1a",
     borderRadius: 50,
     alignItems: "center",
     justifyContent: "center",
   },
-  completeText: {
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  lockedHint: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#bbb",
-    marginTop: 10,
-  },
+  completeText: { fontWeight: "700", fontSize: 15 },
+  lockedHint: { textAlign: "center", fontSize: 12, marginTop: 10 },
 });

@@ -17,6 +17,7 @@ type RootStackParamList = {
   TermsScreen: undefined;
   Signup: undefined;
   SignIn: undefined;
+  HomeScreen: undefined;
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login_SignUp">;
@@ -27,9 +28,11 @@ const Login_SignUp: React.FC<Props> = ({ navigation }) => {
 
   const logoSize = Math.min(width * 0.7, 300);
 
+  // Called when the user accepts the terms inside the modal —
+  // close the modal and send them straight to the signup flow.
   const handleContinue = () => {
     setModalVisible(false);
-    alert("You accepted the terms!");
+    navigation.navigate("Signup");
   };
 
   const handleTermsPress = () => {
@@ -58,6 +61,7 @@ const Login_SignUp: React.FC<Props> = ({ navigation }) => {
           Choose Your Schedule and {"\n"} Maximize Your Earnings
         </Text>
 
+        {/* Sign in → SignIn screen, which navigates to HomeScreen on success */}
         <TouchableOpacity
           style={[styles.primaryButton, { width: width * 0.9 }]}
           onPress={() => navigation.navigate("SignIn")}
@@ -65,6 +69,7 @@ const Login_SignUp: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.primaryButtonText}>Sign in</Text>
         </TouchableOpacity>
 
+        {/* Apply here → show Terms modal first, then go to Signup */}
         <TouchableOpacity
           style={[styles.secondaryButton, { width: width * 0.9 }]}
           onPress={() => setModalVisible(true)}
@@ -86,7 +91,6 @@ const Login_SignUp: React.FC<Props> = ({ navigation }) => {
 };
 
 export default Login_SignUp;
-
 
 const styles = StyleSheet.create({
   container: {

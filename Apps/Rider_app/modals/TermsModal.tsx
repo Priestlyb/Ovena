@@ -10,6 +10,7 @@ import {
   GestureResponderEvent,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../context/ThemeContext";
 
 interface TermsModalProps {
   visible: boolean;
@@ -23,35 +24,33 @@ const TermsModal: React.FC<TermsModalProps> = ({
   onClose,
   onTermsPress,
 }) => {
+  const { colors } = useTheme();
   const [isChecked, setIsChecked] = useState(false);
-
-  // navigation without explicit type
   const navigation = useNavigation<any>();
 
   const handleContinue = () => {
     if (isChecked) {
-      onClose(); 
+      onClose();
       setIsChecked(false);
-      navigation.navigate("Signup"); 
+      navigation.navigate("Signup");
     }
   };
 
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Terms & Conditions</Text>
+      <View style={[styles.modalOverlay, { backgroundColor: colors.overlayBg }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+          <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Terms & Conditions</Text>
 
-          {/* Checkbox */}
           <View style={styles.checkboxContainer}>
             <TouchableOpacity
-              style={styles.checkbox}
+              style={[styles.checkbox, { borderColor: colors.textPrimary }]}
               onPress={() => setIsChecked(!isChecked)}
             >
-              {isChecked && <View style={styles.checkedBox} />}
+              {isChecked && <View style={[styles.checkedBox, { backgroundColor: colors.accentOrange }]} />}
             </TouchableOpacity>
 
-            <Text style={styles.checkboxText}>
+            <Text style={[styles.checkboxText, { color: colors.textPrimary }]}>
               I Accept the{" "}
               <Text
                 style={{ color: "#5077F7", textDecorationLine: "underline" }}
@@ -62,17 +61,22 @@ const TermsModal: React.FC<TermsModalProps> = ({
             </Text>
           </View>
 
-          {/* Continue Button */}
           <Pressable
-            style={[styles.continueButton, { opacity: isChecked ? 1 : 0.5 }]}
+            style={[
+              styles.continueButton,
+              {
+                backgroundColor: colors.accentDark,
+                opacity: isChecked ? 1 : 0.5,
+              },
+            ]}
             onPress={handleContinue}
             disabled={!isChecked}
           >
-            <Text style={styles.continueButtonText}>Continue</Text>
+            <Text style={[styles.continueButtonText, { color: colors.textOnAccent }]}>Continue</Text>
           </Pressable>
 
           <Pressable onPress={onClose} style={{ marginTop: 10 }}>
-            <Text style={{ color: "#D44C0C", fontWeight: "bold" }}>Cancel</Text>
+            <Text style={{ color: colors.accentOrange, fontWeight: "bold" }}>Cancel</Text>
           </Pressable>
         </View>
       </View>
@@ -85,22 +89,16 @@ export default TermsModal;
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
     width: "80%",
-    backgroundColor: "#fff",
     borderRadius: 20,
     padding: 30,
     alignItems: "center",
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
+  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
   checkboxContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -111,25 +109,18 @@ const styles = StyleSheet.create({
     width: 25,
     height: 25,
     borderWidth: 2,
-    borderColor: "#000",
     marginRight: 10,
     borderRadius: 5,
     justifyContent: "center",
     alignItems: "center",
   },
-  checkedBox: {
-    width: 15,
-    height: 15,
-    backgroundColor: "#D44C0C",
-    borderRadius: 20,
-  },
+  checkedBox: { width: 15, height: 15, borderRadius: 20 },
   checkboxText: { fontSize: 16 },
   continueButton: {
     marginTop: 20,
-    backgroundColor: "#000",
     padding: 15,
     borderRadius: 50,
     width: "100%",
   },
-  continueButtonText: { color: "#fff", textAlign: "center", fontSize: 18, fontWeight: "bold" },
+  continueButtonText: { textAlign: "center", fontSize: 18, fontWeight: "bold" },
 });

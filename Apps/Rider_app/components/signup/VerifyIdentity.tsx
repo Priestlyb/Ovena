@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ActivityIndicator,
 } from "react-native";
-
 import {
   CameraView,
   CameraType,
@@ -19,17 +19,17 @@ interface Props {
   setImage: (v: string) => void;
   onContinue: () => void;
   onBack?: () => void;
+  isSubmitting?: boolean; // passed from SignupScreen to drive the spinner
 }
 
 export default function VerifyIdentity({
   image,
   setImage,
   onContinue,
+  isSubmitting = false,
 }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView | null>(null);
-
-  // kept for UI logic (button enabled state)
   const [faceOk, setFaceOk] = useState(true);
 
   useEffect(() => {
@@ -44,10 +44,7 @@ export default function VerifyIdentity({
     return (
       <View style={styles.center}>
         <Text>Camera permission required</Text>
-        <TouchableOpacity
-          onPress={requestPermission}
-          style={styles.permissionBtn}
-        >
+        <TouchableOpacity onPress={requestPermission} style={styles.permissionBtn}>
           <Text style={styles.permissionText}>Allow Camera</Text>
         </TouchableOpacity>
       </View>
@@ -56,17 +53,12 @@ export default function VerifyIdentity({
 
   const capturePhoto = async () => {
     if (!cameraRef.current) return;
-
     try {
-      const result = await cameraRef.current.takePictureAsync({
-        quality: 0.7,
-      });
-
+      const result = await cameraRef.current.takePictureAsync({ quality: 0.7 });
       if (!result?.uri) {
         Alert.alert("Error", "Failed to capture image");
         return;
       }
-
       setImage(result.uri);
     } catch (err) {
       Alert.alert("Camera Error", "Unable to take photo");
@@ -85,7 +77,6 @@ export default function VerifyIdentity({
               style={styles.camera}
               facing={"front" as CameraType}
             />
-
             <View style={styles.circleMask} />
           </View>
 
@@ -105,22 +96,33 @@ export default function VerifyIdentity({
         <>
           <Image source={{ uri: image }} style={styles.captured} />
 
-          <TouchableOpacity
-            style={[styles.captureBtn, { backgroundColor: "#000" }]}
-            onPress={() => setImage("")}
-          >
-            <Text style={styles.captureText}>Retake Photo</Text>
-          </TouchableOpacity>
+          {/* Retake — hidden while submitting */}
+          {!isSubmitting && (
+            <TouchableOpacity
+              style={[styles.captureBtn, { backgroundColor: "#000" }]}
+              onPress={() => setImage("")}
+            >
+              <Text style={styles.captureText}>Retake Photo</Text>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity style={styles.continueBtn} onPress={onContinue}>
-            <Text style={styles.continueText}>Continue</Text>
+          {/* Continue — shows spinner while API call is in flight */}
+          <TouchableOpacity
+            style={[styles.continueBtn, isSubmitting && { opacity: 0.6 }]}
+            onPress={onContinue}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.continueText}>Continue</Text>
+            )}
           </TouchableOpacity>
         </>
       )}
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 20, alignItems: "center", backgroundColor: "#fff" },
@@ -133,9 +135,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 20,
   },
-
   camera: { width: "100%", height: "100%" },
-
   circleMask: {
     position: "absolute",
     width: 260,
@@ -161,7 +161,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 35,
     borderRadius: 40,
   },
-
   captureText: { color: "#fff", fontWeight: "bold" },
 
   captured: {
@@ -176,10 +175,12 @@ const styles = StyleSheet.create({
   continueBtn: {
     marginTop: 20,
     backgroundColor: "#D44C0C",
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 50,
     borderRadius: 40,
+    alignItems: "center",
+    minWidth: 160,
   },
-
   continueText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 
   center: { flex: 1, justifyContent: "center", alignItems: "center" },

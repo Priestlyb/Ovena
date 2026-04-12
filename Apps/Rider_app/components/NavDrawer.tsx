@@ -1,92 +1,71 @@
 // components/NavDrawer.tsx
 import React, { useEffect, useRef } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  Dimensions,
-  Pressable,
-  StatusBar,
-  Platform,
+  View, Text, TouchableOpacity, StyleSheet,
+  Animated, Dimensions, Pressable, StatusBar,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../context/ThemeContext";
+import { useAppData } from "../context/appDataContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.72;
 
 export type NavRoute =
-  | "Account"
-  | "Inbox"
-  | "Earnings"
-  | "Opportunities"
-  | "ReferFriends"
-  | "Help"
-  | "TipsInfo"
-  | "Profile";
+  | "Account" | "Inbox" | "Earnings" | "Opportunities"
+  | "ReferFriends" | "Help" | "TipsInfo" | "Profile";
 
 interface NavDrawerProps {
   visible: boolean;
   onClose: () => void;
   onNavigate: (route: NavRoute) => void;
+  /** Fallback name shown while app data is loading */
   driverName?: string;
 }
 
 const PRIMARY_LINKS: { label: string; route: NavRoute }[] = [
-  { label: "Account", route: "Account" },
-  { label: "Inbox", route: "Inbox" },
-  { label: "Earnings", route: "Earnings" },
+  { label: "Account",       route: "Account" },
+  { label: "Inbox",         route: "Inbox" },
+  { label: "Earnings",      route: "Earnings" },
   { label: "Opportunities", route: "Opportunities" },
   { label: "Refer Friends", route: "ReferFriends" },
 ];
 
 const SECONDARY_LINKS: { label: string; route: NavRoute }[] = [
-  { label: "Help", route: "Help" },
+  { label: "Help",        route: "Help" },
   { label: "Tips & info", route: "TipsInfo" },
 ];
 
 const NavDrawer: React.FC<NavDrawerProps> = ({
-  visible,
-  onClose,
-  onNavigate,
-  driverName = "Priestly",
+  visible, onClose, onNavigate, driverName = "Driver",
 }) => {
-  const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const { colors } = useTheme();
+  const { data }   = useAppData();
+
+  // Pull name from live API data, fall back to prop
+  const profile = data?.dashboard?.data?.profile;
+  const displayName = profile
+    ? `${profile.first_name} ${profile.last_name}`.trim()
+    : driverName;
+
+  const insets       = useSafeAreaInsets();
+  const slideAnim    = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      StatusBar.setBarStyle("dark-content");
+      StatusBar.setBarStyle(colors.statusBarStyle);
       Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 9,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
+        Animated.spring(slideAnim, { toValue: 0, friction: 9, tension: 80, useNativeDriver: true }),
+        Animated.timing(backdropAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -DRAWER_WIDTH,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropAnim, {
-          toValue: 0,
-          duration: 220,
-          useNativeDriver: true,
-        }),
+        Animated.timing(slideAnim, { toValue: -DRAWER_WIDTH, duration: 220, useNativeDriver: true }),
+        Animated.timing(backdropAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, colors.statusBarStyle]);
 
   const handleNavigate = (route: NavRoute) => {
     onClose();
@@ -108,27 +87,38 @@ const NavDrawer: React.FC<NavDrawerProps> = ({
         style={[
           styles.drawer,
           {
+            backgroundColor: colors.card,
             transform: [{ translateX: slideAnim }],
             paddingTop: insets.top + 16,
           },
         ]}
       >
-        {/* StatusBar fill strip — same colour as drawer bg */}
-        <View
-          style={[
-            styles.statusBarFill,
-            { height: insets.top, top: -insets.top },
-          ]}
-        />
+        <View style={[styles.statusBarFill, { height: insets.top, top: -insets.top, backgroundColor: colors.card }]} />
 
-        {/* Profile header */}
+        {/* Profile header — tapping navigates to Profile screen */}
         <TouchableOpacity
           style={styles.profileRow}
           onPress={() => handleNavigate("Profile")}
           activeOpacity={0.75}
         >
-          <View style={styles.avatar} />
-          <Text style={styles.driverName}>{driverName}</Text>
+          <View style={[styles.avatar, { backgroundColor: colors.inputBg }]}>
+            {/* Initials inside avatar */}
+            {profile && (
+              <Text style={[styles.avatarInitials, { color: colors.textPrimary }]}>
+                {profile.first_name[0]}{profile.last_name[0]}
+              </Text>
+            )}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.driverName, { color: colors.textPrimary }]} numberOfLines={1}>
+              {displayName}
+            </Text>
+            {profile && (
+              <Text style={[styles.driverStats, { color: colors.textMuted }]}>
+                {profile.total_deliveries} deliveries · ⭐ {profile.rating.toFixed(1)}
+              </Text>
+            )}
+          </View>
         </TouchableOpacity>
 
         {/* Primary links */}
@@ -140,13 +130,12 @@ const NavDrawer: React.FC<NavDrawerProps> = ({
               onPress={() => handleNavigate(route)}
               activeOpacity={0.6}
             >
-              <Text style={styles.linkText}>{label}</Text>
+              <Text style={[styles.linkText, { color: colors.textPrimary }]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Divider */}
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.separatorColor }]} />
 
         {/* Secondary links */}
         <View style={styles.linksSection}>
@@ -157,7 +146,7 @@ const NavDrawer: React.FC<NavDrawerProps> = ({
               onPress={() => handleNavigate(route)}
               activeOpacity={0.6}
             >
-              <Text style={styles.linkText}>{label}</Text>
+              <Text style={[styles.linkText, { color: colors.textSecondary }]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -175,11 +164,8 @@ const styles = StyleSheet.create({
   },
   drawer: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    bottom: 0,
+    top: 0, left: 0, bottom: 0,
     width: DRAWER_WIDTH,
-    backgroundColor: "#fff",
     paddingBottom: 40,
     shadowColor: "#000",
     shadowOffset: { width: 4, height: 0 },
@@ -187,12 +173,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 20,
   },
-  statusBarFill: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-  },
+  statusBarFill: { position: "absolute", left: 0, right: 0 },
   profileRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -201,32 +182,14 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#d4d4d4",
+    width: 52, height: 52, borderRadius: 26,
+    alignItems: "center", justifyContent: "center",
   },
-  driverName: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111",
-    letterSpacing: -0.3,
-  },
-  linksSection: {
-    paddingHorizontal: 24,
-  },
-  linkRow: {
-    paddingVertical: 14,
-  },
-  linkText: {
-    fontSize: 17,
-    color: "#111",
-    fontWeight: "400",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#e8e8e8",
-    marginHorizontal: 24,
-    marginVertical: 20,
-  },
+  avatarInitials: { fontSize: 18, fontWeight: "700" },
+  driverName: { fontSize: 18, fontWeight: "700", letterSpacing: -0.3 },
+  driverStats: { fontSize: 12, marginTop: 2 },
+  linksSection: { paddingHorizontal: 24 },
+  linkRow: { paddingVertical: 14 },
+  linkText: { fontSize: 17, fontWeight: "400" },
+  divider: { height: 1, marginHorizontal: 24, marginVertical: 20 },
 });

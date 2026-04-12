@@ -1,279 +1,121 @@
-// PersonalStep.tsx
-import React from "react";
-import { ScrollView, TextInput, StyleSheet, View, Text, TouchableOpacity } from "react-native";
-import { Picker } from "@react-native-picker/picker";
+// screens/EditInfoScreen.tsx
+// Uses PersonalInformation component and submits to updatePersonalInfo API.
+import React, { useRef, useState } from "react";
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  SafeAreaView, StatusBar, Alert, ActivityIndicator,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../context/ThemeContext";
 import { IconSymbol } from "../components/ui/icon-symbol";
+import PersonalStep, {
+  PersonalStepRef,
+  validatePersonalInfo,
+  isPersonalInfoValid,
+} from "../components/signup/PersonalInformation";
+import { updatePersonalInfo } from "../services/accountApi";
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
-export interface PersonalInfo {
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email: string;
-  gender: string;
-  dob: { day: string; month: string; year: string };
-  address: string;
-  nextOfKinName: string;
-  nextOfKinPhone: string;
+interface EditInfoScreenProps {
+  onBack: () => void;
 }
 
-// ── Canonical default — import and use this wherever you initialise state ────
-export const DEFAULT_PERSONAL_INFO: PersonalInfo = {
-  firstName: "",
-  lastName: "",
-  phone: "",
-  email: "",
-  gender: "",
-  dob: { day: "", month: "", year: "" },
-  address: "",
-  nextOfKinName: "",
-  nextOfKinPhone: "",
+const DEFAULT_INFO = {
+  first_name: "", last_name: "", phone_number: "",
+  email: "", password: "", gender: "",
+  birth_date: { day: "", month: "", year: "" },
+  residential_address: "", next_of_kin_name: "",
+  next_of_kin_phone: "", next_of_kin_address: "",
 };
 
-interface PersonalStepProps {
-  personalInfo?: PersonalInfo;          // optional — safe even if parent hasn't initialised yet
-  setPersonalInfo: (state: PersonalInfo) => void;
-  onUpdate?: () => void;         // called when Update button is pressed
-}
+const EditInfoScreen: React.FC<EditInfoScreenProps> = ({ onBack }) => {
+  const { colors } = useTheme();
+  const stepRef = useRef<PersonalStepRef>(null);
+  const [personalInfo, setPersonalInfo] = useState(DEFAULT_INFO);
+  const [loading, setLoading] = useState(false);
 
-// ── Component ─────────────────────────────────────────────────────────────────
+  const handleUpdate = async () => {
+    const isValid = stepRef.current?.triggerValidation();
+    if (!isValid) return;
 
-export default function PersonalStep({
-  personalInfo = DEFAULT_PERSONAL_INFO, // ← FIX 1: default so undefined never crashes us
-  setPersonalInfo,
-  onUpdate,
-}: PersonalStepProps) {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("accessToken");
+      if (!token) throw new Error("You are not logged in. Please sign in again.");
+      await updatePersonalInfo(personalInfo, token);
+      Alert.alert("Success", "Your personal information has been updated.");
+    } catch (err: any) {
+      Alert.alert("Update Failed", err.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // ── FIX 2: typed merge helper so we never accidentally lose nested fields ──
-  const update = (patch: Partial<PersonalInfo>) =>
-    setPersonalInfo({ ...personalInfo, ...patch });
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
 
-  const updateDob = (patch: Partial<PersonalInfo["dob"]>) =>
-    update({ dob: { ...personalInfo.dob, ...patch } });
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: colors.separatorColor }]}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <IconSymbol name="ArrowBack" size={22} color={colors.iconColor} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Edit Information</Text>
+        <View style={styles.backBtn} />
+      </View>
 
-  // ── Reusable text-input row ───────────────────────────────────────────────
-  const renderInput = (
-    label: string,
-    placeholder: string,
-    value: string,
-    onChange: (text: string) => void,
-    iconName: string,
-    keyboardType?: any
-  ) => (
-    <View style={styles.inputWrapper}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputContainer}>
-        <IconSymbol name={iconName as any} size={22} color="#555" style={{ marginRight: 10 }} />
-        <TextInput
-          style={styles.input}
-          placeholder={placeholder}
-          value={value}
-          onChangeText={onChange}
-          keyboardType={keyboardType || "default"}
-          placeholderTextColor="#999"
+      {/* Form */}
+      <View style={[styles.formContainer, { backgroundColor: colors.background }]}>
+        <PersonalStep
+          ref={stepRef}
+          personalInfo={personalInfo}
+          setPersonalInfo={setPersonalInfo}
         />
       </View>
-    </View>
-  );
 
-  // ── Render ────────────────────────────────────────────────────────────────
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Personal Information</Text>
-      </View>
-
-      <ScrollView style={styles.form} contentContainerStyle={{ paddingBottom: 40 }}>
-        {renderInput(
-          "First Name", "Enter your first name",
-          personalInfo.firstName,
-          (text) => update({ firstName: text }),
-          "UserIcon"
-        )}
-
-        {renderInput(
-          "Last Name", "Enter your last name",
-          personalInfo.lastName,
-          (text) => update({ lastName: text }),
-          "UserIcon"
-        )}
-
-        {renderInput(
-          "Phone Number", "e.g 08XXXXXXXXX",
-          personalInfo.phone,
-          (text) => update({ phone: text }),
-          "PhoneIcon", "phone-pad"
-        )}
-
-        {renderInput(
-          "Email Address", "Enter your email address",
-          personalInfo.email,
-          (text) => update({ email: text }),
-          "EmailIcon", "email-address"
-        )}
-
-        {/* Gender */}
-        <View style={styles.inputWrapper}>
-          <Text style={styles.label}>Gender</Text>
-          <View style={styles.inputContainer}>
-            <Picker
-              selectedValue={personalInfo.gender}
-              onValueChange={(v) => update({ gender: v })}
-              style={{ flex: 1 }}
-            >
-              <Picker.Item label="Select" value="" />
-              <Picker.Item label="Male"   value="male" />
-              <Picker.Item label="Female" value="female" />
-              <Picker.Item label="Other"  value="other" />
-            </Picker>
-          </View>
-        </View>
-
-        {/* Date of Birth */}
-        <View style={styles.inputWrapper}>
-          <Text style={styles.label}>Date of Birth</Text>
-          <View style={styles.dobContainer}>
-            {/* Day */}
-            <View style={styles.dobPickerContainer}>
-              <Picker
-                selectedValue={personalInfo.dob.day}
-                onValueChange={(v) => updateDob({ day: v })}   // ← FIX 3: updateDob keeps other dob fields
-              >
-                <Picker.Item label="Day" value="" />
-                {Array.from({ length: 31 }, (_, i) => (
-                  <Picker.Item key={i + 1} label={`${i + 1}`} value={`${i + 1}`} />
-                ))}
-              </Picker>
-            </View>
-
-            {/* Month */}
-            <View style={styles.dobPickerContainer}>
-              <Picker
-                selectedValue={personalInfo.dob.month}
-                onValueChange={(v) => updateDob({ month: v })}
-              >
-                <Picker.Item label="Month" value="" />
-                {Array.from({ length: 12 }, (_, i) => (
-                  <Picker.Item key={i + 1} label={`${i + 1}`} value={`${i + 1}`} />
-                ))}
-              </Picker>
-            </View>
-
-            {/* Year */}
-            <View style={styles.dobPickerContainer}>
-              <Picker
-                selectedValue={personalInfo.dob.year}
-                onValueChange={(v) => updateDob({ year: v })}
-              >
-                <Picker.Item label="Year" value="" />
-                {Array.from({ length: 76 }, (_, i) => {
-                  const year = 1950 + i;
-                  return <Picker.Item key={year} label={`${year}`} value={`${year}`} />;
-                })}
-              </Picker>
-            </View>
-          </View>
-        </View>
-
-        {renderInput(
-          "Residential Address", "Enter your residential address",
-          personalInfo.address,
-          (text) => update({ address: text }),
-          "HomeIcon"
-        )}
-
-        {renderInput(
-          "Next of Kin Name", "Enter next of kin name",
-          personalInfo.nextOfKinName,
-          (text) => update({ nextOfKinName: text }),
-          "UserIcon"
-        )}
-
-        {renderInput(
-          "Next of Kin Phone Number", "e.g 08XXXXXXXXX",
-          personalInfo.nextOfKinPhone,
-          (text) => update({ nextOfKinPhone: text }),
-          "PhoneIcon", "phone-pad"
-        )}
-      </ScrollView>
-
-      {/* ── Fixed Update button ── */}
-      <View style={styles.updateBar}>
+      {/* Update button */}
+      <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.separatorColor }]}>
         <TouchableOpacity
-          style={styles.updateBtn}
-          onPress={onUpdate}
+          style={[styles.updateBtn, { backgroundColor: colors.accentOrange }, loading && styles.btnDisabled]}
+          onPress={handleUpdate}
+          disabled={loading}
           activeOpacity={0.85}
         >
-          <Text style={styles.updateBtnText}>Update</Text>
+          {loading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.updateBtnText}>Update</Text>
+          }
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
-}
+};
 
-// ── Styles ───────────────────────────────────────────────────────────────────
+export default EditInfoScreen;
 
 const styles = StyleSheet.create({
-  form: { flex: 1, paddingHorizontal: 20 },
-  header: { alignItems: "center", marginBottom: 20, marginTop: 10 },
-  headerText: { fontSize: 20, fontWeight: "bold", color: "#333" },
-  inputWrapper: { marginVertical: 15 },
-  label: { marginBottom: 15, fontWeight: "600", color: "#333", fontSize: 16 },
-  inputContainer: {
+  safe: { flex: 1 },
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 15,
-    paddingHorizontal: 12,
-    height: 55,
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  input: { flex: 1, height: "100%", color: "#000" },
-  dobContainer: { flexDirection: "row", justifyContent: "space-between" },
-  dobPickerContainer: {
-    flex: 1,
-    marginHorizontal: 5,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: "hidden",
-  },
-
-  /* Update button bar */
-  container: {
-    flex: 1,
-  },
-  updateBar: {
+  backBtn: { width: 36 },
+  headerTitle: { fontSize: 18, fontWeight: "700" },
+  formContainer: { flex: 1 },
+  footer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: 28,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   updateBtn: {
-    backgroundColor: "#D44C0C",
     borderRadius: 50,
     paddingVertical: 16,
     alignItems: "center",
   },
-  updateBtnText: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-  },
+  btnDisabled: { opacity: 0.6 },
+  updateBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
 });

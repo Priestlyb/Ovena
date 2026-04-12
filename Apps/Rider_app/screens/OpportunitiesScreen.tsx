@@ -44,7 +44,7 @@ const OPPORTUNITIES = [
     id: "5",
     title: "Bonus Earnings",
     description: "Complete a set number of deliveries to unlock bonus pay this week.",
-    icon: "PaymentIcon",
+    icon: "BankIcon",
   },
   {
     id: "6",
@@ -59,17 +59,27 @@ const OpportunitiesScreen: React.FC<OpportunitiesScreenProps> = ({ onBack }) => 
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Hero header */}
       <View style={styles.hero}>
+        <ImageBackground
+          source={require("../assets/The Zuma rock 1.png")}
+          style={styles.heroBg}
+          imageStyle={styles.heroBgImage}
+        >
+          <Text style={styles.heroTitle}>Opportunities</Text>
+          <Text style={styles.heroSubtitle}>
+            {"How to Increase\nYour Earnings:\nYour Guide to Higher Pay"}
+          </Text>
+        </ImageBackground>
         <TouchableOpacity
           onPress={onBack}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <IconSymbol name="ArrowLeftIcon" size={22} color="#fff" />
+          <IconSymbol name="ArrowBack" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.heroTitle}>Opportunities</Text>
+        {/* <Text style={styles.heroTitle}>Opportunities</Text>
         <Text style={styles.heroSubtitle}>
           {"How to Increase\nYour Earnings:\nYour Guide to Higher Pay"}
-        </Text>
+        </Text> */}
       </View>
 
       {/* Grid of cards */}
@@ -80,7 +90,7 @@ const OpportunitiesScreen: React.FC<OpportunitiesScreenProps> = ({ onBack }) => 
             style={styles.card}
             activeOpacity={0.85}
           >
-            <IconSymbol name={item.icon} size={36} color="#111" />
+            <IconSymbol name={item.icon as any} size={36} color="#111" />
             <Text style={styles.cardTitle}>{item.title}</Text>
             <Text style={styles.cardDesc}>{item.description}</Text>
           </TouchableOpacity>
@@ -97,13 +107,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
+  heroBg: {
+    flex: 1,
+  },
+  heroBgImage: {
+    position: "absolute",
+    resizeMode: "cover",  
+    width: "100%",
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
   hero: {
-    backgroundColor: "#555",
-    paddingTop: Platform.OS === "ios" ? 64 : 48,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
+    // backgroundColor: "#555",
+    // paddingTop: Platform.OS === "ios" ? 64 : 48,
+    // paddingBottom: 32,
+    // paddingHorizontal: 24,
     gap: 12,
-    minHeight: 220,
+    minHeight: 420,
     justifyContent: "flex-end",
   },
   backBtn: {
@@ -112,16 +132,20 @@ const styles = StyleSheet.create({
     left: 24,
   },
   heroTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 32,
+    fontWeight: "300",
     color: "#fff",
-    marginBottom: 4,
+    marginTop: 40,
+    marginBottom: 45,
+    textAlign: "center",
+
   },
   heroSubtitle: {
     fontSize: 26,
-    fontWeight: "700",
+    fontWeight: "300",
     color: "#fff",
     lineHeight: 34,
+    textAlign: "center",
   },
   grid: {
     flexDirection: "row",
