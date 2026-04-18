@@ -15,7 +15,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.ovena.ovenariders",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Ovena Riders needs your location to show your position on the map and navigate to deliveries.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ovena Riders needs your location to track deliveries even in the background."
       }
     },
     "android": {
@@ -23,24 +25,45 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.itspriestlybassey.Ovena_Riders"
+      "package": "com.itspriestlybassey.Ovena_Riders",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "98bb311b-4fd3-47b5-b248-0798d979559e"
+        "projectId": "ae2ee0b2-c75f-4c9b-97df-ff39bf7755bd"
       }
     },
     "plugins": [
-     [
+      [
         "expo-file-system",
         {
           "supportsOpeningDocumentsInPlace": true,
           "enableFileSharing": true
         }
+      ],
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "RNMAPBOX_MAPS_DOWNLOAD_TOKEN"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Ovena Riders needs your location to navigate to deliveries.",
+          "locationWhenInUsePermission": "Ovena Riders needs your location to show your position on the map."
+        }
       ]
-    ]
+    ],
+    "owner": "oraelys"
   }
 }
