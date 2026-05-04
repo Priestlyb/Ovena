@@ -1,10 +1,8 @@
-import React, { useState, } from 'react';
-import { View, Text, TouchableOpacity, TextInput} from 'react-native';
-import { CustomInputProps } from '@/types';
-import { styles } from '../constants/styles';
-import { Eye, EyeOff } from 'lucide-react-native';
-
-
+import { CustomInputProps } from "@/types";
+import { Eye, EyeOff } from "lucide-react-native";
+import React, { useState } from "react";
+import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import { styles } from "../constants/styles";
 
 export const CustomInput: React.FC<CustomInputProps> = ({
   label,
@@ -12,18 +10,20 @@ export const CustomInput: React.FC<CustomInputProps> = ({
   value,
   onChange,
   required = false,
-  type = 'text',
+  type = "text",
 }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const getKeyboardType = () => {
     switch (type) {
-      case 'email':
-        return 'email-address';
-      case 'tel':
-        return 'phone-pad';
+      case "email":
+        return "email-address";
+      case "tel":
+        return "phone-pad";
+      case "currency":
+        return "numeric";
       default:
-        return 'default';
+        return "default";
     }
   };
 
@@ -35,7 +35,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           {required && <Text style={styles.required}> *</Text>}
         </View>
       )}
-      
+
       <View style={styles.inputWrapper}>
         <TextInput
           style={styles.textInput}
@@ -43,16 +43,18 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           onChangeText={onChange}
           placeholder={placeholder}
           placeholderTextColor="#9CA3AF"
-          secureTextEntry={type === 'password' && !showPassword}
+          secureTextEntry={type === "password" && !showPassword}
           keyboardType={getKeyboardType()}
-          autoCapitalize={type === 'email' ? 'none' : 'sentences'}
+          autoCapitalize={type === "email" ? "none" : "sentences"}
         />
-        {type === 'password' && (
+        {type === "password" && (
           <TouchableOpacity
             style={styles.passwordToggle}
             onPress={() => setShowPassword(!showPassword)}
           >
-            <Text style={styles.eyeIcon}>{showPassword ? <Eye /> : <EyeOff />}</Text>
+            <Text style={styles.eyeIcon}>
+              {showPassword ? <Eye /> : <EyeOff />}
+            </Text>
           </TouchableOpacity>
         )}
       </View>

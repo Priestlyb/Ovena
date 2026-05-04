@@ -1,104 +1,147 @@
-// SupportPage.tsx - Customer support chat interface
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, View, TouchableOpacity, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ArrowLeft, Send } from 'lucide-react-native';
-import { styles } from '@/constants/styles';
-import { supportPageStyles } from '@/constants/support-page-styles';
+// SupportPage.tsx - Support chat with categories + dropdown
+import React, { useState, useEffect } from "react";
+import {
+  SafeAreaView,
+  ScrollView,
+  View,
+  TouchableOpacity,
+  Image,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { ArrowLeft, Send } from "lucide-react-native";
+import api from "@/services/apiClient";
 
 // Atomic Components
-import { Text } from '@/components/atoms/Text';
-import { Spacer } from '@/components/atoms/Spacer';
-import { Badge } from '@/components/atoms/Badge';
+import { Text } from "@/components/atoms/Text";
+import { Spacer } from "@/components/atoms/Spacer";
+import { Badge } from "@/components/atoms/Badge";
 
 // Molecule Components
-import { Header } from '@/components/molecules/Header';
+import { Header } from "@/components/molecules/Header";
+import { CustomDropdown } from "@/components/CustomDropDown";
 
 interface Message {
   id: string;
-  type: 'bot' | 'user' | 'system';
+  type: "bot" | "user" | "system";
   text: string;
   timestamp?: string;
 }
 
-interface QuickReply {
-  id: string;
-  text: string;
-}
+const SUPPORT_CATEGORIES = [
+  "General Inquiry",
+  "Technical Issues",
+  "Billing & Payments",
+  "Account Management",
+  "Bug Reports",
+  "Feature Requests",
+];
 
 export default function SupportPage() {
   const router = useRouter();
+
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      type: 'system',
-      text: '{recent_date}',
+      id: "1",
+      type: "system",
+      text: "{recent_date}",
       timestamp: new Date().toLocaleDateString(),
     },
     {
-      id: '2',
-      type: 'bot',
-      text: 'What brings you here today?',
+      id: "2",
+      type: "bot",
+      text: "Hi! Welcome to Ovena Support. How can we help?",
     },
   ]);
 
-  const [inputText, setInputText] = useState('');
+  const [category, setCategory] = useState("");
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<"low" | "medium" | "high">("high");
+  const [loading, setLoading] = useState(false);
 
-  const quickReplies: QuickReply[] = [
-    {
-      id: '1',
-      text: 'My order has been delayed/ I need an update with my order',
-    },
-    {
-      id: '2',
-      text: 'An item is missing from my order',
-    },
-    {
-      id: '3',
-      text: 'I want to transfer the funds in my wallet back to my bank account.',
-    },
-  ];
+  useEffect(() => {
+    if (category && !subject) {
+      setSubject(category);
+    }
+  }, [category]);
 
+  const sendTicket = async () => {
+    if (!subject.trim() || !description.trim() || !category) return;
 
-  const handleQuickReply = (reply: QuickReply) => {
-    const newMessage: Message = {
+    const userMessage: Message = {
       id: Date.now().toString(),
-      type: 'user',
-      text: reply.text,
+      type: "user",
+      text: description,
     };
-    setMessages([...messages, newMessage]);
-  };
 
-  const handleSendMessage = () => {
-    if (inputText.trim()) {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        type: 'user',
-        text: inputText,
+    setMessages((prev) => [...prev, userMessage]);
+    setDescription("");
+    setSubject("");
+
+    setLoading(true);
+    try {
+      await api.post("/business/support/tickets/", {
+        category,
+        subject: subject.trim(),
+        description: description.trim(),
+        priority,
+      });
+
+      const botReply: Message = {
+        id: Date.now().toString() + "-bot",
+        type: "bot",
+        text: "Your support ticket has been created successfully. Our team will respond shortly.",
       };
-      setMessages([...messages, newMessage]);
-      setInputText('');
+
+      setMessages((prev) => [...prev, botReply]);
+    } catch (error: any) {
+      console.log("Ticket Error:", error?.response?.data || error.message);
+
+      const errorReply: Message = {
+        id: Date.now().toString() + "-error",
+        type: "bot",
+        text: "Failed to create ticket. Please try again.",
+      };
+
+      setMessages((prev) => [...prev, errorReply]);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={{
+        flex: 1,
+        backgroundColor: "#fff",
+        paddingTop: Platform.OS === "android" ? 50 : 0,
+      }}
+    >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <View style={{ flex: 1 }}>
-          {/* Header */}
           <Header
             title="Support"
             leftIcon={<ArrowLeft size={24} color="#111827" />}
             onLeftIconPress={() => router.back()}
+            rightContent={
+              <TouchableOpacity
+                onPress={() => router.push("/screens/SupportReports")}
+              >
+                <Text>Reports</Text>
+              </TouchableOpacity>
+            }
           />
 
           <Spacer size="md" />
 
-          {/* Info Banner */}
           <View style={{ paddingHorizontal: 20 }}>
             <Text variant="body" align="center" color="secondary">
               Our typical response time is under
@@ -106,24 +149,22 @@ export default function SupportPage() {
             <Text variant="body" align="center" weight="semibold">
               20 minutes.
             </Text>
-            <Spacer size="sm" />
-            <Text variant="bodySmall" align="center" color="secondary">
-              Hi! Welcome to Ovena Support. How can we help?
-            </Text>
           </View>
 
           <Spacer size="md" />
 
-          {/* Chat Messages */}
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingBottom: 20,
+            }}
             showsVerticalScrollIndicator={false}
           >
             {messages.map((message) => (
               <View key={message.id}>
-                {message.type === 'system' && (
-                  <View style={supportPageStyles.systemMessageContainer}>
+                {message.type === "system" && (
+                  <View style={{ alignItems: "center", marginVertical: 8 }}>
                     <Badge
                       label={message.timestamp || message.text}
                       variant="neutral"
@@ -132,19 +173,23 @@ export default function SupportPage() {
                   </View>
                 )}
 
-                {message.type === 'bot' && (
-                  <View style={supportPageStyles.botMessageContainer}>
-                    {/* Bot Avatar */}
-                    <View style={supportPageStyles.botAvatar}>
+                {message.type === "bot" && (
+                  <View style={{ flexDirection: "row", marginVertical: 8 }}>
+                    <View style={{ marginRight: 8 }}>
                       <Image
-                        source={require('@/assets/images/favicon.png')}
-                        style={supportPageStyles.avatarImage}
+                        source={require("@/assets/images/Resturant_logo 1.png")}
+                        style={{ width: 32, height: 32, borderRadius: 16 }}
                         resizeMode="cover"
                       />
                     </View>
-
-                    {/* Bot Message Bubble */}
-                    <View style={supportPageStyles.botBubble}>
+                    <View
+                      style={{
+                        backgroundColor: "#E5E7EB",
+                        padding: 10,
+                        borderRadius: 12,
+                        maxWidth: "80%",
+                      }}
+                    >
                       <Text variant="body" color="primary">
                         {message.text}
                       </Text>
@@ -152,60 +197,137 @@ export default function SupportPage() {
                   </View>
                 )}
 
-                {message.type === 'user' && (
-                  <View style={supportPageStyles.userMessageContainer}>
-                    <View style={supportPageStyles.userBubble}>
-                      <Text variant="body" color="white">
-                        {message.text}
-                      </Text>
-                    </View>
+                {message.type === "user" && (
+                  <View
+                    style={{
+                      alignSelf: "flex-end",
+                      backgroundColor: "#FF5920",
+                      padding: 10,
+                      borderRadius: 12,
+                      marginVertical: 8,
+                      maxWidth: "80%",
+                    }}
+                  >
+                    <Text
+                      variant="body"
+                      style={{ color: "#fff" }}
+                    >
+                      {message.text}
+                    </Text>
                   </View>
                 )}
 
-                <Spacer size="md" />
+                <Spacer size="sm" />
               </View>
             ))}
-
-            {/* Quick Replies */}
-            {messages.length <= 2 && (
-              <View>
-                {quickReplies.map((reply) => (
-                  <TouchableOpacity
-                    key={reply.id}
-                    style={supportPageStyles.quickReplyButton}
-                    onPress={() => handleQuickReply(reply)}
-                    activeOpacity={0.7}
-                  >
-                    <Text variant="body" color="white">
-                      {reply.text}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
           </ScrollView>
 
-          {/* Input Area */}
-          <View style={supportPageStyles.inputContainer}>
-            <TextInput
-              style={supportPageStyles.textInput}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Type your message..."
-              placeholderTextColor="#9CA3AF"
-              multiline
-              maxLength={500}
+          <View
+            style={{
+              padding: 20,
+              borderTopWidth: 1,
+              borderTopColor: "#E5E7EB",
+              backgroundColor: "#F9FAFB",
+            }}
+          >
+            <CustomDropdown
+              label="Category"
+              placeholder="Select a category"
+              options={SUPPORT_CATEGORIES}
+              value={category}
+              onChange={setCategory}
+              required
             />
-            <TouchableOpacity
-              style={[
-                supportPageStyles.sendButton,
-                !inputText.trim() && supportPageStyles.sendButtonDisabled,
-              ]}
-              onPress={handleSendMessage}
-              disabled={!inputText.trim()}
+
+            <TextInput
+              style={{
+                height: 60,
+                backgroundColor: "#fff",
+                padding: 10,
+                borderRadius: 8,
+                marginBottom: 10,
+              }}
+              value={subject}
+              onChangeText={setSubject}
+              placeholder="Subject (brief title)"
+              placeholderTextColor="#9CA3AF"
+              editable={!loading}
+            />
+
+            <View
+              style={{
+                flexDirection: "row",
+                marginBottom: 10,
+                justifyContent: "space-around",
+              }}
             >
-              <Send size={20} color={inputText.trim() ? '#FFFFFF' : '#9CA3AF'} />
-            </TouchableOpacity>
+              {(["low", "medium", "high"] as const).map((p) => (
+                <TouchableOpacity
+                  key={p}
+                  onPress={() => setPriority(p)}
+                  style={{
+                    paddingVertical: 6,
+                    paddingHorizontal: 12,
+                    borderRadius: 6,
+                    backgroundColor: priority === p ? "#ff592099" : "#F3F4F6",
+                  }}
+                >
+                  <Text
+                    variant="body"
+                    style={{
+                      textTransform: "capitalize",
+                      fontWeight: priority === p ? "800" : "400",
+                      color: priority === p ? "#fff" : "#111",
+                    }}
+                  >
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TextInput
+                style={{
+                  flex: 1,
+                  height: 60,
+                  backgroundColor: "#fff",
+                  padding: 10,
+                  borderRadius: 8,
+                  maxHeight: 100,
+                }}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Type your message..."
+                placeholderTextColor="#9CA3AF"
+                multiline
+                editable={!loading}
+              />
+
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#FF5920",
+                  padding: 12,
+                  borderRadius: 8,
+                  marginLeft: 8,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  opacity:
+                    !description.trim() || !category || loading ? 0.5 : 1,
+                }}
+                onPress={sendTicket}
+                disabled={!description.trim() || !category || loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FF5920" />
+                ) : (
+                  <Send
+                    size={20}
+                    color={description.trim() ? "#FFFFFF" : "#9CA3AF"}
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>

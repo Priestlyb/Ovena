@@ -1,59 +1,113 @@
-import { useEffect } from "react";
-import * as Google from "expo-auth-session/providers/google";
-import * as WebBrowser from "expo-web-browser";
-import { Alert } from "react-native";
+import { useState } from "react";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import * as Location from "expo-location";
+import { useRouter } from "expo-router";
+import Toast from "react-native-toast-message";
+import { useAuth } from "@/context/AuthContext";
 
-WebBrowser.maybeCompleteAuthSession();
+const EXCHANGE_URL =
+  "https://ovena-backend-production.up.railway.app/api/accounts/oauth/exchange/";
 
-/* =========================
-   CONSTANTS
-========================= */
-const GOOGLE_EXPO_CLIENT_ID =
-  "456377512712-q3575fiuvstk9kd1tr3hhqmp55j42jkj.apps.googleusercontent.com";
+export const useGoogleAuth = () => {
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { loginWithOAuth } = useAuth();
 
-/* =========================
-   GOOGLE AUTH HOOK (FIXED)
-========================= */
-export function useGoogleAuth(
-  onSuccess: (idToken: string) => void,
-  onFinish?: () => void
-) {
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: GOOGLE_EXPO_CLIENT_ID, // ✅ FIXED
-    scopes: ["profile", "email"],
-  });
+  const login = async () => {
+    if (loading) return;
 
-  useEffect(() => {
-    console.log("📡 Google response:", response);
+    try {
+      setLoading(true);
 
-    if (response?.type === "success") {
-      const idToken = response.authentication?.idToken;
+      console.log("Starting Google Login");
 
-      console.log("🔑 ID TOKEN:", idToken ? "FOUND" : "MISSING");
+      await GoogleSignin.hasPlayServices();
+      const result = await GoogleSignin.signIn();
+
+      const idToken = result?.data?.idToken;
 
       if (!idToken) {
-        Alert.alert("Google Login Error", "No ID token returned");
-        onFinish?.();
+        throw new Error("Google authentication failed");
+      }
+
+      /* LOCATION (OPTIONAL) */
+
+      let lat = 0;
+      let long = 0;
+
+      try {
+        const { status } =
+          await Location.requestForegroundPermissionsAsync();
+
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({});
+          lat = loc.coords.latitude;
+          long = loc.coords.longitude;
+        }
+      } catch (err) {
+        console.log("Location error:", err);
+      }
+
+      /* SEND TOKEN TO BACKEND */
+
+      const res = await fetch(EXCHANGE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "google",
+          id_token: idToken,
+        }),
+      });
+
+      const data = await res.json();
+
+      console.log("OAuth Response:", data);
+
+      if (!res.ok) {
+        throw new Error(data?.message || "Login failed");
+      }
+
+      /* EXISTING USER */
+
+      if (!data?.is_new_user) {
+        const { access, refresh } = data;
+
+        await loginWithOAuth("google", access, refresh, false);
+
+        Toast.show({
+          type: "success",
+          text1: "Welcome back",
+        });
+
         return;
       }
 
-      console.log("✅ Sending token to backend...");
-      onSuccess(idToken);
-      onFinish?.();
-    }
+      /* NEW USER */
 
-    if (response?.type === "error") {
-      console.log("❌ Google Auth Error:", response.error);
-      Alert.alert("Google Login Error", "Authentication failed");
-      onFinish?.();
-    }
-  }, [response]);
+      router.replace({
+        pathname: "/googleSignUpForm",
+        params: {
+          accessToken: data?.access,
+          lat: String(lat),
+          long: String(long),
+        },
+      });
 
-  return {
-    request,
-    signIn: async () => {
-      console.log("🚀 Launching Google Sign-In...");
-      await promptAsync();
-    },
+      return;
+    } catch (err: any) {
+      console.log("Google Login Error:", err);
+
+      Toast.show({
+        type: "error",
+        text1: "Google Login Failed",
+        text2: err?.message || "Something went wrong",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
-}
+
+  return { login, loading };
+};

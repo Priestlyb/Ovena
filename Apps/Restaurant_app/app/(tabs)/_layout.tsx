@@ -31,16 +31,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="orders"
-        options={{
-          title: 'Orders',
-          tabBarIcon: ({ size, color }) => (
-            <FileText size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="StoreHubPage"
+        name="products"
         options={{
           title: 'Store',
           tabBarIcon: ({ size, color }) => <Store size={size} color={color} />,

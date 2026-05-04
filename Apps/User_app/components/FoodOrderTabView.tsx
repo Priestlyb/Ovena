@@ -10,6 +10,7 @@ import {
 import { TabView, TabBar } from "react-native-tab-view";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { router } from "expo-router";
 
 /* -------------------- COMPONENTS -------------------- */
 
@@ -52,6 +53,7 @@ const PromoCard = ({
   oldPrice?: string;
   first?: boolean;
 }) => (
+  <TouchableOpacity onPress={() => router.replace("/(auth)/screens/ProductDetailsScreen")}>
   <View style={[styles.promoCard, first && { marginLeft: 16 }]}>
     <View>
       <View style={styles.promoImage} />
@@ -61,6 +63,7 @@ const PromoCard = ({
     <Text style={styles.price}>{price}</Text>
     {oldPrice && <Text style={styles.oldPrice}>{oldPrice}</Text>}
   </View>
+  </TouchableOpacity>
 );
 
 function ListItem({ title, price }: { title: string; price: string }) {
@@ -177,13 +180,20 @@ const FoodsTab = () => {
               oldPrice="₦8,333.33"
               first
             />
-            <PromoCard title="Wing 40% off" price="₦5,000.00" oldPrice="₦8,333.33" />
+            <PromoCard
+              title="Wing 40% off"
+              price="₦5,000.00"
+              oldPrice="₦8,333.33"
+            />
           </ScrollView>
         </Section>
       )}
 
       {(activeCategory === null || activeCategory === "Top Sellers") && (
-        <Section title="Top Sellers" onSeeAll={() => handleSeeAll("Top Sellers")}>
+        <Section
+          title="Top Sellers"
+          onSeeAll={() => handleSeeAll("Top Sellers")}
+        >
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <PromoCard title="3 for 5k Deal" price="₦5,000.00" first />
             <PromoCard title="Wing 40% off" price="₦5,000.00" />
@@ -191,7 +201,8 @@ const FoodsTab = () => {
         </Section>
       )}
 
-      {(activeCategory === null || activeCategory === "The Chicken Fest Deals") && (
+      {(activeCategory === null ||
+        activeCategory === "The Chicken Fest Deals") && (
         <Section
           title="Chicken Fest Deals"
           onSeeAll={() => handleSeeAll("Chicken Fest Deals")}
@@ -202,9 +213,20 @@ const FoodsTab = () => {
       )}
 
       {(activeCategory === null || activeCategory === "Exclusive Deals") && (
-        <Section title="Exclusive Deals" onSeeAll={() => handleSeeAll("Exclusive Deals")}>
-          <DealItem title="Wing 40% off" price="₦9,750.00" oldPrice="₦15,000.00" />
-          <DealItem title="Wing 40% off" price="₦9,750.00" oldPrice="₦15,000.00" />
+        <Section
+          title="Exclusive Deals"
+          onSeeAll={() => handleSeeAll("Exclusive Deals")}
+        >
+          <DealItem
+            title="Wing 40% off"
+            price="₦9,750.00"
+            oldPrice="₦15,000.00"
+          />
+          <DealItem
+            title="Wing 40% off"
+            price="₦9,750.00"
+            oldPrice="₦15,000.00"
+          />
         </Section>
       )}
     </ScrollView>
@@ -238,7 +260,7 @@ const RoomsTab = () => {
           <Text style={styles.roomPrice}>$336,870</Text>
         </View>
         <TouchableOpacity
-          onPress={() => navigation.navigate("screens/RoomDetails")}
+          onPress={() => router.replace("/(auth)/screens/RoomDetails")}
           style={styles.viewRoomButton}
         >
           <Text style={{ color: "#fff" }}>View Room</Text>
@@ -331,8 +353,18 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: "#fff",
   },
-  promoImage: { height: 100, backgroundColor: "#eee", borderRadius: 12, marginBottom: 8 },
-  roomImage: { height: 200, backgroundColor: "#eee", borderRadius: 12, marginBottom: 8 },
+  promoImage: {
+    height: 100,
+    backgroundColor: "#eee",
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  roomImage: {
+    height: 200,
+    backgroundColor: "#eee",
+    borderRadius: 12,
+    marginBottom: 8,
+  },
   itemTitle: { fontSize: 14, fontWeight: "600" },
   price: { fontSize: 14, fontWeight: "700", marginTop: 4 },
   oldPrice: { fontSize: 12, textDecorationLine: "line-through", color: "#999" },
@@ -345,7 +377,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   priceRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  oldPriceSmall: { fontSize: 12, textDecorationLine: "line-through", color: "#999" },
+  oldPriceSmall: {
+    fontSize: 12,
+    textDecorationLine: "line-through",
+    color: "#999",
+  },
   discountBadge: {
     backgroundColor: "#F6D44F",
     paddingHorizontal: 6,
@@ -361,7 +397,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
   },
-  foodImg: { width: 60, height: 60, backgroundColor: "#eee", borderRadius: 8, marginRight: 12 },
+  foodImg: {
+    width: 60,
+    height: 60,
+    backgroundColor: "#eee",
+    borderRadius: 8,
+    marginRight: 12,
+  },
   addBtn: {
     position: "absolute",
     bottom: 15,

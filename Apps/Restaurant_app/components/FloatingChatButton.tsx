@@ -21,8 +21,8 @@ export function FloatingChatButton({ onPress, icon }: FloatingChatButtonProps) {
 const styles = StyleSheet.create({
   button: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
+    bottom: 65,
+    right: 30,
     width: 56,
     height: 56,
     borderRadius: 28,

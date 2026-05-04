@@ -1,39 +1,138 @@
-import React from 'react';
-import { SafeAreaView, ScrollView, Text, TouchableOpacity } from 'react-native';
-import { CustomDropdown } from '@/components/CustomDropDown';
-import { CustomInput } from '@/components/CustomInput';
-import { styles } from '@/constants/styles';
-import { PageProps } from '@/types';
-import { ArrowLeft } from 'lucide-react-native';
+import { CustomDropdown } from "@/components/CustomDropDown";
+import { CustomInput } from "@/components/CustomInput";
+import FeedbackModal from "@/components/FeedbackModal";
+import { styles } from "@/constants/styles";
+import { NavigationProps } from "@/types";
+import { useRouter } from "expo-router";
+import { ArrowLeft } from "lucide-react-native";
+import React, { useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+} from "react-native";
 
-const LocationPage: React.FC<PageProps> = ({ data, setData, onNext, onBack }) => {
-  if (!data || !setData) return null;
+/* =========================================================
+   STRICT PROPS
+========================================================= */
+interface LocationPageProps extends NavigationProps<void> {
+  data: {
+    countries: string[];
+    selectedCountry: string;
+    businessAddress: string;
+  };
+  onChangeCountry: (value: string) => void;
+  onChangeAddress: (value: string) => void;
+}
+
+/* =========================================================
+   COMPONENT
+========================================================= */
+const LocationPage: React.FC<LocationPageProps> = ({
+  data,
+  onChangeCountry,
+  onChangeAddress,
+  onNext,
+  onBack,
+}) => {
+  const safeData = data ?? {
+    countries: [],
+    selectedCountry: "",
+    businessAddress: "",
+  };
+
+  const router = useRouter();
+
+  /* =========================================================
+     MODAL STATE
+  ========================================================= */
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+
+  /* =========================================================
+     VALIDATION
+  ========================================================= */
+  const validateFields = () => {
+    const errors: string[] = [];
+
+    if (!safeData.selectedCountry) {
+      errors.push("Please select a country");
+    }
+
+    if (!safeData.businessAddress.trim()) {
+      errors.push("Business address is required");
+    }
+
+    if (errors.length > 0) {
+      setModalMessage(errors.join("\n"));
+      setModalVisible(true);
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleContinue = () => {
+    if (!validateFields()) return;
+    onNext();
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={[styles.container, styles.locationContainer]} showsVerticalScrollIndicator={false}>
-   
-        <Text style={styles.pageTitle}>Pinpoint your current food Spot</Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          style={[styles.container, styles.locationContainer]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.push("/")}
+          >
+            <ArrowLeft size={22} />
+          </TouchableOpacity>
 
-        <CustomDropdown
-          label="Country"
-          options={data.countries}
-          placeholder="Select Country"
-          value={data.selectedCountry}
-          onChange={(val) => setData({ ...data, selectedCountry: val })}
+          <Text style={styles.pageTitle}>Pinpoint your current food Spot</Text>
+
+          {/* Country Dropdown */}
+          <CustomDropdown
+            label="Country"
+            options={safeData.countries}
+            placeholder="Select Country"
+            value={safeData.selectedCountry}
+            onChange={onChangeCountry}
+            required
+          />
+
+          {/* Business Address */}
+          <CustomInput
+            label="Business Address"
+            placeholder="Enter address"
+            value={safeData.businessAddress}
+            onChange={onChangeAddress}
+            required
+          />
+
+          {/* Continue Button */}
+          <TouchableOpacity style={styles.continueBtn} onPress={handleContinue}>
+            <Text style={styles.continueBtnText}>Continue</Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* FEEDBACK MODAL */}
+        <FeedbackModal
+          visible={modalVisible}
+          message={modalMessage}
+          variant="error"
+          onClose={() => setModalVisible(false)}
         />
-
-        <CustomInput
-          label="Business Address"
-          placeholder="Enter address"
-          value={data.businessAddress}
-          onChange={(val) => setData({ ...data, businessAddress: val })}
-        />
-
-        <TouchableOpacity style={styles.continueBtn} onPress={onNext} activeOpacity={0.8}>
-          <Text style={styles.continueBtnText}>Continue</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

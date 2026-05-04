@@ -1,203 +1,208 @@
-// LoginPage.tsx - Login with role selection (Admin Staff / Vendor Agent)
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, View, TouchableOpacity, TextInput, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ArrowLeft, Eye, EyeOff, User, Briefcase } from 'lucide-react-native';
-import { styles } from '@/constants/styles';
+import React, { useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 
-// Atomic Components
-import { Text } from '@/components/atoms/Text';
-import { Button } from '@/components/atoms/Button';
-import { Spacer } from '@/components/atoms/Spacer';
+import { useRouter } from "expo-router";
+import { ArrowLeft } from "lucide-react-native";
 
-// Molecule Components
-import { Card } from '@/components/molecules/Card';
+import { Spacer } from "@/components/atoms/Spacer";
+import { Text } from "@/components/atoms/Text";
+import { styles } from "@/constants/styles";
+
+import { useAuthRedirect } from "@/hooks/loginPage/useAuthRedirect";
+import { useDeviceId } from "@/hooks/loginPage/useDeviceId";
+import { useLogin } from "@/hooks/loginPage/useLogin";
+
+import FeedbackModal from "@/components/FeedbackModal";
+import { AdminLoginForm } from "@/components/login-page/AdminLoginForm";
+import { LoginToggle } from "@/components/login-page/LoginToggle";
+import { ResetPasswordModal } from "@/components/login-page/ResetPasswordModal";
+import { VendorApprovalForm } from "@/components/login-page/VendorApprovalForm";
+
+type Variant = "success" | "error" | "warning" | "info";
+
+type Errors = {
+  phone?: string;
+  password?: string;
+  otp?: string;
+  username?: string;
+  general?: string;
+};
 
 export default function LoginPage() {
   const router = useRouter();
-  const [loginAs, setLoginAs] = useState<'admin' | 'vendor'>('admin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showQRInstructions, setShowQRInstructions] = useState(false);
 
-  const handleLogin = () => {
-    console.log('Login as:', loginAs, 'Email:', email);
-    // Handle login logic
-    router.push('/(tabs)');
+  useAuthRedirect();
+  const deviceId = useDeviceId();
+
+  // ----------------------
+  // FEEDBACK STATE
+  // ----------------------
+  const [feedback, setFeedback] = useState<{
+    visible: boolean;
+    message: string;
+    variant: Variant;
+  }>({
+    visible: false,
+    message: "",
+    variant: "info",
+  });
+
+  const showFeedback = (message: string, variant: Variant = "error") => {
+    setFeedback({
+      visible: true,
+      message,
+      variant,
+    });
+  };
+
+  const {
+    loading,
+    handleLogin,
+    handleStaffLogin,
+    handleVendorApproval,
+    handleResetPassword,
+  } = useLogin(deviceId, showFeedback);
+
+  // ----------------------
+  // FORM STATE
+  // ----------------------
+  const [loginAs, setLoginAs] = useState<"admin" | "vendor">("admin");
+  const [showVendorUI, setShowVendorUI] = useState(false);
+
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [otp, setOtp] = useState("");
+  const [vendorPhone, setVendorPhone] = useState("");
+  const [username, setUsername] = useState("");
+
+  const [resetVisible, setResetVisible] = useState(false);
+  const [resetPhone, setResetPhone] = useState("");
+
+  const [errors, setErrors] = useState<Errors>({});
+
+  // ----------------------
+  // HANDLERS
+  // ----------------------
+  const onLoginPress = async () => {
+    const res = await handleLogin(phone, password, loginAs);
+
+    if (!res.success) {
+      setErrors(res.errors || {});
+    } else {
+      setErrors({});
+    }
+  };
+
+  const onVendorSubmit = async () => {
+    const res = await handleVendorApproval(otp, vendorPhone, username);
+
+    if (!res.success) {
+      setErrors(res.errors || {});
+    } else {
+      setErrors({});
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#111827" />
-        </TouchableOpacity>
-
-        <Spacer size="lg" />
-
-        <Text variant="h2" weight="bold" align="center">Welcome back</Text>
-        
-        <Spacer size="lg" />
-
-        {/* Login As Toggle */}
-        <Text variant="body" weight="medium" align="center">Login As</Text>
-        <Spacer size="sm" />
-
-        <View style={styles.loginToggleContainer}>
-          <TouchableOpacity
-            style={[
-              styles.loginToggleButton,
-              loginAs === 'admin' && styles.loginToggleButtonActive
-            ]}
-            onPress={() => {
-              setLoginAs('admin');
-              setShowQRInstructions(false);
-            }}
-          >
-            <User size={20} color={loginAs === 'admin' ? '#111827' : '#6B7280'} />
-            <Text
-              variant="body"
-              weight={loginAs === 'admin' ? 'semibold' : 'regular'}
-              color={loginAs === 'admin' ? 'primary' : 'secondary'}
-            >
-              Admin Staff
-            </Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView style={styles.container}>
+          <TouchableOpacity onPress={() => router.push("/")}>
+            <ArrowLeft size={24} />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.loginToggleButton,
-              loginAs === 'vendor' && styles.loginToggleButtonActive
-            ]}
-            onPress={() => {
-              setLoginAs('vendor');
-              setShowQRInstructions(true);
+          <Spacer size="lg" />
+
+          <Text align="center" variant="h2">
+            Welcome back
+          </Text>
+
+          <Spacer size="lg" />
+
+          <LoginToggle
+            loginAs={loginAs}
+            setLoginAs={setLoginAs}
+            onVendorPress={async () => {
+              setLoginAs("vendor");
+
+              const res = await handleStaffLogin();
+              setShowVendorUI(!res.success);
             }}
-          >
-            <Briefcase size={20} color={loginAs === 'vendor' ? '#111827' : '#6B7280'} />
-            <Text
-              variant="body"
-              weight={loginAs === 'vendor' ? 'semibold' : 'regular'}
-              color={loginAs === 'vendor' ? 'primary' : 'secondary'}
-            >
-              Vendor Agent
-            </Text>
-          </TouchableOpacity>
-        </View>
+          />
 
-        <Spacer size="xl" />
+          <Spacer size="xl" />
 
-        {/* QR Code Instructions for Vendor Agent */}
-        {showQRInstructions && (
-          <>
-            <Card variant="filled" padding="lg">
-              <View style={styles.qrCodeContainer}>
-                <View style={styles.qrCodePlaceholder}>
-                  <Text variant="h1" align="center">QR</Text>
-                </View>
-              </View>
-
-              <Spacer size="md" />
-
-              <Text variant="body" weight="semibold">To set up Agents</Text>
-              <Spacer size="sm" />
-              <Text variant="bodySmall" color="secondary">1. Admin Login with Details.</Text>
-              <Text variant="bodySmall" color="secondary">2. Navigate to profile page.</Text>
-              <Text variant="bodySmall" color="secondary">3. Tap on manager users.</Text>
-              <Text variant="bodySmall" color="secondary">4. Tap link a device,</Text>
-              <Text variant="bodySmall" color="secondary">5. Point your phone at this screen to capture the QR Code.</Text>
-            </Card>
-
-            <Spacer size="xl" />
-          </>
-        )}
-
-        {/* Email Input */}
-        {!showQRInstructions && (
-          <>
-            <View style={styles.inputContainer}>
-              <Text variant="label" color="primary">
-                Email address <Text style={{ color: '#EF4444' }}>*</Text>
-              </Text>
-              <Spacer size="xs" />
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="e.g joe@doe.com"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <Spacer size="md" />
-
-            {/* Password Input */}
-            <View style={styles.inputContainer}>
-              <Text variant="label" color="primary">
-                Password <Text style={{ color: '#EF4444' }}>*</Text>
-              </Text>
-              <Spacer size="xs" />
-              <View style={styles.passwordInputWrapper}>
-                <TextInput
-                  style={[styles.input, { paddingRight: 50 }]}
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  style={styles.passwordToggle}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff size={20} color="#6B7280" />
-                  ) : (
-                    <Eye size={20} color="#6B7280" />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity onPress={() => router.push('/forgot-password')}>
-                <Text variant="bodySmall" align="right" style={{ marginTop: 8 }}>
-                  Forgot password?
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Spacer size="xl" />
-
-            {/* Login Button */}
-            <Button
-              label="Login"
-              variant="primary"
-              size="large"
-              fullWidth
-              onPress={handleLogin}
+          {loginAs === "admin" && (
+            <AdminLoginForm
+              phone={phone}
+              setPhone={(val: string) => {
+                setPhone(val);
+                setErrors((prev) => ({ ...prev, phone: undefined }));
+              }}
+              password={password}
+              setPassword={(val: string) => {
+                setPassword(val);
+                setErrors((prev) => ({ ...prev, password: undefined }));
+              }}
+              loading={loading}
+              errors={errors}
+              onLogin={onLoginPress}
+              onReset={() =>
+                phone ? handleResetPassword(phone) : setResetVisible(true)
+              }
             />
+          )}
 
-            <Spacer size="md" />
+          {loginAs === "vendor" && showVendorUI && (
+            <VendorApprovalForm
+              otp={otp}
+              setOtp={(val: string) => {
+                setOtp(val);
+                setErrors((prev) => ({ ...prev, otp: undefined }));
+              }}
+              phone={vendorPhone}
+              setPhone={(val: string) => {
+                setVendorPhone(val);
+                setErrors((prev) => ({ ...prev, phone: undefined }));
+              }}
+              username={username}
+              setUsername={(val: string) => {
+                setUsername(val);
+                setErrors((prev) => ({ ...prev, username: undefined }));
+              }}
+              loading={loading}
+              onSubmit={onVendorSubmit}
+              errors={errors}
+            />
+          )}
 
-            {/* Sign Up Link */}
-            <Text variant="body" align="center">
-              Don't have an account?{' '}
-              <Text
-                variant="body"
-                weight="semibold"
-                style={{ color: '#FF6B35' }}
-                onPress={() => router.push('/signup')}
-              >
-                Sign Up
-              </Text>
-            </Text>
-          </>
-        )}
+          {/* RESET MODAL 851147 */}
+          <ResetPasswordModal
+            visible={resetVisible}
+            phone={resetPhone}
+            setPhone={setResetPhone}
+            onSubmit={() => handleResetPassword(resetPhone)}
+            onClose={() => setResetVisible(false)}
+          />
 
-        <Spacer size="xl" />
-      </ScrollView>
+          <FeedbackModal
+            visible={feedback.visible}
+            message={feedback.message}
+            variant={feedback.variant}
+            onClose={() => setFeedback((prev) => ({ ...prev, visible: false }))}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

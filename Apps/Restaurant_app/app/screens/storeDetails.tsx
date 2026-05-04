@@ -166,13 +166,6 @@ const StoreDetailsPage: React.FC<StoreDetailsPageProps> = ({ onBack, onSave }) =
 
        
       </ScrollView>
-
-      {/* Floating Chat Button */}
-      <FloatingChatButton
-        icon={<MessageCircle size={28} color="#fff" />}
-        onPress={() => console.log('Chat')}
-        position="primary"
-      />
     </SafeAreaView>
   );
 };

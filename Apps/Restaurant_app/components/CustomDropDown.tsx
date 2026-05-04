@@ -1,8 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { CustomDropdownProps } from '../types';
-import { styles } from '@/constants/styles';
-
+import { styles } from "@/constants/styles";
+import React, { useState } from "react";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { CustomDropdownProps } from "../types";
 
 export const CustomDropdown: React.FC<CustomDropdownProps> = ({
   options,
@@ -11,6 +17,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
   onChange,
   label,
   required = false,
+  renderOptionRight,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -22,7 +29,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
           {required && <Text style={styles.required}> *</Text>}
         </View>
       )}
-      
+
       <TouchableOpacity
         style={styles.dropdown}
         onPress={() => setIsOpen(!isOpen)}
@@ -31,7 +38,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
         <Text style={value ? styles.dropdownText : styles.dropdownPlaceholder}>
           {value || placeholder}
         </Text>
-        <Text style={styles.chevron}>{isOpen ? '▲' : '▼'}</Text>
+        <Text style={styles.chevron}>{isOpen ? "▲" : "▼"}</Text>
       </TouchableOpacity>
 
       <Modal
@@ -43,21 +50,32 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
         <Pressable style={styles.modalOverlay} onPress={() => setIsOpen(false)}>
           <View style={styles.modalContent}>
             <ScrollView style={styles.optionsList}>
-              {options.map((option, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.optionItem,
-                    index === options.length - 1 && styles.lastOption,
-                  ]}
-                  onPress={() => {
-                    onChange(option);
-                    setIsOpen(false);
-                  }}
-                >
-                  <Text style={styles.optionText}>{option}</Text>
-                </TouchableOpacity>
-              ))}
+              {options.map((option, index) => {
+                const selected = option === value;
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.optionItem,
+                      index === options.length - 1 && styles.lastOption,
+                      {
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      },
+                    ]}
+                    onPress={() => {
+                      onChange(option);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <Text style={styles.optionText}>{option}</Text>
+
+                    {renderOptionRight?.(option, selected)}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         </Pressable>

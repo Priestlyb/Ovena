@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
 import { useAuth } from "@/context/AuthContext";
+import { router } from "expo-router";
 
 const BASE_URL = "https://ovena-backend-production.up.railway.app/api";
 
 interface ProfileData {
   name: string;
-  title: string;
+  email: string;
   points: number;
 }
 
@@ -15,45 +23,66 @@ const ProfileHeader: React.FC = () => {
 
   const [profile, setProfile] = useState<ProfileData>({
     name: "Ovena User",
-    title: "Member",
+    email: "Member",
     points: 0,
   });
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rawData, setRawData] = useState<any>(null);
+
+  const fetchProfile = async () => {
+    if (!accessToken) {
+      console.warn("No access token available");
+      setError("No access token");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log("Fetching profile with token:", accessToken);
+
+      const res = await fetch(`${BASE_URL}/accounts/profile/`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("Profile response status:", res.status);
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.warn("Profile fetch failed", res.status, text);
+        setError(`Server returned ${res.status}`);
+        setLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      console.log("Profile data fetched:", data);
+
+      setRawData(data);
+
+      setProfile({
+        name: data?.user?.name || "User",
+        email: data?.user?.phone_number || "Member",
+        points: Number(data?.profile?.points ?? 0),
+      });
+    } catch (err) {
+      console.warn("Profile fetch error:", err);
+      setError("Network error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
-
-    const fetchProfile = async () => {
-      try {
-        if (!accessToken) return;
-
-        const res = await fetch(`${BASE_URL}/accounts/profile/`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-
-        if (mounted) {
-          setProfile({
-            name: data?.name || "User",
-            title: data?.title || "Member",
-            points: Number(data?.points ?? 0),
-          });
-        }
-      } catch (err) {
-        console.warn("Profile fetch error");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchProfile();
+    if (mounted) fetchProfile();
 
     return () => {
       mounted = false;
@@ -64,39 +93,65 @@ const ProfileHeader: React.FC = () => {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color="#D9502E" />
+        <Text style={{ marginTop: 8 }}>Loading profile...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.profileHeader}>
-      <View style={styles.decorCircle1} />
-      <View style={styles.decorCircle2} />
-
-      <View style={styles.profileContent}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {profile.name[0]?.toUpperCase()}
+    <ScrollView>
+      <View style={styles.profileHeader}>
+        <View style={styles.decorCircle1} />
+        <View style={styles.decorCircle2} />
+        <TouchableOpacity
+          onPress={() => {
+            router.replace("/(auth)/screens/HelpScreen");
+          }}
+          style={{ position: "absolute", top: 60, right: 16 }}
+        >
+          <Text
+            style={{
+              backgroundColor: "#D9502E",
+              color: "#fff",
+              fontSize: 16,
+              paddingHorizontal: 15,
+              paddingVertical: 8,
+              borderRadius: 20,
+              width: 80,
+              textAlign: "center",
+              fontWeight: "bold",
+            }}
+          >
+            Help
           </Text>
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{profile.name}</Text>
-          <Text style={styles.profileTitle}>{profile.title}</Text>
-        </View>
+        <View style={styles.profileContent}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {profile.name?.charAt(0)?.toUpperCase() || "U"}
+            </Text>
+          </View>
 
-        <View style={styles.pointsSection}>
-          <Text style={styles.pointsValue}>{profile.points}</Text>
-          <Text style={styles.pointsLabel}>Pts</Text>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>{profile.name}</Text>
+            <Text style={styles.profileTitle}>{profile.email}</Text>
+          </View>
+
+          <View style={styles.pointsSection}>
+            <Text style={styles.pointsValue}>{profile.points}</Text>
+            <Text style={styles.pointsLabel}>Pts</Text>
+          </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   loader: { paddingVertical: 40, alignItems: "center" },
   profileHeader: {
+    height: 250,
     backgroundColor: "#f6d44fff",
     borderRadius: 24,
     padding: 24,
@@ -108,7 +163,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-    paddingTop: 80,
+    paddingTop: 110,
     flexGrow: 20,
   },
   decorCircle1: {

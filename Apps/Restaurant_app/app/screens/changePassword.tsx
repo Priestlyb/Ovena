@@ -1,48 +1,130 @@
-// ChangePasswordPage.tsx - Change password page
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, View } from 'react-native';
-import { ArrowLeft, MessageCircle, Eye, EyeOff, Zap } from 'lucide-react-native';
-import { styles } from '@/constants/styles';
+// ChangePasswordPage.tsx - Final (Improved Error Handling + Modal Integration)
+
+import { styles } from "@/constants/styles";
+import { useRouter } from "expo-router";
+import { ArrowLeft } from "lucide-react-native";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // Atomic Components
-import { Text } from '@/components/atoms/Text';
-import { Button } from '@/components/atoms/Button';
-import { Icon } from '@/components/atoms/Icon';
-import { Spacer } from '@/components/atoms/Spacer';
+import { Spacer } from "@/components/atoms/Spacer";
+import { Text } from "@/components/atoms/Text";
 
 // Molecule Components
-import { Header } from '@/components/molecules/Header';
+import { Header } from "@/components/molecules/Header";
 
 // Existing Components
-import { CustomInput } from '@/components/CustomInput';
-import { FloatingChatButton } from '@/components/FloatingChatButton';
+import { CustomInput } from "@/components/CustomInput";
+import FeedbackModal from "@/components/FeedbackModal";
 
-interface ChangePasswordPageProps {
-  onBack?: () => void;
-  onSave?: (data: PasswordData) => void;
-}
+// Services
+import apiClient from "@/services/apiClient";
 
-interface PasswordData {
-  oldPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
+export default function ChangePasswordPage() {
+  const router = useRouter();
 
-const ChangePasswordPage: React.FC<ChangePasswordPageProps> = ({ onBack, onSave }) => {
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleChangePassword = () => {
-    const data: PasswordData = {
-      oldPassword,
-      newPassword,
-      confirmPassword,
-    };
-    onSave?.(data);
+  const [showCurrentPassword] = useState(false);
+  const [showNewPassword] = useState(false);
+  const [showConfirmPassword] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    message: "",
+    variant: "info" as "success" | "error" | "warning" | "info",
+  });
+
+  // ----------------------
+  // Handle Change Password
+  // ----------------------
+  const handleChangePassword = async () => {
+    if (loading) return;
+
+    // ✅ Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setModalConfig({
+        message: "All fields are required",
+        variant: "warning",
+      });
+      setModalVisible(true);
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setModalConfig({
+        message: "Passwords do not match",
+        variant: "error",
+      });
+      setModalVisible(true);
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setModalConfig({
+        message: "Password must be at least 8 characters",
+        variant: "warning",
+      });
+      setModalVisible(true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      console.log("📤 Sending change password request...");
+
+      await apiClient.post("/accounts/change-password/", {
+        password: currentPassword,
+        new_password: newPassword,
+      });
+
+      console.log("✅ Password changed successfully");
+
+      setModalConfig({
+        message: "Your password has been changed successfully",
+        variant: "success",
+      });
+      setModalVisible(true);
+    } catch (err: any) {
+      console.error(
+        "❌ Change password failed:",
+        err?.response?.data || err?.message,
+      );
+
+      let message =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong. Please try again.";
+
+      if (message === "Invalid password") {
+        message = "Your current password is incorrect.";
+      }
+
+      if (message.toLowerCase().includes("network")) {
+        message = "Network error. Please check your connection.";
+      }
+
+      setModalConfig({
+        message,
+        variant: "error",
+      });
+
+      setModalVisible(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Password strength indicator
@@ -62,37 +144,28 @@ const ChangePasswordPage: React.FC<ChangePasswordPageProps> = ({ onBack, onSave 
         <Header
           title="Change Password"
           leftIcon={<ArrowLeft size={24} color="#111827" />}
-          onLeftIconPress={onBack}
+          onLeftIconPress={() => router.back()}
         />
 
-        <Spacer size="lg" />
-
-        {/* Old Password */}
-        <View style={styles.inputContainer}>
-          <Text variant="label" color="primary">Old password</Text>
+        {/* Current Password */}
+        <View style={[styles.inputContainer, { marginTop: 50 }]}>
+          <Text variant="label">Current Password</Text>
           <Spacer size="xs" />
           <View style={styles.passwordInputWrapper}>
             <CustomInput
-              placeholder="at least 8 characters"
-              value={oldPassword}
-              onChange={setOldPassword}
-              type={showOldPassword ? "text" : "password"}
+              placeholder="Enter current password"
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              type={showCurrentPassword ? "text" : "password"}
             />
-            <View style={styles.passwordIcon}>
-              <Icon
-                icon={showOldPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                size="small"
-                onPress={() => setShowOldPassword(!showOldPassword)}
-              />
-            </View>
           </View>
         </View>
 
         <Spacer size="md" />
 
-        {/* Create Password */}
+        {/* New Password */}
         <View style={styles.inputContainer}>
-          <Text variant="label" color="primary">Create password</Text>
+          <Text variant="label">New Password</Text>
           <Spacer size="xs" />
           <View style={styles.passwordInputWrapper}>
             <CustomInput
@@ -101,16 +174,9 @@ const ChangePasswordPage: React.FC<ChangePasswordPageProps> = ({ onBack, onSave 
               onChange={setNewPassword}
               type={showNewPassword ? "text" : "password"}
             />
-            <View style={styles.passwordIcon}>
-              <Icon
-                icon={showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                size="small"
-                onPress={() => setShowNewPassword(!showNewPassword)}
-              />
-            </View>
           </View>
 
-          {/* Password Strength Indicator */}
+          {/* Strength */}
           <Spacer size="sm" />
           <View style={styles.passwordStrength}>
             {getPasswordStrength().map((filled, index) => (
@@ -118,7 +184,7 @@ const ChangePasswordPage: React.FC<ChangePasswordPageProps> = ({ onBack, onSave 
                 key={index}
                 style={[
                   styles.passwordStrengthBar,
-                  filled && styles.passwordStrengthBarFilled
+                  filled && styles.passwordStrengthBarFilled,
                 ]}
               />
             ))}
@@ -129,46 +195,49 @@ const ChangePasswordPage: React.FC<ChangePasswordPageProps> = ({ onBack, onSave 
 
         {/* Confirm Password */}
         <View style={styles.inputContainer}>
-          <Text variant="label" color="primary">Confirm password</Text>
+          <Text variant="label">Confirm New Password</Text>
           <Spacer size="xs" />
           <View style={styles.passwordInputWrapper}>
             <CustomInput
-              placeholder="at least 8 characters"
+              placeholder="re-enter new password"
               value={confirmPassword}
               onChange={setConfirmPassword}
               type={showConfirmPassword ? "text" : "password"}
             />
-            <View style={styles.passwordIcon}>
-              <Icon
-                icon={<Zap size={20} color="#111827" />}
-                size="small"
-              />
-            </View>
           </View>
         </View>
 
-        <Spacer size="xxl" />
+        <Spacer size="lg" />
 
-        {/* Change Password Button */}
-        <Button
-          label="Change Password"
-          variant="primary"
-          size="large"
-          fullWidth
+        {/* Submit Button */}
+        <TouchableOpacity
+          style={[styles.continueBtn, loading && { opacity: 0.7 }]}
           onPress={handleChangePassword}
-        />
+          activeOpacity={0.8}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.continueBtnText}>Change Password</Text>
+          )}
+        </TouchableOpacity>
 
         <Spacer size="xl" />
       </ScrollView>
 
-      {/* Floating Chat Button */}
-      <FloatingChatButton
-        icon={<MessageCircle size={28} color="#fff" />}
-        onPress={() => console.log('Chat')}
-        position="primary"
+      <FeedbackModal
+        visible={modalVisible}
+        message={modalConfig.message}
+        variant={modalConfig.variant}
+        onClose={() => {
+          setModalVisible(false);
+
+          if (modalConfig.variant === "success") {
+            router.back();
+          }
+        }}
       />
     </SafeAreaView>
   );
-};
-
-export default ChangePasswordPage;
+}

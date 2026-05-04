@@ -1,4 +1,24 @@
-// types/index.ts - Create this file in your project root or src/types directory
+// types/index.ts
+
+import { Dispatch, SetStateAction } from "react";
+
+/* =========================================================
+   🔹 GLOBAL / REUSABLE TYPES
+========================================================= */
+
+// File object used for uploads
+export interface UploadedFile {
+  uri?: string;
+  name?: string;
+  type?: string;
+  size?: number;
+  url?: string; // remote file (Cloudinary / S3)
+  public_id?: string;
+}
+
+/* =========================================================
+   🔹 REUSABLE COMPONENT PROPS
+========================================================= */
 
 export interface CustomDropdownProps {
   options: string[];
@@ -7,6 +27,7 @@ export interface CustomDropdownProps {
   onChange: (value: string) => void;
   label?: string;
   required?: boolean;
+  renderOptionRight?: (option: string, selected: boolean) => React.ReactNode;
 }
 
 export interface CustomInputProps {
@@ -15,7 +36,7 @@ export interface CustomInputProps {
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
-  type?: 'text' | 'email' | 'password' | 'tel';
+  type?: "text" | "email" | "password" | "tel" | "currency";
 }
 
 export interface PhoneInputProps {
@@ -35,7 +56,7 @@ export interface OTPInputProps {
 export interface FileUploadProps {
   label: string;
   required?: boolean;
-  onUpload: (file: any) => void;
+  onUpload: (file: UploadedFile | null) => void;
   acceptedFormats?: string;
   maxSize?: string;
 }
@@ -44,15 +65,20 @@ export interface ChecklistItemProps {
   iconName: string;
   text: string;
   completed: boolean;
-  link?: string; // Optional link text to display with chevron
-  onPress: () => void; // Function to call when item is pressed (for navigation)
+  onPress: () => void;
+  link?: string;
+  linkAddress?: string;
 }
 
-// Form data interface
+/* =========================================================
+   🔹 SUPER FORM 1 DATA STRUCTURE
+========================================================= */
+
 export interface OvenaFormData {
   countries: string[];
   businessTypes: string[];
   registrationOptions: string[];
+
   selectedCountry: string;
   businessAddress: string;
   businessName: string;
@@ -65,69 +91,70 @@ export interface OvenaFormData {
   confirmPassword: string;
 }
 
-// Page props interface
-export interface PageProps {
-  data?: OvenaFormData;
-  setData?: (data: OvenaFormData) => void;
-  onNext?: () => void;
-  onBack?: () => void;
+/* =========================================================
+   🔹 SUPER FORM 1 NAVIGATION TYPES
+========================================================= */
+
+export interface NavigationProps<TNext = void> {
+  onNext: (data: TNext) => void;
+  onBack: () => void;
 }
 
-// Submission data interface (what gets sent to API)
-export interface SubmissionData {
+export interface NextOnlyProps {
+  onNext: () => void;
+}
+
+export interface LoadingProps {
+  loading?: boolean;
+}
+
+/* =========================================================
+   🔹 SUPER FORM 1 SUBMISSION
+========================================================= */
+
+export interface Phase1Payload {
+  business_name: string;
+  business_type: string;
   country: string;
-  businessAddress: string;
-  businessName: string;
-  businessType: string;
-  isRegistered: string;
+  business_address: string;
   email: string;
-  phone: string;
-  fullName: string;
+  phone_number: string;
   password: string;
 }
 
-// types.ts - Updated ChecklistItemProps interface
+/* =========================================================
+   🔹 SUPER FORM 2 DATA STRUCTURE
+========================================================= */
 
-export interface ChecklistItemProps {
-  iconName: string;
-  text: string;
-  completed: boolean;
-  onPress: () => void;
-  link?: string; // Optional link text to display with chevron
-  linkAddress?: string; // Optional route/screen name to navigate to
-}
-
-// SuperForm2 complete data structure
 export interface SuperForm2Data {
-  // Dropdown options
   businessTypes: string[];
 
-  // Business Documents (Page 1)
+  // Page 1 - Business Documents
   docBusinessType: string;
   registeredBusinessName: string;
   taxId: string;
   rcNumber: string;
-  uploadedDocument: any;
+  uploadedDocument: UploadedFile | null;
 
-  // Phone Verification Page 1 (Page 2)
+  // Page 2 - Phone
   phone: string;
 
-  // Phone Verification Page 2 - OTP (Page 3)
+  // Page 3 - OTP
   otp: string;
 
-  // Profile Completion (Page 4)
+  // Page 4 - Profile
   shopName: string;
   shopType: string;
-  profileImage: any;
-  businessImage: any;
+  profileImage: UploadedFile | null;
+  businessImage: UploadedFile | null;
 
-  // Payment Setup (Page 5)
+  // Page 5 - Payment
   selectedBank: string;
   accountNumber: string;
   accountName: string;
   bvn: string;
 
-  // Operations Setup (Page 6)
+  // Page 6 - Operations
   deliveryMethod: string;
   preOrderTime: string;
   finalOrderTime: string;
@@ -135,45 +162,57 @@ export interface SuperForm2Data {
   openingTime: string;
   closingTime: string;
 
-  // Menu Items (Page 7)
+  // Page 7 - Menu
   menuCategory: string;
   menuItemName: string;
   menuItemDescription: string;
-  menuItemImage: any;
+  menuItemImage: UploadedFile | null;
 
-  // Room Menu (Page 8)
+  // Page 8 - Room
   roomName: string;
   roomNumber: string;
   roomDescription: string;
   roomAmenities: string;
 }
 
-// Data structure for API submission
+/* =========================================================
+   🔹 SUPER FORM 2 NAVIGATION TYPES
+========================================================= */
+
+export interface SuperForm2BaseProps {
+  data: SuperForm2Data;
+  setData: Dispatch<SetStateAction<SuperForm2Data>>;
+}
+
+export interface SuperForm2NavigationProps {
+  onNext: () => void;
+  onBack: () => void;
+}
+
+/* =========================================================
+   🔹 SUPER FORM 2 SUBMISSION
+========================================================= */
+
 export interface SuperForm2SubmissionData {
-  // Business Documents
   businessType: string;
   registeredBusinessName: string;
   taxId: string;
   rcNumber: string;
-  businessDocument: any;
+  businessDocument: UploadedFile | null;
 
-  // Phone Verification
   phone: string;
   phoneVerified: boolean;
 
-  // Profile
   shopName: string;
   shopType: string;
-  profileImage: any;
-  businessImage: any;
+  profileImage: UploadedFile | null;
+  businessImage: UploadedFile | null;
 
-  // Payment
   bankName: string;
   accountNumber: string;
   accountName: string;
   bvn: string;
 
-  // Operations
   deliveryMethod: string;
   preOrderTime: string;
   finalOrderTime: string;
@@ -181,23 +220,47 @@ export interface SuperForm2SubmissionData {
   openingTime: string;
   closingTime: string;
 
-  // Menu Items
   menuCategory: string;
   menuItemName: string;
   menuItemDescription: string;
-  menuItemImage: any;
+  menuItemImage: UploadedFile | null;
 
-  // Room Details
   roomName: string;
   roomNumber: string;
   roomDescription: string;
   roomAmenities: string;
 }
 
-// Props for pages that need data and setData
-export interface SuperForm2PageProps {
-  data?: SuperForm2Data;
-  setData?: (data: SuperForm2Data) => void;
-  onNext?: () => void;
-  onBack?: () => void;
+/* =========================================================
+   🔹 AUTH / ONBOARDING RESPONSES
+========================================================= */
+
+export interface OnboardAdminResponse {
+  access: string;
+  refresh: string;
+  message?: string;
+
+  user?: {
+    id: number;
+    name: string;
+  };
 }
+
+export interface OnboardingStatus {
+  admin_id: number;
+  onboarding_step: number;
+  is_onboarding_complete: boolean;
+}
+
+export type AppRoute =
+  | "/superForm"
+  | "/superForm2/checklist"
+  | "/superForm2/menu-items"
+  | "/(tabs)";
+
+export const stepRoutes: Record<number, AppRoute> = {
+  0: "/superForm",
+  1: "/superForm2/checklist",
+  2: "/superForm2/menu-items",
+  3: "/(tabs)",
+};

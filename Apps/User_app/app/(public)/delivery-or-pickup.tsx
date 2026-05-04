@@ -51,12 +51,12 @@ export default function FoodDeliveryChoiceScreen() {
     ).start();
   }, []);
 
-  // ✅ Navigation handler
+  
   const handleOptionPress = () => {
     if (authStatus === "authenticated") {
-      router.replace("/(tabs)/homepage"); // go straight to homepage if logged in
+      router.replace("/(tabs)/homepage");
     } else {
-      router.replace("/login"); // otherwise go to login
+      router.replace("/login");
     }
   };
 

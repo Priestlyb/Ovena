@@ -1,17 +1,23 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
-import { styles } from '@/constants/styles';
+import { styles } from "@/constants/styles";
+import { ChevronRight } from "lucide-react-native";
+import React from "react";
+import {
+  Image,
+  ImageSourcePropType,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface ChecklistItemProps {
-  iconName: string;
+  iconSource: ImageSourcePropType;
   text: string;
   completed: boolean;
   onPress: () => void;
 }
 
 export const ChecklistItem: React.FC<ChecklistItemProps> = ({
-  iconName,
+  iconSource,
   text,
   completed,
   onPress,
@@ -25,7 +31,11 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
       <View style={styles.checklistItemContent}>
         {/* Icon */}
         <View style={styles.checklistOrangeIconBox}>
-          <Text style={styles.checklistIconEmoji}>{iconName}</Text>
+          <Image
+            source={iconSource}
+            style={{ width: 30, height: 30 }}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Label + Arrow */}

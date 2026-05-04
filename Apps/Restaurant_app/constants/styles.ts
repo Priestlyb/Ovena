@@ -8,6 +8,7 @@ export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    paddingTop: 50
   },
   container: {
     flex: 1,
@@ -41,7 +42,7 @@ export const styles = StyleSheet.create({
     marginBottom: 32,
     lineHeight: 20,
   },
-  
+
   // ============================================================================
   // INPUT STYLES
   // ============================================================================
@@ -83,7 +84,7 @@ export const styles = StyleSheet.create({
     fontSize: 20,
     color: '#ff5920',
   },
-  
+
   // ============================================================================
   // DROPDOWN STYLES
   // ============================================================================
@@ -142,7 +143,7 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
   },
-  
+
   // ============================================================================
   // PHONE INPUT STYLES
   // ============================================================================
@@ -176,11 +177,12 @@ export const styles = StyleSheet.create({
     color: '#111827',
     boxShadow: '0px 4px 8px #ff592099',
   },
-  
+
   // ============================================================================
   // OTP STYLES
   // ============================================================================
   otpContainer: {
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 12,
@@ -188,17 +190,17 @@ export const styles = StyleSheet.create({
     marginTop: 24,
   },
   otpBox: {
-    width: 70,
-    height: 70,
+    width: 50,
+    height: 50,
     backgroundColor: '#ffb47e45',
     borderRadius: 12,
-    fontSize: 32,
+    fontSize: 25,
     fontWeight: '600',
     color: '#838383',
     textAlign: 'center',
     boxShadow: '0px 4px 8px #ff592099',
   },
-  
+
   // ============================================================================
   // FILE UPLOAD STYLES
   // ============================================================================
@@ -230,7 +232,7 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     marginLeft: 8,
   },
-  
+
   // ============================================================================
   // CHECKLIST STYLES
   // ============================================================================
@@ -249,7 +251,7 @@ export const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  
+
   checklistIconBox: {
     width: 48,
     height: 48,
@@ -259,38 +261,38 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: 10,
   },
-  
+
   checklistIconText: {
     fontSize: 24,
   },
-  
+
   checklistTextContainer: {
     flex: 1,
     marginRight: 12,
   },
-  
+
   checklistItemText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
   },
-  
+
   checklistLinkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  
+
   checklistLinkText: {
     fontSize: 14,
     color: '#6B7280',
     marginRight: 4,
   },
-  
+
   chevronIcon: {
     marginLeft: 2,
   },
-  
+
   checkbox: {
     width: 28,
     height: 28,
@@ -301,19 +303,19 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
-  
+
   checkboxCompleted: {
     backgroundColor: '#FF6B35',
-  
+
   },
-  
+
   checkboxCheckmark: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
+
   checkboxCheckmarkText: {
     color: '#fff',
     fontSize: 16,
@@ -339,7 +341,7 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  
+
   // ============================================================================
   // BUTTON STYLES
   // ============================================================================
@@ -349,7 +351,7 @@ export const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginTop: 32,
-    marginBottom: 32,
+    marginBottom: 75,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -379,7 +381,7 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  
+
   // ============================================================================
   // EMAIL VERIFICATION PAGE SPECIFIC
   // ============================================================================
@@ -393,7 +395,7 @@ export const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 24,
   },
-  
+
   // ============================================================================
   // PHONE VERIFICATION PAGE SPECIFIC (OLD LAYOUT - KEPT FOR COMPATIBILITY)
   // ============================================================================
@@ -429,7 +431,7 @@ export const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 20,
   },
-  
+
   // ============================================================================
   // PHONE VERIFICATION PAGE SPECIFIC (NEW LAYOUT)
   // ============================================================================
@@ -549,7 +551,7 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  
+
   phoneDisplay: {
     fontSize: 14,
     color: '#6B7280',
@@ -775,6 +777,46 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  /* =========================================================
+   🔹 BRANCH LIST STYLES
+========================================================= */
+
+  branchItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F9FAFB",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+
+  branchName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 4,
+  },
+
+  branchAddress: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 2,
+  },
+
+  branchCoords: {
+    fontSize: 12,
+    color: "#9CA3AF",
+  },
+
+  branchActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
   // Orange indicator for incomplete checklist items
   checkboxOrangeIndicator: {
     width: 12,
@@ -813,7 +855,7 @@ export const styles = StyleSheet.create({
     borderRadius: 4,
   },
 
-   passwordInputWrapper: {
+  passwordInputWrapper: {
     position: 'relative',
   },
 
@@ -877,7 +919,7 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
 
-   checklistContainer: {
+  checklistContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
@@ -964,7 +1006,7 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#FF6B35',
-    backgroundColor:  '#FFFFFF',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
@@ -1240,7 +1282,7 @@ export const styles = StyleSheet.create({
     color: '#FF6B35',
   },
 
-    // Container
+  // Container
   toggleContainer: {
     gap: 8,
   },
@@ -1303,7 +1345,7 @@ export const styles = StyleSheet.create({
     transform: [{ translateX: 20 }], // Right position (active)
   },
 
-   // Profile Page Styles
+  // Profile Page Styles
   profileHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1312,15 +1354,17 @@ export const styles = StyleSheet.create({
   profileUserInfo: {
     alignItems: 'center',
     position: 'relative',
+    alignSelf: 'center',
   },
   profileRatingBadge: {
     position: 'absolute',
-    top: 0,
-    right: '30%',
+    top: -4,
+    right: -10,
     backgroundColor: '#FF6B35',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

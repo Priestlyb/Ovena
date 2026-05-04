@@ -7,7 +7,7 @@ import { styles } from '../constants/styles';
 export const OTPInput: React.FC<OTPInputProps> = ({
   value,
   onChange,
-  length = 4,
+  length = 6,
 }) => {
   const inputRefs = Array.from({ length }, () => useRef<TextInput>(null));
 

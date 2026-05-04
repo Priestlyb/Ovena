@@ -1,26 +1,30 @@
-// YourDetailsPage.tsx - User profile details page
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, View } from 'react-native';
-import { ArrowLeft, MessageCircle } from 'lucide-react-native';
-import { styles } from '@/constants/styles';
+// YourDetailsPage.tsx
+
+import { styles } from "@/constants/styles";
+import apiClient from "@/services/apiClient";
+import { ArrowLeft } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity
+} from "react-native";
 
 // Atomic Components
-import { Text } from '@/components/atoms/Text';
-import { Button } from '@/components/atoms/Button';
-import { Icon } from '@/components/atoms/Icon';
-import { Spacer } from '@/components/atoms/Spacer';
+import { Spacer } from "@/components/atoms/Spacer";
+import { Text } from "@/components/atoms/Text";
 
 // Molecule Components
-import { Header } from '@/components/molecules/Header';
+import { Header } from "@/components/molecules/Header";
 
 // Existing Components
-import { CustomInput } from '@/components/CustomInput';
-import { FloatingChatButton } from '@/components/FloatingChatButton';
-
-interface YourDetailsPageProps {
-  onBack?: () => void;
-  onSave?: (data: UserDetails) => void;
-}
+import { CustomInput } from "@/components/CustomInput";
+import { OtpModal } from "@/components/OtpModal"; // ✅ NEW
+import { useRouter } from "expo-router";
 
 interface UserDetails {
   firstName: string;
@@ -29,88 +33,187 @@ interface UserDetails {
   emailAddress: string;
 }
 
-const YourDetailsPage: React.FC<YourDetailsPageProps> = ({ onBack, onSave }) => {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [emailAddress, setEmailAddress] = useState('');
+const OTP_LENGTH = 6;
 
-  const handleSave = () => {
-    const data: UserDetails = {
-      firstName,
-      lastName,
-      phoneNumber,
-      emailAddress,
+const YourDetailsPage = () => {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
+
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // OTP STATES
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  const router = useRouter();
+
+  // ----------------------
+  // Fetch profile
+  // ----------------------
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await apiClient.get("/accounts/profile/", {
+          params: { profile_type: "businessadmin" },
+        });
+
+        const user = response.data.user;
+
+        const [first, ...rest] = (user.name || "").split(" ");
+        const last = rest.join(" ");
+
+        setFirstName(first || "");
+        setLastName(last || "");
+        setPhoneNumber(user.phone_number || "");
+        setEmailAddress(user.email || "");
+      } catch (err: any) {
+        console.warn("❌ Failed to fetch profile:", err);
+      } finally {
+        setLoadingProfile(false);
+      }
     };
-    onSave?.(data);
+
+    fetchProfile();
+  }, []);
+
+  // ----------------------
+  // Handle Save (TRIGGERS OTP)
+  // ----------------------
+  const handleSave = async () => {
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    const payload: any = {
+      phone_number: phoneNumber,
+      full_name: fullName,
+    };
+
+    if (emailAddress?.trim()) {
+      payload.email = emailAddress;
+    }
+
+    try {
+      setSaving(true);
+
+      await apiClient.patch("/business/admin/update/", payload);
+
+      setOtpModalVisible(true);
+    } catch (err: any) {
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || "Failed to update profile",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ----------------------
+  // VERIFY OTP
+  // ----------------------
+  const handleVerifyOtp = async () => {
+    const otpCode = otp.join("");
+
+    if (otpCode.length !== 6) {
+      Alert.alert("Error", "Enter complete OTP");
+      return;
+    }
+
+    try {
+      setVerifyingOtp(true);
+
+      await apiClient.post("/business/admin/update/verify/", {
+        otp_code: Number(otpCode),
+      });
+
+      setOtpModalVisible(false);
+      setOtp(Array(OTP_LENGTH).fill(""));
+
+      Alert.alert("Success", "Profile updated successfully!");
+    } catch (err: any) {
+      Alert.alert("Error", err.response?.data?.message || "Invalid OTP");
+    } finally {
+      setVerifyingOtp(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <Header
-          title="Your Details"
-          leftIcon={<ArrowLeft size={24} color="#111827" />}
-          onLeftIconPress={onBack}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          style={styles.container}
+          showsVerticalScrollIndicator={false}
+        >
+          <Header
+            title="Your Details"
+            leftIcon={<ArrowLeft size={24} color="#111827" />}
+            onLeftIconPress={() => router.push("/(tabs)/profile")}
+          />
+
+          <Spacer size="lg" />
+
+          {loadingProfile ? (
+            <ActivityIndicator size="large" color="#F65513" />
+          ) : (
+            <>
+              <CustomInput
+                placeholder="Enter Your First name"
+                label="First name"
+                value={firstName}
+                onChange={setFirstName}
+              />
+              <CustomInput
+                placeholder="Enter Your Last Name"
+                label="Last name"
+                value={lastName}
+                onChange={setLastName}
+              />
+              <CustomInput
+                placeholder="Enter Your Phone Number"
+                label="Phone number"
+                value={phoneNumber}
+                onChange={setPhoneNumber}
+              />
+              <CustomInput
+                placeholder="Enter Your Email"
+                label="Email address"
+                value={emailAddress}
+                onChange={setEmailAddress}
+              />
+
+              <Spacer size="xl" />
+
+              <TouchableOpacity
+                style={styles.continueBtn}
+                onPress={handleSave}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.continueBtnText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+        </ScrollView>
+
+        {/* ✅ OTP MODAL COMPONENT */}
+        <OtpModal
+          visible={otpModalVisible}
+          otp={otp}
+          setOtp={setOtp}
+          verifying={verifyingOtp}
+          onVerify={handleVerifyOtp}
+          onClose={() => setOtpModalVisible(false)}
         />
-
-        <Spacer size="lg" />
-
-        {/* First Name */}
-        <CustomInput
-          label="First name"
-          placeholder=""
-          value={firstName}
-          onChange={setFirstName}
-        />
-
-        {/* Last Name */}
-        <CustomInput
-          label="Last name"
-          placeholder=""
-          value={lastName}
-          onChange={setLastName}
-        />
-
-        {/* Phone Number */}
-        <CustomInput
-          label="Phone number"
-          placeholder=""
-          value={phoneNumber}
-          onChange={setPhoneNumber}
-          type="tel"
-        />
-
-        {/* Email Address */}
-        <CustomInput
-          label="Email address"
-          placeholder=""
-          value={emailAddress}
-          onChange={setEmailAddress}
-          type="email"
-        />
-
-        <Spacer size="xl" />
-
-        {/* Save Button */}
-        <Button
-          label="Save Changes"
-          variant="primary"
-          size="large"
-          fullWidth
-          onPress={handleSave}
-        />
-
-        <Spacer size="xl" />
-      </ScrollView>
-
-      {/* Floating Chat Button */}
-      <FloatingChatButton
-        icon={<MessageCircle size={28} color="#fff" />}
-        onPress={() => console.log('Chat')}
-        position="primary"
-      />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

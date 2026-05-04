@@ -8,6 +8,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AntDesignIcon from "@expo/vector-icons/AntDesign";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import Octicons from "@expo/vector-icons/Octicons"; // ✅ NEW
 
 /* ======================================================
    ICON MAPS (GROUPED BY ICON FAMILY)
@@ -21,6 +22,7 @@ export const IONICONS = {
   OrderIcon: "receipt-outline",
   ProfileIcon: "person-outline",
   HeartIcon: "heart",
+  OutlineHeart: "heart-outline",
   EmailIcon: "mail-outline",
   BellIcon: "notifications-outline",
   SettingsIcon: "settings-outline",
@@ -33,6 +35,9 @@ export const IONICONS = {
   HelpCircleOutline: "help-circle-outline",
   CardOutline: "card-outline",
   LogOutOutline: "log-out-outline",
+  TrashOutline: "trash-outline",
+  LockClosedOutline: "lock-closed-outline",
+  LogoThreads: "logo-threads",
 } as const satisfies Record<
   string,
   ComponentProps<typeof Ionicons>["name"]
@@ -45,6 +50,9 @@ export const ANT_DESIGN_ICONS = {
   UserIcon: "user",
   ChevronRightIcon: "right",
   QuestionCircle: "question-circle",
+  ArrowLeftIcon: "arrow-left",
+  ShareAltIcon: "share-alt",
+  CheckIcon: "check-circle",
 } as const satisfies Record<
   string,
   ComponentProps<typeof AntDesignIcon>["name"]
@@ -59,6 +67,7 @@ export const MATERIAL_ICONS = {
   MapIcon: "map",
   CartIcon: "shopping-cart",
   TokenIcon: "token",
+  PrivateConnectivityIcon: "private-connectivity",
 } as const satisfies Record<
   string,
   ComponentProps<typeof MaterialIcons>["name"]
@@ -69,6 +78,9 @@ export const COMMUNITY_ICONS = {
   SwimmerIcon: "swim",
   GymIcon: "dumbbell",
   WifiIcon: "wifi",
+  DotsHorizontalIcon: "dots-horizontal",
+  StoreClockIcon: "store-clock-outline",
+  BriefcaseOutlineIcon: "briefcase-variant-outline",
 } as const satisfies Record<
   string,
   ComponentProps<typeof MaterialCommunityIcons>["name"]
@@ -82,10 +94,20 @@ export const FONT_AWESOME_6_ICONS = {
   ShieldIcon: "shield-halved",
   UserGroupIcon: "user-group",
   LogoutIcon: "right-from-bracket",
-  PersonThroughWindowIcon: "person-through-window"
+  PersonThroughWindowIcon: "person-through-window",
+  UserOutlineIcon: "user",
+  LocationDotIcon: "location-dot",
 } as const satisfies Record<
   string,
   ComponentProps<typeof FontAwesome6>["name"]
+>;
+
+/* ---------- OCTICONS (NEW) ---------- */
+export const OCTICONS = {
+  LawIcon: "law",
+} as const satisfies Record<
+  string,
+  ComponentProps<typeof Octicons>["name"]
 >;
 
 /* ======================================================
@@ -97,7 +119,8 @@ export type IconName =
   | keyof typeof MATERIAL_ICONS
   | keyof typeof COMMUNITY_ICONS
   | keyof typeof ANT_DESIGN_ICONS
-  | keyof typeof FONT_AWESOME_6_ICONS;
+  | keyof typeof FONT_AWESOME_6_ICONS
+  | keyof typeof OCTICONS; // ✅ added
 
 type IconProps = {
   name: IconName;
@@ -164,6 +187,17 @@ export function IconSymbol({
     return (
       <FontAwesome6
         name={FONT_AWESOME_6_ICONS[name as keyof typeof FONT_AWESOME_6_ICONS]}
+        size={size}
+        color={color}
+        style={style}
+      />
+    );
+  }
+
+  if (name in OCTICONS) {
+    return (
+      <Octicons
+        name={OCTICONS[name as keyof typeof OCTICONS]}
         size={size}
         color={color}
         style={style}

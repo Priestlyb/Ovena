@@ -1,261 +1,175 @@
-// StoreAnalyticsPage.tsx - Analytics with revenue chart
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, View, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ArrowLeft, SlidersHorizontal, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react-native';
-import { styles } from '@/constants/styles';
+// StoreAnalyticsPage.tsx
+import React, { useState, useEffect } from "react";
+import { SafeAreaView, ScrollView, View } from "react-native";
+import { useRouter } from "expo-router";
+import { ArrowLeft, MessageCircle } from "lucide-react-native";
 
-// Atomic Components
-import { Text } from '@/components/atoms/Text';
-import { Spacer } from '@/components/atoms/Spacer';
+import api from "@/services/apiClient";
 
-// Molecule Components
-import { Card } from '@/components/molecules/Card';
-import { Header } from '@/components/molecules/Header';
+import { Text } from "@/components/atoms/Text";
+import { Spacer } from "@/components/atoms/Spacer";
+import { Header } from "@/components/molecules/Header";
+import { FloatingChatButton } from "@/components/FloatingChatButton";
 
-// Existing Components
-
-import { FloatingChatButton } from '@/components/FloatingChatButton';
+// ✅ COMPONENTS
+import { TopPerformingBranchCard } from "@/components/TopPerformingBranchCard";
+import { ReviewsCard } from "@/components/ReviewsCard";
+import { TrendRevenueChart } from "@/components/TrendRevenueChart";
+import { TopProductCard } from "@/components/TopProductCard"; // ✅ NEW
 
 export default function StoreAnalyticsPage() {
   const router = useRouter();
-  const [selectedPeriod, setSelectedPeriod] = useState('Week');
-  const [showPeriodMenu, setShowPeriodMenu] = useState(false);
-  const [topSellersExpanded, setTopSellersExpanded] = useState(true);
 
+  const [selectedPeriod, setSelectedPeriod] = useState("week");
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // ================= FETCH =================
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get("/business/analysis/store/", {
+          params: { period: selectedPeriod },
+        });
+
+        console.log("✅ ANALYTICS FETCHED:", res?.data);
+        console.log("📊 ANALYTICS DATA:", res?.data?.data);
+
+        setAnalytics(res?.data?.data);
+      } catch (err: any) {
+        console.error("❌ ANALYTICS ERROR:", err?.response || err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [selectedPeriod]);
+
+  // ================= STATS =================
   const stats = [
-    { label: 'Total Revenue', value: '₦789,550' },
-    { label: 'Total Order', value: '380' },
-    { label: 'Total Bookings', value: '281' },
-    { label: 'Online Delivery', value: '87%', highlight: true },
+    {
+      label: "Total Revenue",
+      value: `₦${Number(
+        analytics?.revenue_breakdown?.total_revenue_ngn || 0
+      ).toLocaleString()}`,
+      highlight: true,
+    },
+    {
+      label: "Total Orders",
+      value: analytics?.revenue_breakdown?.orders_count || 0,
+    },
   ];
 
-  const chartData = [
-    { day: 'S', value: 8000, label: '' },
-    { day: 'M', value: 18837.63, label: '₦ 18,837.63', highlight: true },
-    { day: 'T', value: 17000, label: '' },
-    { day: 'W', value: 12000, label: '' },
-    { day: 'T', value: 15000, label: '' },
-    { day: 'F', value: 0, label: '' },
-    { day: 'S', value: 0, label: '' },
-  ];
+  // ================= CHART =================
+  const days = ["S", "M", "T", "W", "T", "F", "S"];
+  const weekData = Array(7).fill(0);
+  const trend = analytics?.trend_revenue || [];
 
-  const maxValue = 25000;
+  trend.forEach((item: any) => {
+    const date = new Date(item.date);
+    const dayIndex = date.getDay();
+    weekData[dayIndex] = item.amount;
+  });
+
+  const chartData = days.map((day, index) => ({
+    day,
+    value: weekData[index],
+    label: `₦${Number(weekData[index]).toLocaleString()}`,
+  }));
+
+  const maxValue =
+    chartData.length > 0 ? Math.max(...chartData.map((i) => i.value), 1) : 1;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: '#FEF3E7' }]}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: "#F7EFE5", paddingTop: 50 }}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* HEADER */}
         <Header
           title="Store Analytics"
-          leftIcon={<ArrowLeft size={24} color="#111827" />}
+          leftIcon={<ArrowLeft size={22} color="#111" />}
           onLeftIconPress={() => router.back()}
+          backgroundColor="#F6EFE7"
         />
 
         <Spacer size="lg" />
 
-        {/* Analytics Header */}
+        {/* TITLE */}
         <View style={{ paddingHorizontal: 20 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text variant="h3" weight="semibold">Analytics</Text>
-            <TouchableOpacity>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <SlidersHorizontal size={20} color="#111827" />
-                <Text variant="body" weight="medium">Filter</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+          <Text variant="h3" style={{ fontSize: 20, fontWeight: "600" }}>
+            Analytics
+          </Text>
         </View>
 
         <Spacer size="lg" />
 
-        {/* Stats Grid */}
+        {/* STATS */}
         <View style={{ paddingHorizontal: 20 }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {stats.map((stat, index) => (
-              <View key={index} style={{ width: '48%' }}>
-                <Text variant="body" color="secondary">{stat.label}</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            {stats.map((item, i) => (
+              <View key={i} style={{ width: "50%", marginBottom: 18 }}>
+                <Text style={{ color: "#00000080" }}>{item.label}</Text>
+
                 <Text
-                  variant="h3"
-                  weight="bold"
-                  style={{ color: stat.highlight ? '#FF6B35' : '#111827' }}
+                  style={{
+                    fontWeight: "800",
+                    fontSize: 22,
+                    marginTop: 4,
+                    color: item.highlight ? "#FF5A1F" : "#111",
+                  }}
                 >
-                  {stat.value}
+                  {loading ? "..." : item.value}
                 </Text>
               </View>
             ))}
           </View>
         </View>
 
-        <Spacer size="xl" />
-
-        {/* Trend Revenue Chart */}
-        <View style={{ paddingHorizontal: 20 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text variant="h4" weight="semibold">Trend Revenue</Text>
-            
-            {/* Period Selector */}
-            <TouchableOpacity
-              onPress={() => setShowPeriodMenu(!showPeriodMenu)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 8,
-                paddingVertical: 6,
-                paddingHorizontal: 12,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: '#E5E7EB',
-              }}
-            >
-              <Text variant="body">{selectedPeriod}</Text>
-              <ChevronDown size={16} color="#111827" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Period Dropdown */}
-          {showPeriodMenu && (
-            <View style={{
-              position: 'absolute',
-              right: 20,
-              top: 40,
-              backgroundColor: '#FEF3E7',
-              borderRadius: 8,
-              padding: 8,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-              zIndex: 1000,
-            }}>
-              {['Day', 'Week', 'Month', 'Year'].map((period) => (
-                <TouchableOpacity
-                  key={period}
-                  onPress={() => {
-                    setSelectedPeriod(period);
-                    setShowPeriodMenu(false);
-                  }}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 16,
-                    backgroundColor: selectedPeriod === period ? '#FF6B35' : 'transparent',
-                    borderRadius: 4,
-                  }}
-                >
-                  <Text
-                    variant="body"
-                    color={selectedPeriod === period ? 'white' : 'primary'}
-                  >
-                    {period}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          <Spacer size="lg" />
-
-          {/* Bar Chart */}
-          <View style={{ height: 250 }}>
-            {/* Y-axis labels */}
-            <View style={{ position: 'absolute', left: 0, top: 0, bottom: 40 }}>
-              {[25000, 20000, 15000, 10000, 5000, 0].map((value) => (
-                <View key={value} style={{ flex: 1, justifyContent: 'flex-end' }}>
-                  <Text variant="caption" color="secondary">
-                    ₦ {value.toLocaleString()}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Bars */}
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'flex-end',
-              justifyContent: 'space-around',
-              height: '100%',
-              paddingLeft: 60,
-              paddingBottom: 30,
-            }}>
-              {chartData.map((item, index) => (
-                <View key={index} style={{ alignItems: 'center', flex: 1 }}>
-                  {/* Label above bar */}
-                  {item.label && (
-                    <View style={{
-                      position: 'absolute',
-                      top: -30,
-                      backgroundColor: '#FCD34D',
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 4,
-                    }}>
-                      <Text variant="caption" weight="semibold">
-                        {item.label}
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Bar */}
-                  <View
-                    style={{
-                      width: 30,
-                      height: `${(item.value / maxValue) * 100}%`,
-                      backgroundColor: '#FF6B35',
-                      borderRadius: 4,
-                    }}
-                  />
-
-                  {/* Day label */}
-                  <Text variant="body" weight="semibold" style={{ marginTop: 8 }}>
-                    {item.day}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        <Spacer size="xl" />
-
-        {/* Top Sellers Section */}
-        <View style={{ paddingHorizontal: 20 }}>
-          <TouchableOpacity
-            onPress={() => setTopSellersExpanded(!topSellersExpanded)}
-            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <Text variant="h4" weight="semibold">Top Sellers</Text>
-            {topSellersExpanded ? (
-              <ChevronUp size={20} color="#111827" />
-            ) : (
-              <ChevronDown size={20} color="#111827" />
-            )}
-          </TouchableOpacity>
-        </View>
-
         <Spacer size="lg" />
 
-        {/* Reviews Section */}
-        <View style={{ paddingHorizontal: 20 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text variant="h4" weight="semibold">Reviews</Text>
-            <TouchableOpacity>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <SlidersHorizontal size={20} color="#111827" />
-                <Text variant="body" weight="medium">Filter</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* TREND */}
+        <TrendRevenueChart trend={analytics?.trend_revenue || []} />
+
+        <Spacer size="lg" />
+        <Spacer size="lg" />
+
+        {/* ✅ TOP PRODUCT (NEW) */}
+        <TopProductCard
+          name={analytics?.top_product?.name}
+          orders={analytics?.top_product?.orders}
+          quantity={analytics?.top_product?.quantity_sold}
+          revenue={analytics?.top_product?.revenue}
+          loading={loading}
+        />
+
+        <Spacer size="lg" />
+        <Spacer size="lg" />
+
+        {/* ✅ TOP PERFORMING BRANCH */}
+        <TopPerformingBranchCard
+          branchName={analytics?.topseller_branch?.branch_name}
+          revenue={analytics?.topseller_branch?.amount}
+          orders={analytics?.topseller_branch?.orders_count}
+        />
+
+        <Spacer size="lg" />
+        <Spacer size="lg" />
+
+        {/* ✅ REVIEWS */}
+        <ReviewsCard
+          rating={analytics?.reviews?.average_rating}
+          count={analytics?.reviews?.count}
+        />
 
         <Spacer size="xxl" />
       </ScrollView>
 
-      {/* Floating Chat Button */}
       <FloatingChatButton
-        icon={<MessageCircle size={28} color="#fff" />}
-        onPress={() => console.log('Chat')}
-        position="primary"
+        icon={<MessageCircle size={24} color="#fff" />}
+        onPress={() => {}}
       />
     </SafeAreaView>
   );

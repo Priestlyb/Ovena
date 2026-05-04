@@ -20,8 +20,8 @@ export const dashboardStats: DashboardStat[] = [
     id: '2',
     title: 'TOTAL ORDERS',
     value: '1,250',
-    subtitle: 'THIS MONTH',
-    subtitleValue: '89',
+    subtitle: '',
+    subtitleValue: '',
     iconName: 'order',
   },
   {
@@ -31,13 +31,5 @@ export const dashboardStats: DashboardStat[] = [
     subtitle: 'THIS WEEK',
     subtitleValue: '₦450,000',
     iconName: 'revenue',
-  },
-  {
-    id: '4',
-    title: 'DELIVERED',
-    value: '3,890',
-    subtitle: 'PENDING',
-    subtitleValue: '630',
-    iconName: 'delivered',
   },
 ];
