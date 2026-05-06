@@ -17,6 +17,7 @@ import DocumentsScreen  from "./DocumentsScreen";
 import PaymentScreen    from "./PaymentScreen";
 import EditInfoScreen   from "./EditInfoScreen";
 import AppSettingsScreen from "./AppSettingsScreen";
+import ScreenWrapper from "../components/ScreenWrapper";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ const AccountScreen: React.FC<AccountScreenProps> = ({ onBack }) => {
 
   return (
     <>
+      <ScreenWrapper >
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
 
@@ -198,6 +200,7 @@ const AccountScreen: React.FC<AccountScreenProps> = ({ onBack }) => {
       >
         {renderSubScreen()}
       </Modal>
+      </ScreenWrapper>
     </>
   );
 };

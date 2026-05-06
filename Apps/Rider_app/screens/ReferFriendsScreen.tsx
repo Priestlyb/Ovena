@@ -6,6 +6,7 @@ import {
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
 import { useTheme } from "../context/ThemeContext";
+import ScreenWrapper from "../components/ScreenWrapper";
 
 interface ReferFriendsScreenProps {
   onBack: () => void;
@@ -25,8 +26,9 @@ const ReferFriendsScreen: React.FC<ReferFriendsScreenProps> = ({ onBack }) => {
   const { colors, isDark } = useTheme();
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.accentYellow }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.accentYellow} />
+    <ScreenWrapper>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.accentYellow }]}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.accentYellow} />
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Yellow hero area */}
@@ -79,6 +81,7 @@ const ReferFriendsScreen: React.FC<ReferFriendsScreenProps> = ({ onBack }) => {
         </View>
       </ScrollView>
     </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 

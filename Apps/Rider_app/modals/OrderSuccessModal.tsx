@@ -69,7 +69,7 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             },
           ]}
         >
-          <IconSymbol name="BikeIcon" size={28} color={colors.iconColor} />
+          <IconSymbol name="Bicycle" size={28} color={colors.iconColor} />
 
           <Text style={[styles.tripLabel, { color: colors.textSecondary }]}>Last Delivery trip</Text>
           <Text style={[styles.tripAmount, { color: colors.accentGreen }]}>₦ 1,000.00</Text>

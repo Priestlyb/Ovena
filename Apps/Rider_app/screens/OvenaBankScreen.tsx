@@ -9,6 +9,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAppData } from "../context/appDataContext";
 import { IconSymbol } from "../components/ui/icon-symbol";
 import PayoutList, { historyEntryToPayout, Payout } from "../components/PayoutList";
+import ScreenWrapper from "../components/ScreenWrapper";
 
 interface OvenaBankScreenProps {
   onBack: () => void;
@@ -192,7 +193,9 @@ const OvenaBankScreen: React.FC<OvenaBankScreenProps> = ({ onBack }) => {
     : "—";
 
   return (
+    
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.accentYellow }]}>
+      <ScreenWrapper>
       <StatusBar barStyle="dark-content" backgroundColor={colors.accentYellow} />
 
       {/* ── Yellow hero header ── */}
@@ -254,7 +257,9 @@ const OvenaBankScreen: React.FC<OvenaBankScreenProps> = ({ onBack }) => {
         minAmount={minAmount}
         eligible={eligible}
       />
+       </ScreenWrapper>
     </SafeAreaView>
+   
   );
 };
 

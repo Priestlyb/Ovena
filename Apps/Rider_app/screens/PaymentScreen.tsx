@@ -13,6 +13,7 @@ import BankDetails, {
   DEFAULT_BANK_DATA,
 } from "../components/signup/BankDetails";
 import { updateBankDetails } from "../services/accountApi";
+import ScreenWrapper from "../components/ScreenWrapper";
 
 interface PaymentScreenProps {
   onBack: () => void;
@@ -42,6 +43,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
   };
 
   return (
+    <ScreenWrapper >
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
 
@@ -78,6 +80,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+      </ScreenWrapper>
   );
 };
 

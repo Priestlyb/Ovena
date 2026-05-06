@@ -73,7 +73,7 @@ const NavDrawer: React.FC<NavDrawerProps> = ({
   };
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={[StyleSheet.absoluteFill, styles.drawerRoot]} pointerEvents="box-none">
       {/* Backdrop */}
       <Animated.View
         style={[styles.backdrop, { opacity: backdropAnim }]}
@@ -161,6 +161,11 @@ const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  // Sits above every delivery overlay (zIndex 20) and the compass (zIndex 15)
+  drawerRoot: {
+    zIndex: 9999,
+    elevation: 99,
   },
   drawer: {
     position: "absolute",

@@ -7,6 +7,7 @@ import {
 import { IconSymbol } from "../components/ui/icon-symbol";
 import { useTheme } from "../context/ThemeContext";
 import { useAppData } from "../context/appDataContext";
+import ScreenWrapper from "../components/ScreenWrapper";
 
 interface EarningsScreenProps {
   onOpenBank?: () => void;
@@ -79,6 +80,7 @@ const EarningsScreen: React.FC<EarningsScreenProps> = ({ onBack, onOpenBank }) =
   const onlineHours     = performance ? `${performance.online_hours.toFixed(1)}h` : "—";
 
   return (
+    <ScreenWrapper>
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
 
@@ -203,6 +205,7 @@ const EarningsScreen: React.FC<EarningsScreenProps> = ({ onBack, onOpenBank }) =
 
       </ScrollView>
     </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 

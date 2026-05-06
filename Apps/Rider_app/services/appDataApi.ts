@@ -6,6 +6,7 @@ async function authGet(endpoint: string, token: string) {
   const res = await fetch(`${BASE}${endpoint}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  console.log(`[API] Fetching ${endpoint} with token: ${token}`);
   if (!res.ok) throw new Error(`${endpoint} failed: ${res.status}`);
   return res.json();
 }

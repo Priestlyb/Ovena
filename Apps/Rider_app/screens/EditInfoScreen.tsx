@@ -14,6 +14,7 @@ import PersonalStep, {
   isPersonalInfoValid,
 } from "../components/signup/PersonalInformation";
 import { updatePersonalInfo } from "../services/accountApi";
+import ScreenWrapper from "../components/ScreenWrapper";
 
 interface EditInfoScreenProps {
   onBack: () => void;
@@ -51,6 +52,7 @@ const EditInfoScreen: React.FC<EditInfoScreenProps> = ({ onBack }) => {
   };
 
   return (
+    <ScreenWrapper>
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
 
@@ -87,6 +89,7 @@ const EditInfoScreen: React.FC<EditInfoScreenProps> = ({ onBack }) => {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 

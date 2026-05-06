@@ -13,6 +13,7 @@ import DocumentStep, {
   DEFAULT_DOC_INFO,
 } from "../components/signup/IdentificationDocumentation";
 import { updateDocuments } from "../services/accountApi";
+import ScreenWrapper from "../components/ScreenWrapper";
 
 interface DocumentsScreenProps {
   onBack: () => void;
@@ -56,6 +57,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ onBack }) => {
   };
 
   return (
+    <ScreenWrapper >
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
 
@@ -92,6 +94,7 @@ const DocumentsScreen: React.FC<DocumentsScreenProps> = ({ onBack }) => {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 

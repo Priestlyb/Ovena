@@ -8,6 +8,7 @@ import {
 import { IconSymbol } from "../components/ui/icon-symbol";
 import { useTheme } from "../context/ThemeContext";
 import { useAppData } from "../context/appDataContext";
+import ScreenWrapper from "../components/ScreenWrapper";
 
 interface ProfileScreenProps {
   onBack: () => void;
@@ -38,7 +39,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
     : "?";
 
   return (
+   
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+       <ScreenWrapper>
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -174,7 +177,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
           </>
         )}
       </ScrollView>
+      </ScreenWrapper>
     </SafeAreaView>
+    
   );
 };
 

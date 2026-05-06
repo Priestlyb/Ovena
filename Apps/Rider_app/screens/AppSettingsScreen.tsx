@@ -6,6 +6,7 @@ import {
 import { useTheme, NightModeOption } from "../context/ThemeContext";
 import { MoonIcon, SoundVoiceIcon, NavigationIcon } from "../components/icons/SettingsIcons";
 import { IconSymbol } from "../components/ui/icon-symbol";
+import ScreenWrapper from "../components/ScreenWrapper";
 
 interface AppSettingsScreenProps {
   onBack: () => void;
@@ -27,6 +28,7 @@ const AppSettingsScreen: React.FC<AppSettingsScreenProps> = ({ onBack }) => {
   };
 
   return (
+    <ScreenWrapper>
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
 
@@ -90,6 +92,7 @@ const AppSettingsScreen: React.FC<AppSettingsScreenProps> = ({ onBack }) => {
 
       </View>
     </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 

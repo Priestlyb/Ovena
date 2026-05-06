@@ -10,12 +10,18 @@ import AntDesignIcon from "@expo/vector-icons/AntDesign";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import Fontisto from "@expo/vector-icons/Fontisto";
 
+
 /* ======================================================
    ICON MAPS (GROUPED BY ICON FAMILY)
 ====================================================== */
 
 /* ---------- IONICONS (General UI) ---------- */
 export const IONICONS = {
+  DocumentIcon: "document-text-outline",
+  PaymentIcon: "card-outline",
+  CameraIcon: "camera-outline",
+  PencilIcon: "create-outline",
+  LockIcon: "lock-closed-outline",
   HomeIcon: "home",
   SearchIcon: "search",
   FilterIcon: "options-outline",
@@ -47,8 +53,8 @@ export const IONICONS = {
   MessageIcon: "chatbubble-outline",
   ClockIcon: "time-outline",
   ChevronDownIcon: "chevron-down-outline",
-  CheckmarkIcon: "checkmark-outline"
-  
+  CheckmarkIcon: "checkmark-outline",
+  RetakeIcon: "camera-reverse-outline",
 } as const satisfies Record<
   string,
   ComponentProps<typeof Ionicons>["name"]
@@ -120,7 +126,8 @@ export const FONT_AWESOME_6_ICONS = {
   SnapChatIcon: "snapchat",
   Message: "comment",
   TelegramIcon:"telegram",
-  XMarkIcon: "x"
+  XMarkIcon: "x",
+  InboxIcon: "inbox",
 } as const satisfies Record<
   string,
   ComponentProps<typeof FontAwesome6>["name"]
