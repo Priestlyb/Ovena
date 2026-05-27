@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  StatusBar, Modal,
+  StatusBar, Modal, unstable_batchedUpdates,
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
 import { useTheme } from "../context/ThemeContext";
@@ -19,9 +19,10 @@ import OrderSuccessModal from "../modals/OrderSuccessModal";
 import NavDrawer, { NavRoute } from "../components/NavDrawer";
 import DriverMapView, { RouteSummary } from "../components/DriverMapView";
 
-import ProfileScreen       from "../screens/ProfileScreen";
-import AccountScreen       from "../screens/AccountScreen";
-import InboxScreen, { InboxMessage } from "../screens/InboxScreen";
+import ProfileScreen  from "../screens/ProfileScreen";
+import AccountScreen  from "../screens/AccountScreen";
+import InboxScreen    from "../screens/InboxScreen";
+import { useInboxStore, InboxMessage } from "../hooks/useInboxStore";
 import EarningsScreen      from "../screens/EarningsScreen";
 import OpportunitiesScreen from "./OpportunitiesScreen";
 import ReferFriendsScreen  from "../screens/ReferFriendsScreen";
@@ -62,8 +63,28 @@ const HomeScreen = () => {
   // Live route summary computed by DriverMapView from the Mapbox Directions API
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
 
-  // Inbox messages — populated from WS order notifications
-  const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
+  // Inbox — persistent store with unread tracking
+  const {
+    messages:    inboxMessages,
+    unreadCount: inboxUnreadCount,
+    addMessage:  addInboxMessage,
+    markAllRead: markInboxAllRead,
+    markRead:    markInboxRead,
+    deleteAll:   deleteInboxAll,
+  } = useInboxStore();
+
+  const deliveryStepRef = useRef<DeliveryStep>("idle");
+
+  useEffect(() => {
+    deliveryStepRef.current = deliveryStep;
+  }, [deliveryStep]);
+
+  // Ref mirror of `online` so the WS onOrder callback always reads the
+  // latest value without being stale-closed over the initial false.
+  const onlineRef = useRef(online);
+  useEffect(() => {
+    onlineRef.current = online;
+  }, [online]);
 
   // Latest driver coordinate ref — used for the 60 s location interval
   const lastCoordRef = useRef<{latitude: number; longitude: number} | null>(null);
@@ -91,7 +112,7 @@ const HomeScreen = () => {
 
       const mapped: MockOrder = {
         id:          String(orderData.order_id  ?? "ws_order"),
-        orderId:     orderData.order_id          ?? 0,
+        order_id:     orderData.order_id          ?? 0,
         orderNumber: orderData.order_number      ?? orderData.order_id ?? 0,
 
         customerName:  orderData.customer_name  ?? "Customer",
@@ -119,33 +140,44 @@ const HomeScreen = () => {
 
       console.log("[Orders WS] ✅ Mapped order:", JSON.stringify(mapped, null, 2));
 
-      // Push the order assignment message to the inbox too
+      // Push the order assignment message to the inbox
       if (orderData.message) {
         const now = new Date();
         const h   = now.getHours() % 12 || 12;
         const mn  = now.getMinutes().toString().padStart(2, "0");
         const ap  = now.getHours() >= 12 ? "pm" : "am";
-        setInboxMessages((prev) => [
-          {
-            id:      `order-${orderData.order_id ?? Date.now()}`,
-            sender:  branch.restaurant_name ?? branch.name ?? "Ovena",
-            message: orderData.message,
-            time:    `${h}:${mn} ${ap}`,
-          },
-          ...prev,
-        ]);
+        addInboxMessage({
+          id:      `order-${orderData.order_id ?? Date.now()}`,
+          sender:  branch.restaurant_name ?? branch.name ?? "Ovena",
+          message: orderData.message,
+          time:    `${h}:${mn} ${ap}`,
+        });
         console.log("[Orders WS] 📬 Order message added to inbox:", orderData.message);
       }
 
-      // Only trigger pickup modal when idle — don't interrupt an active delivery
-      setDeliveryStep((currentStep) => {
-        if (currentStep === "idle") {
-          setActiveOrder(mapped);
-          console.log(`[Orders WS] 🚨 Pickup modal triggered — Order #${mapped.orderNumber} from ${mapped.restaurantName}`);
-          return "pickup";
-        }
+      // Guard 1 — driver must be online to receive a pickup modal
+      if (!onlineRef.current) {
+        console.log("[Orders WS] ⚠️  Driver offline — order stored in inbox only");
+        return;
+      }
+
+      // Guard 2 — don't interrupt an active delivery
+      if (deliveryStepRef.current !== "idle") {
         console.log("[Orders WS] ⚠️  Mid-delivery — new order stored in inbox, not shown");
-        return currentStep;
+        return;
+      }
+
+      console.log(`[Orders WS] 🚨 Triggering pickup modal — Order #${mapped.orderNumber} from ${mapped.restaurantName}`);
+
+      // Both setters must land in the same render. Without batchedUpdates a WS
+      // message (outside React's synthetic event system) causes two separate
+      // renders: the first sets activeOrder but deliveryStep is still "idle",
+      // so PickUpModal is not yet visible. The second render sets deliveryStep
+      // to "pickup" — but by then PickUpModal renders with order=null on the
+      // intermediate frame and bails early via `if (!order) return null`.
+      unstable_batchedUpdates(() => {
+        setActiveOrder(mapped);
+        setDeliveryStep("pickup");
       });
     },
 
@@ -157,15 +189,12 @@ const HomeScreen = () => {
       const h   = now.getHours() % 12 || 12;
       const m   = now.getMinutes().toString().padStart(2, "0");
       const ap  = now.getHours() >= 12 ? "pm" : "am";
-      setInboxMessages((prev) => [
-        {
-          id:      String(msgData.order_id ?? Date.now()),
-          sender:  `Order #${msgData.order_number || msgData.order_id || ""}`,
-          message: msgData.message ?? "New notification",
-          time:    `${h}:${m} ${ap}`,
-        },
-        ...prev,
-      ]);
+      addInboxMessage({
+        id:      String(msgData.order_id ?? Date.now()),
+        sender:  `Order #${msgData.order_number || msgData.order_id || ""}`,
+        message: msgData.message ?? "New notification",
+        time:    `${h}:${m} ${ap}`,
+      });
     },
   });
 
@@ -237,14 +266,26 @@ const HomeScreen = () => {
   // ── Orders arrive via WebSocket (useDriverWebSocket.onOrder above) ────────
   // No mock timer — real orders are pushed by the backend to the Orders WS channel.
 
-  const handlePickUp = () => {
-    // Tell the backend the driver has accepted this order
-    if (activeOrder?.orderId) {
-      postDriverAction("accept", activeOrder.orderId);
-    }
-    setDeliveryStep("onitsway");
-    setPickupKey((k) => k + 1);
-  };
+  const handlePickUp = async () => {
+  if (!activeOrder) {
+    console.warn("[Pickup] No active order");
+    return;
+  }
+
+  const order_id = Number(activeOrder.order_id);
+
+  if (Number.isNaN(order_id)) {
+    console.warn("[Pickup] Invalid order_id:", activeOrder.order_id);
+    return;
+  }
+
+  console.log(`[Pickup] Accepting order ${order_id}`);
+
+  await postDriverAction("accept", order_id);
+
+  setDeliveryStep("onitsway");
+  setPickupKey((k) => k + 1);
+};
 
   const handleStartDelivery = () => {
     setDeliveryStep("delivering");
@@ -252,19 +293,81 @@ const HomeScreen = () => {
   };
 
   // Called from CustomerModal after photo + delivery code submitted
-  const handleDeliveryComplete = (orderCode?: string) => {
-    if (activeOrder?.orderId) {
-      postDriverAction("deliver", activeOrder.orderId, orderCode);
-    }
-    setDeliveryStep("success");
-  };
+  const handleDeliveryComplete = async (order_code?: string) => {
+  if (!activeOrder) {
+    console.warn("[Deliver] No active order");
+    return;
+  }
 
-  const handleDismissPickup = () => {
+  const order_id = Number(activeOrder.order_id);
+
+  if (Number.isNaN(order_id)) {
+    console.warn("[Deliver] Invalid order_id:", activeOrder.order_id);
+    return;
+  }
+
+  const cleanedCode = order_code?.trim();
+
+  if (!cleanedCode) {
+    console.warn("[Deliver] Missing delivery code");
+  }
+
+  console.log(
+    `[Deliver] Completing order ${order_id} with code: ${
+      cleanedCode || "(missing)"
+    }`
+  );
+
+  try {
+    await postDriverAction(
+      "deliver",
+      order_id,
+      cleanedCode
+    );
+
+    console.log(`[Deliver] Order ${order_id} delivered successfully`);
+
+    setDeliveryStep("success");
+
+  } catch (err) {
+    console.warn(`[Deliver] Failed to complete order ${order_id}:`, err);
+  }
+};
+
+ const handleDismissPickup = async () => {
+  if (!activeOrder) {
+    console.warn("[Reject] No active order to reject");
+    return;
+  }
+
+  const order_id = Number(activeOrder.order_id);
+
+  if (Number.isNaN(order_id)) {
+    console.warn("[Reject] Invalid order_id:", activeOrder.order_id);
+
+    // Still clear broken UI state
     setDeliveryStep("idle");
     setActiveOrder(null);
     setRouteSummary(null);
-    // Waiting for the next real order via WebSocket
-  };
+
+    return;
+  }
+
+  console.log(`[Reject] Rejecting order ${order_id}`);
+
+  try {
+    await postDriverAction("reject", order_id);
+
+    console.log(`[Reject] Order ${order_id} rejected successfully`);
+  } catch (err) {
+    console.warn(`[Reject] Failed to reject order ${order_id}:`, err);
+  }
+
+  // Clear UI regardless so modal never gets stuck
+  setDeliveryStep("idle");
+  setActiveOrder(null);
+  setRouteSummary(null);
+};
 
   const handleSuccessClose = () => {
     setDeliveryStep("idle");
@@ -284,7 +387,16 @@ const HomeScreen = () => {
     switch (activeScreen) {
       case "Profile":       return <ProfileScreen       onBack={closeScreen} />;
       case "Account":       return <AccountScreen       onBack={closeScreen} />;
-      case "Inbox":         return <InboxScreen         onBack={closeScreen} messages={inboxMessages} />;
+      case "Inbox":
+        return (
+          <InboxScreen
+            onBack={closeScreen}
+            messages={inboxMessages}
+            onMarkAllRead={markInboxAllRead}
+            onMarkRead={markInboxRead}
+            onDeleteAll={deleteInboxAll}
+          />
+        );
       case "Earnings":      return <EarningsScreen      onBack={closeScreen} onOpenBank={() => setActiveScreen("OvenaBank")} />;
       case "OvenaBank":     return <OvenaBankScreen     onBack={closeScreen} />;
       case "Opportunities": return <OpportunitiesScreen onBack={closeScreen} />;
@@ -432,6 +544,7 @@ const HomeScreen = () => {
         order={activeOrder}
         routeSummary={routeSummary}
         onPickUp={handlePickUp}
+        onReject={handleDismissPickup}
         onClose={handleDismissPickup}
       />
 
@@ -452,6 +565,7 @@ const HomeScreen = () => {
         visible={drawerOpen}
         onClose={closeDrawer}
         onNavigate={handleNavigate}
+        inboxUnreadCount={inboxUnreadCount}
       />
 
       {/* ── PAGE MODALS (full-screen slides) ─────────────────────────────── */}

@@ -6,7 +6,7 @@ export interface MockOrder {
   id: string;
   customerName: string;
   customerPhone: string;
-  orderId: number;
+  order_id: number;
   orderNumber: number;
   itemCount: number;
   amount: string;
@@ -25,7 +25,7 @@ export const MOCK_ORDERS: MockOrder[] = [
     id: "ord_001",
     customerName: "Chidi O.",
     customerPhone: "+2348031234567",
-    orderId: 4593,
+    order_id: 4593,
     orderNumber: 1001,
     itemCount: 3,
     amount: "₦1,500.00",
@@ -42,7 +42,7 @@ export const MOCK_ORDERS: MockOrder[] = [
     id: "ord_002",
     customerName: "Ngozi A.",
     customerPhone: "+2348057654321",
-    orderId: 7821,
+    order_id: 7821,
     orderNumber: 1002,
     itemCount: 2,
     amount: "₦2,200.00",
@@ -59,7 +59,7 @@ export const MOCK_ORDERS: MockOrder[] = [
     id: "ord_003",
     customerName: "Emeka N.",
     customerPhone: "+2349012345678",
-    orderId: 3390,
+    order_id: 3390,
     orderNumber: 1003,
     itemCount: 5,
     amount: "₦3,800.00",
@@ -76,7 +76,7 @@ export const MOCK_ORDERS: MockOrder[] = [
     id: "ord_004",
     customerName: "Adaeze U.",
     customerPhone: "+2348178901234",
-    orderId: 6104,
+    order_id: 6104,
     orderNumber: 1004,
     itemCount: 1,
     amount: "₦900.00",
@@ -93,7 +93,7 @@ export const MOCK_ORDERS: MockOrder[] = [
     id: "ord_005",
     customerName: "Kelechi B.",
     customerPhone: "+2348069876543",
-    orderId: 9812,
+    order_id: 9812,
     orderNumber: 1005,
     itemCount: 4,
     amount: "₦4,100.00",

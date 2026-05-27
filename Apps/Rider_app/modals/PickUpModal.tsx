@@ -6,19 +6,23 @@ import { useTheme } from "../context/ThemeContext";
 import { MockOrder } from "../data/mockOrders";
 import { RouteSummary } from "../components/DriverMapView";
 
+
 interface PickUpModalProps {
   visible: boolean;
-  onClose: () => void;
-  onPickUp: () => void;
+  onClose: () => void;    // modal-level dismiss (Android back / onRequestClose)
+  onPickUp: () => void;   // accept  → POST action:"accept"
+  onReject: () => void;   // reject  → POST action:"reject"  (trash button)
   order: MockOrder | null;
   routeSummary: RouteSummary | null;
 }
 
 const PickUpModal: React.FC<PickUpModalProps> = ({
-  visible, onClose, onPickUp, order, routeSummary,
+  visible, onClose, onPickUp, onReject, order, routeSummary,
 }) => {
   const { colors } = useTheme();
   if (!order) return null;
+
+
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -59,7 +63,8 @@ const PickUpModal: React.FC<PickUpModalProps> = ({
           </View>
 
           {/* Dismiss */}
-          <TouchableOpacity style={styles.dismissBtn} onPress={onClose}>
+          {/* Reject — notifies backend then closes modal */}
+          <TouchableOpacity style={styles.dismissBtn} onPress={onReject}>
             <IconSymbol name="DeleteEmptyIcon" size={40} color={colors.iconColor} />
           </TouchableOpacity>
         </View>

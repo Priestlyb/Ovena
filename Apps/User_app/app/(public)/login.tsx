@@ -235,7 +235,7 @@ export default function Login() {
           <View style={styles.line} />
         </View>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.socialBtn}
           onPress={handleGoogleLogin}
           disabled={loadingGoogle}
@@ -250,7 +250,7 @@ export default function Login() {
               <Text style={styles.socialText}>Google</Text>
             </>
           )}
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {Platform.OS === "ios" && (
           <AppleAuthentication.AppleAuthenticationButton

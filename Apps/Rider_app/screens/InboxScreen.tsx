@@ -1,35 +1,188 @@
 // screens/InboxScreen.tsx
-import React from "react";
+import React, { useRef, useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  FlatList, SafeAreaView, StatusBar,
+  FlatList, SafeAreaView, StatusBar, Modal,
+  Animated, Easing, ScrollView, Alert,
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
 import { useTheme } from "../context/ThemeContext";
+import ScreenWrapper from "../components/ScreenWrapper";
+import { InboxMessage } from "../hooks/useInboxStore";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// Re-export so HomeScreen can still import the type from here if preferred
+export type { InboxMessage };
 
-export interface InboxMessage {
-  id:      string;
-  sender:  string;  // e.g. restaurant name or "Ovena Support"
-  message: string;  // the actual message text from the backend "message" field
-  time:    string;  // formatted time string e.g. "10:05 am"
-}
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface InboxScreenProps {
-  onBack:    () => void;
-  messages?: InboxMessage[];
+  onBack:         () => void;
+  messages?:      InboxMessage[];
+  onMarkAllRead?: () => void;
+  onMarkRead?:    (id: string) => void;
+  onDeleteAll?:   () => void;
 }
 
-// ── MessageCard component ─────────────────────────────────────────────────────
+// ── MessageDetailPopup ────────────────────────────────────────────────────────
+// Bottom-sheet style modal that shows the full message content.
+
+interface DetailPopupProps {
+  message:  InboxMessage | null;
+  colors:   any;
+  onClose:  () => void;
+}
+
+const MessageDetailPopup: React.FC<DetailPopupProps> = ({ message, colors, onClose }) => {
+  const slideAnim = useRef(new Animated.Value(400)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+
+  const visible = message !== null;
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1, duration: 220,
+          easing: Easing.out(Easing.ease), useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0, friction: 9, tension: 70, useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(fadeAnim,  { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 400, duration: 200, useNativeDriver: true }),
+      ]).start();
+      // Reset for next open
+      setTimeout(() => {
+        fadeAnim.setValue(0);
+        slideAnim.setValue(400);
+      }, 220);
+    }
+  }, [visible]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      {/* Backdrop */}
+      <Animated.View
+        style={[popupStyles.backdrop, { opacity: fadeAnim }]}
+        pointerEvents={visible ? "auto" : "none"}
+      >
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+
+        {/* Sheet */}
+        <Animated.View
+          style={[
+            popupStyles.sheet,
+            { backgroundColor: colors.card, transform: [{ translateY: slideAnim }] },
+          ]}
+        >
+          {/* Handle bar */}
+          <View style={[popupStyles.handle, { backgroundColor: colors.separatorColor }]} />
+
+          {/* Header */}
+          <View style={[popupStyles.headerRow, { borderBottomColor: colors.separatorColor }]}>
+            {/* Avatar */}
+            <View style={[popupStyles.avatar, { backgroundColor: colors.accentOrange }]}>
+              <Text style={popupStyles.avatarLetter}>
+                {message?.sender.charAt(0).toUpperCase() ?? "?"}
+              </Text>
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={[popupStyles.sender, { color: colors.textPrimary }]} numberOfLines={1}>
+                {message?.sender}
+              </Text>
+              <Text style={[popupStyles.time, { color: colors.textMuted }]}>
+                {message?.time}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <IconSymbol name="ChevronDownIcon" size={22} color={colors.iconColor} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Message body */}
+          <ScrollView
+            style={popupStyles.bodyScroll}
+            contentContainerStyle={popupStyles.bodyContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={[popupStyles.bodyText, { color: colors.textPrimary }]}>
+              {message?.message}
+            </Text>
+          </ScrollView>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+};
+
+const popupStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    maxHeight: "70%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 24,
+  },
+  handle: {
+    width: 40, height: 4,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  avatar: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: "center", justifyContent: "center",
+    flexShrink: 0,
+  },
+  avatarLetter: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  sender: { fontSize: 15, fontWeight: "700" },
+  time:   { fontSize: 12, marginTop: 2 },
+  bodyScroll:   { flex: 1 },
+  bodyContent:  { padding: 20, paddingTop: 16 },
+  bodyText:     { fontSize: 15, lineHeight: 24 },
+});
+
+// ── MessageCard ───────────────────────────────────────────────────────────────
 
 interface MessageCardProps {
   item:    InboxMessage;
   colors:  any;
   isFirst: boolean;
+  onPress: () => void;
 }
 
-const MessageCard: React.FC<MessageCardProps> = ({ item, colors, isFirst }) => (
+const MessageCard: React.FC<MessageCardProps> = ({ item, colors, isFirst, onPress }) => (
   <TouchableOpacity
     style={[
       styles.card,
@@ -37,8 +190,9 @@ const MessageCard: React.FC<MessageCardProps> = ({ item, colors, isFirst }) => (
       isFirst && styles.cardFirst,
     ]}
     activeOpacity={0.75}
+    onPress={onPress}
   >
-    {/* Avatar circle with first letter */}
+    {/* Avatar */}
     <View style={[styles.avatar, { backgroundColor: colors.accentOrange }]}>
       <Text style={styles.avatarLetter}>
         {item.sender.charAt(0).toUpperCase()}
@@ -47,30 +201,35 @@ const MessageCard: React.FC<MessageCardProps> = ({ item, colors, isFirst }) => (
 
     {/* Body */}
     <View style={styles.cardBody}>
-      {/* Row: sender name + time */}
       <View style={styles.cardHeader}>
         <Text
-          style={[styles.sender, { color: colors.textPrimary }]}
+          style={[
+            styles.sender,
+            { color: colors.textPrimary },
+            !item.read && styles.senderUnread,
+          ]}
           numberOfLines={1}
         >
           {item.sender}
         </Text>
-        <Text style={[styles.time, { color: colors.textMuted }]}>
-          {item.time}
-        </Text>
+        <Text style={[styles.time, { color: colors.textMuted }]}>{item.time}</Text>
       </View>
 
-      {/* Message preview */}
       <Text
-        style={[styles.messagePreview, { color: colors.textSecondary }]}
+        style={[
+          styles.messagePreview,
+          { color: item.read ? colors.textSecondary : colors.textPrimary },
+        ]}
         numberOfLines={2}
       >
         {item.message}
       </Text>
     </View>
 
-    {/* Unread dot */}
-    <View style={[styles.unreadDot, { backgroundColor: colors.accentOrange }]} />
+    {/* Unread dot — only shown when unread */}
+    {!item.read && (
+      <View style={[styles.unreadDot, { backgroundColor: colors.accentOrange }]} />
+    )}
   </TouchableOpacity>
 );
 
@@ -92,57 +251,120 @@ const EmptyInbox: React.FC<{ colors: any }> = ({ colors }) => (
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-const InboxScreen: React.FC<InboxScreenProps> = ({ onBack, messages = [] }) => {
+const InboxScreen: React.FC<InboxScreenProps> = ({
+  onBack,
+  messages = [],
+  onMarkAllRead,
+  onMarkRead,
+  onDeleteAll,
+}) => {
   const { colors } = useTheme();
+  const [selectedMessage, setSelectedMessage] = useState<InboxMessage | null>(null);
+
+  const handleCardPress = (item: InboxMessage) => {
+    setSelectedMessage(item);
+    if (!item.read) onMarkRead?.(item.id);
+  };
+
+  const handleDeleteAll = () => {
+    Alert.alert(
+      "Delete all messages",
+      "This will permanently delete all messages from your inbox and device. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete all",
+          style: "destructive",
+          onPress: () => onDeleteAll?.(),
+        },
+      ]
+    );
+  };
+
+  const unreadCount = messages.filter((m) => !m.read).length;
+  const hasMessages = messages.length > 0;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
+      <ScreenWrapper style={{ padding: 0 }}>
 
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.separatorColor }]}>
-        <TouchableOpacity
-          onPress={onBack}
-          style={styles.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <IconSymbol name="ArrowBack" size={22} color={colors.iconColor} />
-        </TouchableOpacity>
+        {/* ── Header ── */}
+        <View style={[styles.header, { borderBottomColor: colors.separatorColor }]}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={styles.backBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <IconSymbol name="ArrowBack" size={22} color={colors.iconColor} />
+          </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-          Inbox
-          {messages.length > 0 && (
-            <Text style={[styles.headerCount, { color: colors.accentOrange }]}>
-              {" "}({messages.length})
-            </Text>
-          )}
-        </Text>
-
-        <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[styles.markAll, { color: colors.textMuted }]}>
-            mark all as read
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+            Inbox
+            {messages.length > 0 && (
+              <Text style={[styles.headerCount, { color: colors.accentOrange }]}>
+                {" "}({messages.length})
+              </Text>
+            )}
           </Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* List or empty state */}
-      {messages.length === 0 ? (
-        <EmptyInbox colors={colors} />
-      ) : (
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item, index }) => (
-            <MessageCard
-              item={item}
-              colors={colors}
-              isFirst={index === 0}
+          {/* Mark all as read — only active when there are unread messages */}
+          <TouchableOpacity
+            onPress={() => unreadCount > 0 && onMarkAllRead?.()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            disabled={unreadCount === 0}
+          >
+            <Text style={[
+              styles.markAll,
+              { color: unreadCount > 0 ? colors.accentOrange : colors.textMuted },
+            ]}>
+              mark all as read
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── List or empty state ── */}
+        {!hasMessages ? (
+          <EmptyInbox colors={colors} />
+        ) : (
+          <>
+            <FlatList
+              data={messages}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item, index }) => (
+                <MessageCard
+                  item={item}
+                  colors={colors}
+                  isFirst={index === 0}
+                  onPress={() => handleCardPress(item)}
+                />
+              )}
             />
-          )}
-        />
-      )}
+
+            {/* ── Delete all button ── */}
+            <View style={[styles.footer, { borderTopColor: colors.separatorColor }]}>
+              <TouchableOpacity
+                style={[styles.deleteAllBtn, { backgroundColor: colors.inputBg }]}
+                onPress={handleDeleteAll}
+                activeOpacity={0.75}
+              >
+                <IconSymbol name="DeleteEmptyIcon" size={18} color="#EF4444" />
+                <Text style={styles.deleteAllText}>Delete all messages</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+      </ScreenWrapper>
+
+      {/* ── Message detail popup ── */}
+      <MessageDetailPopup
+        message={selectedMessage}
+        colors={colors}
+        onClose={() => setSelectedMessage(null)}
+      />
     </SafeAreaView>
   );
 };
@@ -152,7 +374,7 @@ export default InboxScreen;
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1 },
+  safe: { flex: 1 },
 
   header: {
     flexDirection: "row",
@@ -165,12 +387,12 @@ const styles = StyleSheet.create({
   backBtn:     { width: 36 },
   headerTitle: { fontSize: 18, fontWeight: "700" },
   headerCount: { fontSize: 16, fontWeight: "600" },
-  markAll:     { fontSize: 13 },
+  markAll:     { fontSize: 13, fontWeight: "500" },
 
   list: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 32,
+    paddingBottom: 16,
     gap: 2,
   },
 
@@ -185,7 +407,6 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   cardFirst: {
-    // Slightly elevated appearance for the most recent message
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowOffset: { width: 0, height: 2 },
@@ -194,18 +415,11 @@ const styles = StyleSheet.create({
   },
 
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 46, height: 46, borderRadius: 23,
+    alignItems: "center", justifyContent: "center",
     flexShrink: 0,
   },
-  avatarLetter: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
-  },
+  avatarLetter: { color: "#fff", fontSize: 18, fontWeight: "700" },
 
   cardBody:   { flex: 1 },
   cardHeader: {
@@ -214,23 +428,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-  sender: {
-    fontSize: 15,
-    fontWeight: "700",
-    flex: 1,
-    marginRight: 8,
-  },
-  time:           { fontSize: 12 },
+  sender:       { fontSize: 15, fontWeight: "400", flex: 1, marginRight: 8 },
+  senderUnread: { fontWeight: "700" },
+  time:         { fontSize: 12 },
   messagePreview: { fontSize: 13, lineHeight: 19 },
 
-  // Unread indicator dot
   unreadDot: {
     position: "absolute",
-    top: 16,
-    right: 14,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 16, right: 14,
+    width: 8, height: 8, borderRadius: 4,
+  },
+
+  // ── Footer: delete all ────────────────────────────────────────────────────
+  footer: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  deleteAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  deleteAllText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#EF4444",
   },
 
   // ── Empty state ───────────────────────────────────────────────────────────
@@ -242,11 +468,8 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 72, height: 72, borderRadius: 36,
+    alignItems: "center", justifyContent: "center",
     marginBottom: 4,
   },
   emptyTitle: { fontSize: 18, fontWeight: "700" },

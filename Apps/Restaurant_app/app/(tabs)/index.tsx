@@ -11,6 +11,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
+
 import { Eye, MessageCircle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { StatsCard } from '@/components/StatsCard';

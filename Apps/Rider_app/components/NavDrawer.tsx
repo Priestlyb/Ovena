@@ -21,6 +21,8 @@ interface NavDrawerProps {
   onNavigate: (route: NavRoute) => void;
   /** Fallback name shown while app data is loading */
   driverName?: string;
+  /** Number of unread inbox messages — drives the pulsing notification dot */
+  inboxUnreadCount?: number;
 }
 
 const PRIMARY_LINKS: { label: string; route: NavRoute }[] = [
@@ -37,7 +39,7 @@ const SECONDARY_LINKS: { label: string; route: NavRoute }[] = [
 ];
 
 const NavDrawer: React.FC<NavDrawerProps> = ({
-  visible, onClose, onNavigate, driverName = "Driver",
+  visible, onClose, onNavigate, driverName = "Driver", inboxUnreadCount = 0,
 }) => {
   const { colors } = useTheme();
   const { data }   = useAppData();
@@ -51,6 +53,23 @@ const NavDrawer: React.FC<NavDrawerProps> = ({
   const insets       = useSafeAreaInsets();
   const slideAnim    = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
+
+  // Pulse animation for the inbox notification dot
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (inboxUnreadCount <= 0) {
+      pulseAnim.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.7, duration: 600, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,   duration: 600, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [inboxUnreadCount]);
 
   useEffect(() => {
     if (visible) {
@@ -123,16 +142,34 @@ const NavDrawer: React.FC<NavDrawerProps> = ({
 
         {/* Primary links */}
         <View style={styles.linksSection}>
-          {PRIMARY_LINKS.map(({ label, route }) => (
-            <TouchableOpacity
-              key={route}
-              style={styles.linkRow}
-              onPress={() => handleNavigate(route)}
-              activeOpacity={0.6}
-            >
-              <Text style={[styles.linkText, { color: colors.textPrimary }]}>{label}</Text>
-            </TouchableOpacity>
-          ))}
+          {PRIMARY_LINKS.map(({ label, route }) => {
+            const isInbox   = route === "Inbox";
+            const showBadge = isInbox && inboxUnreadCount > 0;
+            return (
+              <TouchableOpacity
+                key={route}
+                style={styles.linkRow}
+                onPress={() => handleNavigate(route)}
+                activeOpacity={0.6}
+              >
+                <Text style={[styles.linkText, { color: colors.textPrimary }]}>{label}</Text>
+
+                {showBadge && (
+                  <View style={styles.badgeWrap}>
+                    {/* Pulsing outer ring */}
+                    <Animated.View
+                      style={[
+                        styles.badgePulse,
+                        { backgroundColor: colors.accentOrange, transform: [{ scale: pulseAnim }] },
+                      ]}
+                    />
+                    {/* Solid inner dot */}
+                    <View style={[styles.badgeDot, { backgroundColor: colors.accentOrange }]} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={[styles.divider, { backgroundColor: colors.separatorColor }]} />
@@ -194,7 +231,29 @@ const styles = StyleSheet.create({
   driverName: { fontSize: 18, fontWeight: "700", letterSpacing: -0.3 },
   driverStats: { fontSize: 12, marginTop: 2 },
   linksSection: { paddingHorizontal: 24 },
-  linkRow: { paddingVertical: 14 },
+  linkRow: {
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   linkText: { fontSize: 17, fontWeight: "400" },
   divider: { height: 1, marginHorizontal: 24, marginVertical: 20 },
+
+  // Notification dot + pulse ring on the Inbox link
+  badgeWrap: {
+    width: 18, height: 18,
+    alignItems: "center", justifyContent: "center",
+    marginRight: 4,
+  },
+  badgePulse: {
+    position: "absolute",
+    width: 18, height: 18,
+    borderRadius: 9,
+    opacity: 0.35,
+  },
+  badgeDot: {
+    width: 10, height: 10,
+    borderRadius: 5,
+  },
 });

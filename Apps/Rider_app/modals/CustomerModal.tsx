@@ -29,7 +29,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
   visible, onClose, onTakePhoto, onCompleteDelivery, photoTaken, order, routeSummary,
 }) => {
   const { colors } = useTheme();
-  const [orderCode, setOrderCode] = useState("");
+  const [origin_order_code, setOrigin_order_code] = useState("");
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -64,7 +64,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
   useEffect(() => {
     if (!visible) {
       resetPill();
-      setOrderCode("");
+      setOrigin_order_code("");
       fadeAnim.setValue(0);
       scaleAnim.setValue(0.95);
     } else {
@@ -76,7 +76,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
   }, [visible]);
 
   // Keep ref in sync with orderCode state (for PanResponder closure)
-  useEffect(() => { orderCodeRef.current = orderCode; }, [orderCode]);
+  useEffect(() => { orderCodeRef.current = origin_order_code; }, [origin_order_code]);
 
   // Reset pill when photo status changes
   useEffect(() => { if (!photoTaken) resetPill(); }, [photoTaken]);
@@ -197,7 +197,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
             <View style={[styles.orderRow, { borderColor: colors.separatorColor }]}>
               <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={[styles.orderIdLabel, { color: colors.textMuted }]}>Order ID</Text>
-                <Text style={[styles.orderIdValue, { color: colors.textPrimary }]}>#{order.orderId}</Text>
+                <Text style={[styles.orderIdValue, { color: colors.textPrimary }]}>#{order.order_id}</Text>
                 <Text style={[styles.orderDesc, { color: colors.textSecondary }]}>
                   {order.restaurantName} · {order.itemCount} items
                 </Text>
@@ -231,15 +231,16 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                   {
                     backgroundColor: colors.inputBg,
                     color: colors.textPrimary,
-                    borderColor: orderCode.trim() ? colors.accentGreen : colors.separatorColor,
+                    borderColor: origin_order_code.trim() ? colors.accentGreen : colors.separatorColor,
                   },
                 ]}
-                value={orderCode}
-                onChangeText={setOrderCode}
+                value={origin_order_code}
+                onChangeText={setOrigin_order_code}
                 placeholder="Enter code from customer"
                 placeholderTextColor={colors.textMuted}
-                autoCapitalize="characters"
+                autoCapitalize="none"
                 autoCorrect={false}
+                spellCheck={false}
               />
             </View>
 
@@ -264,9 +265,9 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
               ]}>
                 <Text style={[
                   styles.completeText,
-                  { color: (photoTaken && orderCode.trim()) ? "#1a1a1a" : colors.textMuted },
+                  { color: (photoTaken && origin_order_code.trim()) ? "#1a1a1a" : colors.textMuted },
                 ]}>
-                  {(photoTaken && orderCode.trim()) ? "Slide to complete  →" : !photoTaken ? "Take a photo first" : "Enter delivery code"}
+                  {(photoTaken && origin_order_code.trim()) ? "Slide to complete  →" : !photoTaken ? "Take a photo first" : "Enter delivery code"}
                 </Text>
               </View>
 
@@ -279,15 +280,15 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                     transform: [{ translateX: photoTaken ? dragX : 0 }],
                   },
                 ]}
-{...(( photoTaken && orderCode.trim()) ? panResponder.panHandlers : {})}
+{...(( photoTaken && origin_order_code.trim()) ? panResponder.panHandlers : {})}
               >
                 <IconSymbol name="ArrowRightLongIcon" size={18} color={colors.card} />
               </Animated.View>
             </View>
 
-            {(!photoTaken || !orderCode.trim()) && (
+            {(!photoTaken || !origin_order_code.trim()) && (
               <Text style={[styles.lockedHint, { color: colors.textMuted }]}>
-                {!photoTaken && !orderCode.trim()
+                {!photoTaken && !origin_order_code.trim()
                   ? "📷 Take a photo and enter the delivery code to complete"
                   : !photoTaken
                   ? "📷 Take a photo first to unlock"

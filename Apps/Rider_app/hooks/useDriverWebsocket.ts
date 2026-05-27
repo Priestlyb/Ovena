@@ -170,9 +170,22 @@ export function useDriverWebSocket({
       let parsed: any = null;
       try { parsed = JSON.parse(e.data); } catch { /* raw */ }
 
-      // Handle pong — clear the timeout timer
-      if (parsed?.type === "pong" || parsed?.type === "ping") {
+      // Handle server ping → reply with pong (server expects this to confirm connection)
+      // Also handle pong replies to our own outgoing pings → clear the timeout timer
+      if (parsed?.type === "ping") {
+        // Server sent a ping — reply with pong including the seq number
+        try {
+          ws.send(JSON.stringify({ type: "pong", seq: parsed.seq ?? 0 }));
+          console.log(`[WS] 🏓 ping received → pong sent (seq: ${parsed.seq ?? 0})`);
+        } catch { /* ignore send errors */ }
         if (ch.pongTimer) { clearTimeout(ch.pongTimer); ch.pongTimer = null; }
+        return;
+      }
+
+      if (parsed?.type === "pong") {
+        // This is a reply to our own outgoing ping — clear the timeout timer
+        if (ch.pongTimer) { clearTimeout(ch.pongTimer); ch.pongTimer = null; }
+        console.log("[WS] 🏓 pong received — connection confirmed");
         return;
       }
 
@@ -244,11 +257,11 @@ export function useDriverWebSocket({
         console.log("[Orders WS] Message received:", JSON.stringify(rawMessage, null, 2));
 
         // The backend wraps every message in an outer envelope:
-        // { type: "notification", data: { type: "order.driver_assigned"|"order_message", ... } }
+        // { type: "notification", data: { type: "notification" | "order_message", ... } }
         //
-        // We route based on the INNER data.type:
-        //   "order.driver_assigned" → full order payload  → onOrderRef (shows pickup modal)
-        //   "order_message"         → short notification   → onInboxRef (stores in inbox)
+        // Routing based on the INNER data.type:
+        //   "notification"  → full order payload with coordinates → onOrderRef (shows pickup modal)
+        //   "order_message" → short status/inbox notification     → onInboxRef (stores in inbox)
         //
         // Always extract the inner payload first.
         const outerType = rawMessage?.type ?? "";
@@ -260,31 +273,16 @@ export function useDriverWebSocket({
 
         console.log(`[Orders WS] Outer type: "${outerType}" | Inner type: "${innerType}"`);
 
-        if (
-          (innerType === "order.driver_assigned" ||
-           innerType === "order_driver_assigned"  ||
-           innerType === "new_order") &&
-          // Must have coordinates to be a full order payload worth showing
-          (inner?.customer_destination != null || inner?.branch?.location != null)
-        ) {
-          // Full order data with coordinates — triggers pickup modal
-          console.log("[Orders WS] ✅ Full order payload — triggering pickup modal");
+        if (innerType === "order_message") {
+          // Full order data — triggers pickup modal
+          console.log("[Orders WS] ✅ Full order payload (type: order_message) — triggering pickup modal");
           onOrderRef.current(inner);
-        } else if (
-          innerType === "order_message" ||
-          innerType === "order.message" ||
-          // Second notification for same order — has status/message but no coordinates
-          (inner?.message != null && inner?.customer_destination == null)
-        ) {
-          // Notification/status message only — goes to inbox
-          console.log("[Orders WS] 📬 Status/inbox message — routing to inbox");
+        } else if (innerType === "notification") {
+          // Short status/inbox notification — goes to inbox only
+          console.log("[Orders WS] 📬 Inbox message (type: notification) — routing to inbox");
           onInboxRef.current?.(inner);
-        } else if (inner?.order_id != null && inner?.customer_destination != null) {
-          // Fallback: has order_id AND coordinates — treat as full order
-          console.log("[Orders WS] ⚠️  Fallback full order match — triggering pickup modal");
-          onOrderRef.current(inner);
         } else {
-          console.warn("[Orders WS] ❓ Unmatched message type — ignoring:", innerType, inner);
+          console.warn("[Orders WS] ❓ Unmatched inner type — ignoring:", innerType, inner);
         }
       },
     );
@@ -360,27 +358,64 @@ export function useDriverWebSocket({
    */
   const postDriverAction = useCallback(async (
     action: "accept" | "reject" | "deliver",
-    orderId: number,
-    orderCode?: string,
+    order_id: number,
+    order_code?: string,
   ) => {
     const t = tokenRef.current;
-    if (!t) return;
-    const body: Record<string, any> = { action, order_id: orderId };
-    if (action === "deliver" && orderCode) body.order_code = orderCode;
+
+    if (!t) {
+      console.warn(`[driverAction] ⚠️  Cannot POST "${action}" — no auth token available`);
+      return;
+    }
+
+    if (!order_id) {
+      console.warn(`[driverAction] ⚠️  Cannot POST "${action}" — order_id is missing`);
+      return;
+    }
+
+    // Build payload — each action has a distinct required shape
+    const body: Record<string, any> = { action, order_id: order_id };
+
+    if (action === "deliver") {
+      // order_code is required for deliver; warn loudly if missing so it's caught early
+      if (!order_code || !order_code.trim()) {
+        console.warn("[driverAction] ⚠️  deliver action called without order_code — sending anyway, backend may reject");
+      } else {
+        body.order_code = order_code.trim();
+      }
+    }
+
+    console.log(`[driverAction] ➡️  POST /menu/driver-order/ — action: "${action}", order_id: ${order_id}${action === "deliver" ? `, order_code: "${body.order_code ?? "(missing)"}"` : ""}`);
+
     try {
       const res = await fetch(
-        "https://ovena-backend-production.up.railway.app/menu/driver-order/",
+        "https://ovena-backend-production.up.railway.app/api/menu/driver-order/",
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+          method:  "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization:  `Bearer ${t}`,
+          },
           body: JSON.stringify(body),
         }
       );
-      const json = await res.json();
-      if (!res.ok) console.warn("[driverAction]", json);
+
+      let json: any = null;
+      try {
+        json = await res.json();
+      } catch {
+        console.warn(`[driverAction] ⚠️  "${action}" — response was not JSON (status ${res.status})`);
+      }
+
+      if (res.ok) {
+        console.log(`[driverAction] ✅ "${action}" succeeded (${res.status}):`, JSON.stringify(json));
+      } else {
+        console.warn(`[driverAction] ❌ "${action}" failed (${res.status}):`, JSON.stringify(json));
+      }
+
       return json;
     } catch (err) {
-      console.warn("[driverAction] network error", err);
+      console.warn(`[driverAction] 🔴 Network error on "${action}":`, err);
     }
   }, []);
 
