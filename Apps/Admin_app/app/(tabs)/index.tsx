@@ -1,98 +1,123 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+/**
+ * app/(tabs)/index.tsx
+ *
+ * Home screen. Layout order mirrors the HTML exactly:
+ *   Header (topbar + greeting)
+ *   StatsRow
+ *   CouponWheelBanner + QuickActions  (single "Promotion Engine" section in HTML)
+ *   LiveLogistics
+ *   PanicProtocol
+ *
+ * Mock data matches the HTML exactly:
+ *   - Rider #4402  → ETA 8m  → lava left border
+ *   - Pasta Palace → Delay 15m → error left border
+ *   - Sarah J.     → no ETA  → no border
+ */
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import React from 'react';
+import { ScrollView, View, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+
+import ScreenWrapper                        from '@/components/ScreenWrapper';
+import { Header }                           from '@/components/home/Header';
+import { StatsRow }                         from '@/components/home/StatsRow';
+import { CouponWheelBanner }                from '@/components/home/CouponWheelBanner';
+import { QuickActions }                     from '@/components/home/QuickActions';
+import { LiveLogistics, LogisticsItem }     from '@/components/home/LiveLogistics';
+import { PanicProtocol }                    from '@/components/home/PanicProtocol';
+import { useTheme }                         from '@/context/ThemeContext';
+import { Spacing }                          from '@/constants/theme';
+
+const LOGISTICS: LogisticsItem[] = [
+  {
+    id:          '4402',
+    type:        'rider',
+    name:        'Rider ID #4402',
+    subtitle:    "Active Delivery • McDonald's",
+    eta:         '8m',
+    stk:         120,
+    leftBorder:  'lava',
+  },
+  {
+    id:          'pasta',
+    type:        'store',
+    name:        'Store: Pasta Palace',
+    subtitle:    'Order Prep Overload',
+    delay:       '15m',
+    stk:         85,
+    leftBorder:  'error',
+  },
+  {
+    id:          'sarah',
+    type:        'client',
+    name:        'Client: Sarah J.',
+    subtitle:    'Support Request Pending',
+    leftBorder:  'none',
+  },
+];
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { colors } = useTheme();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  return (
+    <ScreenWrapper noPadding>
+      <Header
+        adminName="Smith"
+        avatarUri="https://lh3.googleusercontent.com/aida-public/AB6AXuClnpuEkERs3otQ5_fyuuajmhWVukNk_qf5tdVUzM4GwH9X8mXMnQ8Bxf2uX0ISNLp6uMdN7GX7jD_mTMPkF61a2KnsUps7qjJpCzsvFj9xCSAbOIgyb3-jPPfaZ-wuPbvVGB7JZt9Pws3F1d3epAjUUMmYE13YLBraJ35RM1Ptyumlf1EMXVZ9Z89si3LOOnwSKoMn_DuVCCGF6AzPpqqXo5EpUStiKOXh5EIsKtmZPFYMFkBcVsuFCALw4C1mNhJuZQUobrzKQATy"
+        onNotificationPress={() => console.log('notifications')}
+        onAvatarPress={() => router.push('/profile')}
+      />
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Stats */}
+        <StatsRow
+          activeOrders={124}
+          activeOrdersDelta="+12%"
+          activeOrdersPositive
+          pendingValidation={8}
+          pendingDelta="-2%"
+          pendingDeltaPositive={false}
+        />
+
+        {/* Promotion Engine: banner + quick actions */}
+        <View style={styles.section}>
+          <CouponWheelBanner onLaunch={() => router.push('/spinwheel')} />
+          <QuickActions
+            onCouponManager={()    => router.push('/coupons')}
+            onAssignSpinwheel={()  => router.push('/spinwheel')}
+          />
+        </View>
+
+        {/* Live Logistics */}
+        <LiveLogistics items={LOGISTICS} />
+
+        {/* Panic Protocol */}
+        <View style={styles.panicSection}>
+          <PanicProtocol onActivate={() => console.log('panic')} />
+        </View>
+
+        <View style={{ height: Spacing.xl }} />
+      </ScrollView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  scroll: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  content: {
+    gap:           Spacing.lg,
+    paddingBottom: Spacing.md,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  section: {
+    gap: Spacing.md,
+  },
+  panicSection: {
+    marginTop: Spacing.lg,
   },
 });
