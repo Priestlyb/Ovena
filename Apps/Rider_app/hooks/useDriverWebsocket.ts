@@ -360,6 +360,7 @@ export function useDriverWebSocket({
     action: "accept" | "reject" | "deliver",
     order_id: number,
     order_code?: string,
+    delivery_code?: string,
   ) => {
     const t = tokenRef.current;
 
@@ -381,7 +382,7 @@ export function useDriverWebSocket({
       if (!order_code || !order_code.trim()) {
         console.warn("[driverAction] ⚠️  deliver action called without order_code — sending anyway, backend may reject");
       } else {
-        body.order_code = order_code.trim();
+        body.order_id  = order_id;
       }
     }
 

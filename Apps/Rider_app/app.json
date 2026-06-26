@@ -62,7 +62,9 @@
           "locationAlwaysAndWhenInUsePermission": "Ovena Riders needs your location to navigate to deliveries.",
           "locationWhenInUsePermission": "Ovena Riders needs your location to show your position on the map."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-router"
     ],
     "owner": "oraelys"
   }
