@@ -137,6 +137,13 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
             <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <IconSymbol name="NavListIcon" size={20} color={colors.iconColor} />
             </TouchableOpacity>
+            <TouchableOpacity
+  onPress={onClose}
+  style={[styles.closeIconBtn, { backgroundColor: colors.inputBg }]}
+  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+>
+  <IconSymbol name="XMarkIcon" size={18} color={colors.iconColor} />
+</TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -399,4 +406,8 @@ const styles = StyleSheet.create({
   },
   completeText: { fontWeight: "700", fontSize: 15 },
   lockedHint:   { textAlign: "center", fontSize: 12, marginTop: 10 },
+  closeIconBtn: {
+  width: 36, height: 36, borderRadius: 18,
+  alignItems: "center", justifyContent: "center",
+},
 });

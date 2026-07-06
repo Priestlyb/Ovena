@@ -141,7 +141,7 @@ function decodeJwtExpiry(token: string): number {
 }
 
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
-  const raw = await postJSON<LoginWireResponse>('/api/admin/login', {
+  const raw = await postJSON<LoginWireResponse>('/api/admin/login/', {
     phone_number: credentials.phone,
     password:     credentials.password,
   });
@@ -152,7 +152,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   }
 
   // ── Explicit token log — easy to spot/copy out of the Metro console ───────
-  console.log('🔑🔑🔑 TOKENS RECEIVED FROM /api/admin/login 🔑🔑🔑');
+  console.log('🔑🔑🔑 TOKENS RECEIVED FROM /api/admin/login/ 🔑🔑🔑');
   console.log('  ACCESS TOKEN: ', raw.access);
   console.log('  REFRESH TOKEN:', raw.refresh);
   console.log('🔑🔑🔑─────────────────────────────────────────🔑🔑🔑');
@@ -244,8 +244,8 @@ interface UserProfileWireResponse {
 
 function mapUserProfile(raw: UserProfileWireResponse): AdminUser {
   const name = raw.name
-    ?? [raw.first_name, raw.last_name].filter(Boolean).join(' ').trim()
-    || 'Admin';
+    ?? ([raw.first_name, raw.last_name].filter(Boolean).join(' ').trim()
+    || 'Admin');
 
   return {
     id:           raw.id,

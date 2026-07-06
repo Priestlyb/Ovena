@@ -8,7 +8,7 @@
 //      children inside the card receive touches correctly.
 
 import React, { useEffect, useRef, useState } from "react";
-import {
+import {  
   View, Text, TouchableOpacity, StyleSheet,
   Animated, Easing, Platform,
 } from "react-native";

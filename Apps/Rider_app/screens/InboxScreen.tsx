@@ -3,15 +3,16 @@ import React, { useRef, useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
   FlatList, SafeAreaView, StatusBar, Modal,
-  Animated, Easing, ScrollView, Alert,
+  Animated, Easing, ScrollView, Alert, Dimensions,
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
 import { useTheme } from "../context/ThemeContext";
 import ScreenWrapper from "../components/ScreenWrapper";
 import { InboxMessage } from "../hooks/useInboxStore";
 
-// Re-export so HomeScreen can still import the type from here if preferred
 export type { InboxMessage };
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -24,16 +25,16 @@ interface InboxScreenProps {
 }
 
 // ── MessageDetailPopup ────────────────────────────────────────────────────────
-// Bottom-sheet style modal that shows the full message content.
+// Centered modal card with scale + fade entrance.
 
 interface DetailPopupProps {
-  message:  InboxMessage | null;
-  colors:   any;
-  onClose:  () => void;
+  message: InboxMessage | null;
+  colors:  any;
+  onClose: () => void;
 }
 
 const MessageDetailPopup: React.FC<DetailPopupProps> = ({ message, colors, onClose }) => {
-  const slideAnim = useRef(new Animated.Value(400)).current;
+  const scaleAnim = useRef(new Animated.Value(0.88)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
   const visible = message !== null;
@@ -42,23 +43,22 @@ const MessageDetailPopup: React.FC<DetailPopupProps> = ({ message, colors, onClo
     if (visible) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
-          toValue: 1, duration: 220,
+          toValue: 1, duration: 200,
           easing: Easing.out(Easing.ease), useNativeDriver: true,
         }),
-        Animated.spring(slideAnim, {
-          toValue: 0, friction: 9, tension: 70, useNativeDriver: true,
+        Animated.spring(scaleAnim, {
+          toValue: 1, friction: 8, tension: 80, useNativeDriver: true,
         }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(fadeAnim,  { toValue: 0, duration: 180, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 400, duration: 200, useNativeDriver: true }),
+        Animated.timing(fadeAnim,  { toValue: 0, duration: 160, useNativeDriver: true }),
+        Animated.timing(scaleAnim, { toValue: 0.88, duration: 160, useNativeDriver: true }),
       ]).start();
-      // Reset for next open
       setTimeout(() => {
         fadeAnim.setValue(0);
-        slideAnim.setValue(400);
-      }, 220);
+        scaleAnim.setValue(0.88);
+      }, 180);
     }
   }, [visible]);
 
@@ -69,26 +69,26 @@ const MessageDetailPopup: React.FC<DetailPopupProps> = ({ message, colors, onClo
       animationType="none"
       onRequestClose={onClose}
     >
-      {/* Backdrop */}
-      <Animated.View
-        style={[popupStyles.backdrop, { opacity: fadeAnim }]}
-        pointerEvents={visible ? "auto" : "none"}
-      >
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+      {/* Backdrop — tap to close */}
+      <Animated.View style={[popupStyles.backdrop, { opacity: fadeAnim }]}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
 
-        {/* Sheet */}
+        {/* Centered card */}
         <Animated.View
           style={[
-            popupStyles.sheet,
-            { backgroundColor: colors.card, transform: [{ translateY: slideAnim }] },
+            popupStyles.card,
+            {
+              backgroundColor: colors.card,
+              transform: [{ scale: scaleAnim }],
+            },
           ]}
         >
-          {/* Handle bar */}
-          <View style={[popupStyles.handle, { backgroundColor: colors.separatorColor }]} />
-
           {/* Header */}
           <View style={[popupStyles.headerRow, { borderBottomColor: colors.separatorColor }]}>
-            {/* Avatar */}
             <View style={[popupStyles.avatar, { backgroundColor: colors.accentOrange }]}>
               <Text style={popupStyles.avatarLetter}>
                 {message?.sender.charAt(0).toUpperCase() ?? "?"}
@@ -112,7 +112,7 @@ const MessageDetailPopup: React.FC<DetailPopupProps> = ({ message, colors, onClo
             </TouchableOpacity>
           </View>
 
-          {/* Message body */}
+          {/* Body */}
           <ScrollView
             style={popupStyles.bodyScroll}
             contentContainerStyle={popupStyles.bodyContent}
@@ -122,6 +122,17 @@ const MessageDetailPopup: React.FC<DetailPopupProps> = ({ message, colors, onClo
               {message?.message}
             </Text>
           </ScrollView>
+
+          {/* Close button */}
+          <View style={[popupStyles.footer, { borderTopColor: colors.separatorColor }]}>
+            <TouchableOpacity
+              style={[popupStyles.closeBtn, { backgroundColor: colors.accentOrange }]}
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
+              <Text style={popupStyles.closeBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </Animated.View>
     </Modal>
@@ -131,26 +142,22 @@ const MessageDetailPopup: React.FC<DetailPopupProps> = ({ message, colors, onClo
 const popupStyles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.52)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
   },
-  sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 40,
+  card: {
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 20,
     maxHeight: "70%",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
     elevation: 24,
-  },
-  handle: {
-    width: 40, height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 4,
+    overflow: "hidden",
   },
   headerRow: {
     flexDirection: "row",
@@ -168,9 +175,25 @@ const popupStyles = StyleSheet.create({
   avatarLetter: { color: "#fff", fontSize: 17, fontWeight: "700" },
   sender: { fontSize: 15, fontWeight: "700" },
   time:   { fontSize: 12, marginTop: 2 },
-  bodyScroll:   { flex: 1 },
-  bodyContent:  { padding: 20, paddingTop: 16 },
-  bodyText:     { fontSize: 15, lineHeight: 24 },
+  bodyScroll:  { flexShrink: 1 },
+  bodyContent: { padding: 20, paddingTop: 16 },
+  bodyText:    { fontSize: 15, lineHeight: 24 },
+  footer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: "flex-end",
+  },
+  closeBtn: {
+    paddingHorizontal: 28,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  closeBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
 });
 
 // ── MessageCard ───────────────────────────────────────────────────────────────
@@ -192,14 +215,12 @@ const MessageCard: React.FC<MessageCardProps> = ({ item, colors, isFirst, onPres
     activeOpacity={0.75}
     onPress={onPress}
   >
-    {/* Avatar */}
     <View style={[styles.avatar, { backgroundColor: colors.accentOrange }]}>
       <Text style={styles.avatarLetter}>
         {item.sender.charAt(0).toUpperCase()}
       </Text>
     </View>
 
-    {/* Body */}
     <View style={styles.cardBody}>
       <View style={styles.cardHeader}>
         <Text
@@ -226,7 +247,6 @@ const MessageCard: React.FC<MessageCardProps> = ({ item, colors, isFirst, onPres
       </Text>
     </View>
 
-    {/* Unread dot — only shown when unread */}
     {!item.read && (
       <View style={[styles.unreadDot, { backgroundColor: colors.accentOrange }]} />
     )}
@@ -272,11 +292,7 @@ const InboxScreen: React.FC<InboxScreenProps> = ({
       "This will permanently delete all messages from your inbox and device. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete all",
-          style: "destructive",
-          onPress: () => onDeleteAll?.(),
-        },
+        { text: "Delete all", style: "destructive", onPress: () => onDeleteAll?.() },
       ]
     );
   };
@@ -289,7 +305,7 @@ const InboxScreen: React.FC<InboxScreenProps> = ({
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
       <ScreenWrapper style={{ padding: 0 }}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.separatorColor }]}>
           <TouchableOpacity
             onPress={onBack}
@@ -308,7 +324,6 @@ const InboxScreen: React.FC<InboxScreenProps> = ({
             )}
           </Text>
 
-          {/* Mark all as read — only active when there are unread messages */}
           <TouchableOpacity
             onPress={() => unreadCount > 0 && onMarkAllRead?.()}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -323,7 +338,6 @@ const InboxScreen: React.FC<InboxScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* ── List or empty state ── */}
         {!hasMessages ? (
           <EmptyInbox colors={colors} />
         ) : (
@@ -343,7 +357,6 @@ const InboxScreen: React.FC<InboxScreenProps> = ({
               )}
             />
 
-            {/* ── Delete all button ── */}
             <View style={[styles.footer, { borderTopColor: colors.separatorColor }]}>
               <TouchableOpacity
                 style={[styles.deleteAllBtn, { backgroundColor: colors.inputBg }]}
@@ -359,7 +372,6 @@ const InboxScreen: React.FC<InboxScreenProps> = ({
 
       </ScreenWrapper>
 
-      {/* ── Message detail popup ── */}
       <MessageDetailPopup
         message={selectedMessage}
         colors={colors}
@@ -370,8 +382,6 @@ const InboxScreen: React.FC<InboxScreenProps> = ({
 };
 
 export default InboxScreen;
-
-// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
@@ -396,7 +406,6 @@ const styles = StyleSheet.create({
     gap: 2,
   },
 
-  // ── Card ──────────────────────────────────────────────────────────────────
   card: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -428,9 +437,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-  sender:       { fontSize: 15, fontWeight: "400", flex: 1, marginRight: 8 },
-  senderUnread: { fontWeight: "700" },
-  time:         { fontSize: 12 },
+  sender:         { fontSize: 15, fontWeight: "400", flex: 1, marginRight: 8 },
+  senderUnread:   { fontWeight: "700" },
+  time:           { fontSize: 12 },
   messagePreview: { fontSize: 13, lineHeight: 19 },
 
   unreadDot: {
@@ -439,7 +448,6 @@ const styles = StyleSheet.create({
     width: 8, height: 8, borderRadius: 4,
   },
 
-  // ── Footer: delete all ────────────────────────────────────────────────────
   footer: {
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -459,7 +467,6 @@ const styles = StyleSheet.create({
     color: "#EF4444",
   },
 
-  // ── Empty state ───────────────────────────────────────────────────────────
   emptyContainer: {
     flex: 1,
     alignItems: "center",

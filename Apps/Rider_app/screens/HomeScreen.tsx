@@ -1,8 +1,8 @@
 // screens/HomeScreen.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  StatusBar, Modal, unstable_batchedUpdates,
+  StatusBar, Modal, unstable_batchedUpdates, Animated,
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
 import { useTheme } from "../context/ThemeContext";
@@ -15,19 +15,22 @@ import PickUpModal       from "../modals/PickUpModal";
 import OnItsWayModal     from "../modals/OnItsWayModal";
 import DeliveryingModal  from "../modals/DeliveryingModal";
 import OrderSuccessModal from "../modals/OrderSuccessModal";
+import OrderHistoryModal, { resolveResumeStep } from "../modals/OrderHistoryModal";
 
-import NavDrawer, { NavRoute } from "../components/NavDrawer";
+import NavDrawer, { NavRoute }         from "../components/NavDrawer";
 import DriverMapView, { RouteSummary } from "../components/DriverMapView";
 
-import ProfileScreen  from "../screens/ProfileScreen";
-import AccountScreen  from "../screens/AccountScreen";
-import InboxScreen    from "../screens/InboxScreen";
-import { useInboxStore, InboxMessage } from "../hooks/useInboxStore";
+import ProfileScreen       from "../screens/ProfileScreen";
+import AccountScreen       from "../screens/AccountScreen";
+import InboxScreen         from "../screens/InboxScreen";
 import EarningsScreen      from "../screens/EarningsScreen";
 import OpportunitiesScreen from "./OpportunitiesScreen";
 import ReferFriendsScreen  from "../screens/ReferFriendsScreen";
 import HelpScreen          from "../screens/HelpScreen";
 import OvenaBankScreen     from "../screens/OvenaBankScreen";
+
+import { useInboxStore }                               from "../hooks/useInboxStore";
+import { useOrderHistory, OrderRecord, isActiveOrder } from "../hooks/useOrderHistory";
 
 type ActiveScreen =
   | null | "Profile" | "Account" | "Inbox" | "Earnings"
@@ -35,74 +38,137 @@ type ActiveScreen =
 
 type DeliveryStep = "idle" | "pickup" | "onitsway" | "delivering" | "success";
 
+function nowTimeLabel(): string {
+  const now = new Date();
+  const h   = now.getHours() % 12 || 12;
+  const mn  = now.getMinutes().toString().padStart(2, "0");
+  const ap  = now.getHours() >= 12 ? "pm" : "am";
+  return `${h}:${mn} ${ap}`;
+}
+
 const HomeScreen = () => {
   const { colors } = useTheme();
   const { data }   = useAppData();
 
   const [accessToken, setAccessToken] = useState<string | null>(null);
-
-  // Load token once on mount
-  useEffect(() => {
-    AsyncStorage.getItem("accessToken").then(setAccessToken);
-  }, []);
+  useEffect(() => { AsyncStorage.getItem("accessToken").then(setAccessToken); }, []);
 
   const todayBalance = data?.dashboard?.data?.wallet?.available_balance;
   const balanceLabel = todayBalance != null
     ? `₦${todayBalance.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`
     : "₦0.00";
 
-  const [online,       setOnline]      = useState(false);
-  const [drawerOpen,   setDrawerOpen]  = useState(false);
+  const [online,       setOnline]       = useState(false);
+  const [drawerOpen,   setDrawerOpen]   = useState(false);
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(null);
   const [deliveryStep, setDeliveryStep] = useState<DeliveryStep>("idle");
   const [activeOrder,  setActiveOrder]  = useState<MockOrder | null>(null);
-  const [northKey,       setNorthKey]       = useState(0);  // compass → face north
-  const [recenterKey,    setRecenterKey]    = useState(0);  // location btn → fly to driver
-  const [pickupKey,      setPickupKey]      = useState(0);  // pick-up → fitBounds driver+restaurant
-  const [navModeKey,     setNavModeKey]     = useState(0);  // start delivery → nav perspective
-  // Live route summary computed by DriverMapView from the Mapbox Directions API
+  const [showOrders,   setShowOrders]   = useState(false);
+  const [northKey,     setNorthKey]     = useState(0);
+  const [recenterKey,  setRecenterKey]  = useState(0);
+  const [pickupKey,    setPickupKey]    = useState(0);
+  const [navModeKey,   setNavModeKey]   = useState(0);
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
 
-  // Inbox — persistent store with unread tracking
+  // ── Stores ────────────────────────────────────────────────────────────────
   const {
-    messages:    inboxMessages,
-    unreadCount: inboxUnreadCount,
-    addMessage:  addInboxMessage,
-    markAllRead: markInboxAllRead,
-    markRead:    markInboxRead,
-    deleteAll:   deleteInboxAll,
+    messages: inboxMessages, unreadCount: inboxUnreadCount,
+    addMessage: addInboxMessage, markAllRead: markInboxAllRead,
+    markRead: markInboxRead, deleteAll: deleteInboxAll,
   } = useInboxStore();
 
-  const deliveryStepRef = useRef<DeliveryStep>("idle");
+  const {
+    orders: orderHistory, activeOrder: historyActiveOrder,
+    activeCount: activeOrderCount,
+    upsertOrder, mergeMyOrders,
+  } = useOrderHistory();
+
+  // Declared early — used in banner useEffect dep array below
+  const hasActiveHistoryOrder = historyActiveOrder !== null && deliveryStep === "idle";
+
+  // ── Pulse animation for menu badge ────────────────────────────────────────
+  const menuPulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (inboxUnreadCount <= 0) { menuPulseAnim.setValue(1); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(menuPulseAnim, { toValue: 1.7, duration: 600, useNativeDriver: true }),
+      Animated.timing(menuPulseAnim, { toValue: 1,   duration: 600, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [inboxUnreadCount]);
+
+  // ── Resume banner ─────────────────────────────────────────────────────────
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const bannerAnim  = useRef(new Animated.Value(0)).current;
+  const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    deliveryStepRef.current = deliveryStep;
+    if (bannerTimer.current) clearTimeout(bannerTimer.current);
+
+    if (hasActiveHistoryOrder) {
+      setBannerVisible(true);
+      Animated.spring(bannerAnim, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }).start();
+      bannerTimer.current = setTimeout(() => {
+        Animated.timing(bannerAnim, { toValue: 0, duration: 280, useNativeDriver: true })
+          .start(() => setBannerVisible(false));
+      }, 5000);
+    } else {
+      Animated.timing(bannerAnim, { toValue: 0, duration: 200, useNativeDriver: true })
+        .start(() => setBannerVisible(false));
+    }
+
+    return () => { if (bannerTimer.current) clearTimeout(bannerTimer.current); };
+  }, [hasActiveHistoryOrder]);
+
+  // ── Refs ──────────────────────────────────────────────────────────────────
+  const deliveryStepRef = useRef<DeliveryStep>("idle");
+  useEffect(() => { deliveryStepRef.current = deliveryStep; }, [deliveryStep]);
+
+  const onlineRef = useRef(online);
+  useEffect(() => { onlineRef.current = online; }, [online]);
+
+  const lastCoordRef   = useRef<{ latitude: number; longitude: number } | null>(null);
+  const activeOrderRef = useRef<MockOrder | null>(null);
+  useEffect(() => { activeOrderRef.current = activeOrder; }, [activeOrder]);
+
+  // ── Persist step changes to order history ─────────────────────────────────
+  useEffect(() => {
+    const order = activeOrderRef.current;
+    if (!order || deliveryStep === "idle") return;
+    upsertOrder({
+      id:              Number(order.order_id),
+      order_number:    Number(order.orderNumber ?? order.order_id),
+      restaurant_name: order.restaurantName ?? "",
+      customer_name:   order.customerName   ?? "",
+      branch_name:     order.restaurantName ?? "",
+      delivery_type:   order.deliveryType   ?? "",
+      fullOrder:       order,
+      delivery_step:   deliveryStep === "success" ? "success" : deliveryStep,
+      status:
+        deliveryStep === "pickup"     ? "accepted"   :
+        deliveryStep === "onitsway"   ? "picked_up"  :
+        deliveryStep === "delivering" ? "on_the_way" :
+        deliveryStep === "success"    ? "delivered"  : "accepted",
+    });
   }, [deliveryStep]);
 
-  // Ref mirror of `online` so the WS onOrder callback always reads the
-  // latest value without being stale-closed over the initial false.
-  const onlineRef = useRef(online);
-  useEffect(() => {
-    onlineRef.current = online;
-  }, [online]);
-
-  // Latest driver coordinate ref — used for the 60 s location interval
-  const lastCoordRef = useRef<{latitude: number; longitude: number} | null>(null);
-
-  // ── WebSocket connection ──────────────────────────────────────────────────
+  // ── WebSocket ─────────────────────────────────────────────────────────────
   const { sendLocation, postDriverAction } = useDriverWebSocket({
-    token: accessToken,
+    token:    accessToken,
     isOnline: online,
 
-    // ── Full order payload  (inner type: "order.driver_assigned") ──────────
-    // Hook unwraps the outer "notification" envelope before calling this.
-    // Confirmed field names from the real backend payload logged above.
+    onMyOrders: useCallback((serverOrders: any[]) => {
+      console.log(`[HomeScreen] 📋 my_orders — merging ${serverOrders.length} orders`);
+      mergeMyOrders(serverOrders);
+    }, [mergeMyOrders]),
+
     onOrder: (orderData) => {
-      console.log("[Orders WS] 📦 Full order payload received:", JSON.stringify(orderData, null, 2));
+      console.log("[Orders WS] 📦 Full order payload:", JSON.stringify(orderData, null, 2));
 
       const branch         = orderData.branch               ?? {};
-      const branchLocation = branch.location                 ?? {};
-      const customerDest   = orderData.customer_destination  ?? {};
+      const branchLocation = branch.location                ?? {};
+      const customerDest   = orderData.customer_destination ?? {};
 
       const amountDisplay = orderData.total_amount
         ? `₦${parseFloat(orderData.total_amount).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`
@@ -111,23 +177,19 @@ const HomeScreen = () => {
         : "—";
 
       const mapped: MockOrder = {
-        id:          String(orderData.order_id  ?? "ws_order"),
-        order_id:     orderData.order_id          ?? 0,
-        orderNumber: orderData.order_number      ?? orderData.order_id ?? 0,
-
-        customerName:  orderData.customer_name  ?? "Customer",
-        customerPhone: orderData.customer_phone ?? "",
-        itemCount:     orderData.item_count      ?? 1,
+        id:            String(orderData.order_id ?? "ws_order"),
+        order_id:      orderData.order_id          ?? 0,
+        orderNumber:   orderData.order_number      ?? orderData.order_id ?? 0,
+        customerName:  orderData.customer_name     ?? "Customer",
+        customerPhone: orderData.customer_phone    ?? "",
+        itemCount:     orderData.item_count         ?? 1,
         amount:        amountDisplay,
-
         restaurantName:    branch.restaurant_name    ?? branch.name    ?? "Restaurant",
         restaurantPhone:   branch.restaurant_phone   ?? branch.phone   ?? "",
         restaurantAddress: branch.restaurant_address ?? branch.address ?? "",
-
-        deliveryAddress: orderData.delivery_address ?? "",
-        deliveryType:    orderData.delivery_type     ?? "Meet at door",
-        customerNote:    orderData.customer_note     ?? "",
-
+        deliveryAddress:   orderData.delivery_address ?? "",
+        deliveryType:      orderData.delivery_type    ?? "Meet at door",
+        customerNote:      orderData.customer_note    ?? "",
         restaurantDestination: {
           latitude:  Number(branchLocation.lat) || 5.1065,
           longitude: Number(branchLocation.lng) || 7.3671,
@@ -140,234 +202,123 @@ const HomeScreen = () => {
 
       console.log("[Orders WS] ✅ Mapped order:", JSON.stringify(mapped, null, 2));
 
-      // Push the order assignment message to the inbox
+      upsertOrder({
+        id:              Number(orderData.order_id ?? 0),
+        order_number:    Number(orderData.order_number ?? orderData.order_id ?? 0),
+        status:          "accepted",
+        created_at:      new Date().toISOString(),
+        restaurant_name: branch.restaurant_name ?? branch.name ?? "",
+        branch_name:     branch.name ?? "",
+        customer_name:   orderData.customer_name ?? "",
+        delivery_type:   orderData.delivery_type ?? "",
+        delivery_step:   "pickup",
+        fullOrder:       mapped,
+      });
+
       if (orderData.message) {
-        const now = new Date();
-        const h   = now.getHours() % 12 || 12;
-        const mn  = now.getMinutes().toString().padStart(2, "0");
-        const ap  = now.getHours() >= 12 ? "pm" : "am";
         addInboxMessage({
           id:      `order-${orderData.order_id ?? Date.now()}`,
           sender:  branch.restaurant_name ?? branch.name ?? "Ovena",
           message: orderData.message,
-          time:    `${h}:${mn} ${ap}`,
+          time:    nowTimeLabel(),
         });
-        console.log("[Orders WS] 📬 Order message added to inbox:", orderData.message);
       }
 
-      // Guard 1 — driver must be online to receive a pickup modal
       if (!onlineRef.current) {
-        console.log("[Orders WS] ⚠️  Driver offline — order stored in inbox only");
+        console.log("[Orders WS] ⚠️  Driver offline — stored in history only");
         return;
       }
-
-      // Guard 2 — don't interrupt an active delivery
       if (deliveryStepRef.current !== "idle") {
-        console.log("[Orders WS] ⚠️  Mid-delivery — new order stored in inbox, not shown");
+        console.log("[Orders WS] ⚠️  Mid-delivery — stored in history, modal suppressed");
         return;
       }
 
-      console.log(`[Orders WS] 🚨 Triggering pickup modal — Order #${mapped.orderNumber} from ${mapped.restaurantName}`);
-
-      // Both setters must land in the same render. Without batchedUpdates a WS
-      // message (outside React's synthetic event system) causes two separate
-      // renders: the first sets activeOrder but deliveryStep is still "idle",
-      // so PickUpModal is not yet visible. The second render sets deliveryStep
-      // to "pickup" — but by then PickUpModal renders with order=null on the
-      // intermediate frame and bails early via `if (!order) return null`.
       unstable_batchedUpdates(() => {
         setActiveOrder(mapped);
         setDeliveryStep("pickup");
       });
     },
 
-    // ── Short notification (inner type: "order_message") → inbox ──────────
-    // Payload: { type, order_id, order_number, status, timestamp, message }
     onInbox: (msgData) => {
-      console.log("[Orders WS] INBOX message:", JSON.stringify(msgData, null, 2));
-      const now = new Date();
-      const h   = now.getHours() % 12 || 12;
-      const m   = now.getMinutes().toString().padStart(2, "0");
-      const ap  = now.getHours() >= 12 ? "pm" : "am";
       addInboxMessage({
         id:      String(msgData.order_id ?? Date.now()),
         sender:  `Order #${msgData.order_number || msgData.order_id || ""}`,
         message: msgData.message ?? "New notification",
-        time:    `${h}:${m} ${ap}`,
+        time:    nowTimeLabel(),
       });
     },
   });
 
-  // ── Log when driver goes online / offline ─────────────────────────────────
   useEffect(() => {
-    if (online) {
-      console.log("[Driver Status] ✅ Driver is now ONLINE — availability set to true");
-    } else {
-      console.log("[Driver Status] 🔴 Driver is now OFFLINE — availability set to false");
-    }
+    if (online) console.log("[Driver Status] ✅ ONLINE");
+    else        console.log("[Driver Status] 🔴 OFFLINE");
   }, [online]);
 
-  // ── Location interval: send GPS every 60 s when online ─────────────────────
   useEffect(() => {
     if (!online) return;
-
-    // Send immediately on going online
     const coord = lastCoordRef.current;
-    if (coord) {
-      console.log(
-        `[Location] 📍 Initial location sent — lat: ${coord.latitude.toFixed(6)}, lng: ${coord.longitude.toFixed(6)}`
-      );
-      sendLocation({
-        lat:      coord.latitude,
-        lng:      coord.longitude,
-        heading:  0,
-        speed:    0,
-        accuracy: 5,
-      });
-    } else {
-      console.warn("[Location] ⚠️  Went online but GPS fix not yet available — waiting for first coordinate");
-    }
-
+    if (coord) sendLocation({ lat: coord.latitude, lng: coord.longitude, heading: 0, speed: 0, accuracy: 5 });
     const interval = setInterval(() => {
       const c = lastCoordRef.current;
-      if (!c) {
-        console.warn("[Location] ⚠️  Interval fired but no GPS coordinate available yet");
-        return;
-      }
-      console.log(
-        `[Location] 📍 60 s interval tick — lat: ${c.latitude.toFixed(6)}, lng: ${c.longitude.toFixed(6)}`
-      );
-      sendLocation({
-        lat:      c.latitude,
-        lng:      c.longitude,
-        heading:  0,
-        speed:    0,
-        accuracy: 5,
-      });
+      if (!c) return;
+      sendLocation({ lat: c.latitude, lng: c.longitude, heading: 0, speed: 0, accuracy: 5 });
     }, 60_000);
-
-    return () => {
-      console.log("[Location] ⏹️  Location interval cleared (driver went offline)");
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [online, sendLocation]);
 
-  // ── Open drawer ──────────────────────────────────────────────────────────
-  const openDrawer = () => {
-    // Delivery modals are non-Modal Views so they stay rendered, but the
-    // drawer will stack on top of them (zIndex 9999). The user can close
-    // the drawer and the delivery flow will still be intact.
-    setDrawerOpen(true);
-  };
-
-  // ── Close drawer ─────────────────────────────────────────────────────────
-  const closeDrawer = () => setDrawerOpen(false);
-
-  // ── Orders arrive via WebSocket (useDriverWebSocket.onOrder above) ────────
-  // No mock timer — real orders are pushed by the backend to the Orders WS channel.
+  // ── Delivery handlers ─────────────────────────────────────────────────────
 
   const handlePickUp = async () => {
-  if (!activeOrder) {
-    console.warn("[Pickup] No active order");
-    return;
-  }
-
-  const order_id = Number(activeOrder.order_id);
-
-  if (Number.isNaN(order_id)) {
-    console.warn("[Pickup] Invalid order_id:", activeOrder.order_id);
-    return;
-  }
-
-  console.log(`[Pickup] Accepting order ${order_id}`);
-
-  await postDriverAction("accept", order_id);
-
-  setDeliveryStep("onitsway");
-  setPickupKey((k) => k + 1);
-};
+    if (!activeOrder) return;
+    const order_id = Number(activeOrder.order_id);
+    if (Number.isNaN(order_id)) return;
+    const response = await postDriverAction("accept", order_id);
+    if (response?.message) {
+      addInboxMessage({
+        id:      `accept-${order_id}-${Date.now()}`,
+        sender:  activeOrder.restaurantName ?? "Ovena",
+        message: response.message,
+        time:    nowTimeLabel(),
+      });
+    }
+    upsertOrder({ id: order_id, status: "picked_up", delivery_step: "onitsway", fullOrder: activeOrder });
+    setDeliveryStep("onitsway");
+    setPickupKey((k) => k + 1);
+  };
 
   const handleStartDelivery = () => {
+    if (activeOrder) {
+      upsertOrder({ id: Number(activeOrder.order_id), status: "on_the_way", delivery_step: "delivering", fullOrder: activeOrder });
+    }
     setDeliveryStep("delivering");
     setNavModeKey((k) => k + 1);
   };
 
-  // Called from CustomerModal after photo + delivery code submitted
   const handleDeliveryComplete = async (order_code?: string) => {
-  if (!activeOrder) {
-    console.warn("[Deliver] No active order");
-    return;
-  }
+    if (!activeOrder) return;
+    const order_id    = Number(activeOrder.order_id);
+    const cleanedCode = order_code?.trim();
+    if (Number.isNaN(order_id)) return;
+    try {
+      await postDriverAction("deliver", order_id, cleanedCode);
+      upsertOrder({ id: order_id, status: "delivered", delivery_step: "success", fullOrder: activeOrder });
+      setDeliveryStep("success");
+    } catch (err) {
+      console.warn("[Deliver] Failed:", err);
+    }
+  };
 
-  const order_id = Number(activeOrder.order_id);
-
-  if (Number.isNaN(order_id)) {
-    console.warn("[Deliver] Invalid order_id:", activeOrder.order_id);
-    return;
-  }
-
-  const cleanedCode = order_code?.trim();
-
-  if (!cleanedCode) {
-    console.warn("[Deliver] Missing delivery code");
-  }
-
-  console.log(
-    `[Deliver] Completing order ${order_id} with code: ${
-      cleanedCode || "(missing)"
-    }`
-  );
-
-  try {
-    await postDriverAction(
-      "deliver",
-      order_id,
-      cleanedCode
-    );
-
-    console.log(`[Deliver] Order ${order_id} delivered successfully`);
-
-    setDeliveryStep("success");
-
-  } catch (err) {
-    console.warn(`[Deliver] Failed to complete order ${order_id}:`, err);
-  }
-};
-
- const handleDismissPickup = async () => {
-  if (!activeOrder) {
-    console.warn("[Reject] No active order to reject");
-    return;
-  }
-
-  const order_id = Number(activeOrder.order_id);
-
-  if (Number.isNaN(order_id)) {
-    console.warn("[Reject] Invalid order_id:", activeOrder.order_id);
-
-    // Still clear broken UI state
+  const handleDismissPickup = async () => {
+    if (!activeOrder) { setDeliveryStep("idle"); setActiveOrder(null); setRouteSummary(null); return; }
+    const order_id = Number(activeOrder.order_id);
+    if (!Number.isNaN(order_id)) {
+      try { await postDriverAction("reject", order_id); } catch { /* ignore */ }
+      upsertOrder({ id: order_id, status: "rejected", delivery_step: null, fullOrder: activeOrder });
+    }
     setDeliveryStep("idle");
     setActiveOrder(null);
     setRouteSummary(null);
-
-    return;
-  }
-
-  console.log(`[Reject] Rejecting order ${order_id}`);
-
-  try {
-    await postDriverAction("reject", order_id);
-
-    console.log(`[Reject] Order ${order_id} rejected successfully`);
-  } catch (err) {
-    console.warn(`[Reject] Failed to reject order ${order_id}:`, err);
-  }
-
-  // Clear UI regardless so modal never gets stuck
-  setDeliveryStep("idle");
-  setActiveOrder(null);
-  setRouteSummary(null);
-};
+  };
 
   const handleSuccessClose = () => {
     setDeliveryStep("idle");
@@ -375,6 +326,21 @@ const HomeScreen = () => {
     setRouteSummary(null);
     setOnline(false);
   };
+
+  // Called by both OrderHistoryModal and the banner.
+  // The modal now calls this BEFORE closing itself, so state is set in the
+  // same synchronous event — no setTimeout needed.
+  const handleResumeOrder = useCallback((record: OrderRecord, step: string) => {
+    if (!record.fullOrder) {
+      console.warn("[Resume] No fullOrder for order", record.id, "— cannot resume");
+      return;
+    }
+    console.log(`[Resume] order ${record.id} → step "${step}"`);
+    unstable_batchedUpdates(() => {
+      setActiveOrder(record.fullOrder!);
+      setDeliveryStep(step as DeliveryStep);
+    });
+  }, []);
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const handleNavigate = (route: NavRoute) => {
@@ -390,11 +356,8 @@ const HomeScreen = () => {
       case "Inbox":
         return (
           <InboxScreen
-            onBack={closeScreen}
-            messages={inboxMessages}
-            onMarkAllRead={markInboxAllRead}
-            onMarkRead={markInboxRead}
-            onDeleteAll={deleteInboxAll}
+            onBack={closeScreen} messages={inboxMessages}
+            onMarkAllRead={markInboxAllRead} onMarkRead={markInboxRead} onDeleteAll={deleteInboxAll}
           />
         );
       case "Earnings":      return <EarningsScreen      onBack={closeScreen} onOpenBank={() => setActiveScreen("OvenaBank")} />;
@@ -406,9 +369,6 @@ const HomeScreen = () => {
     }
   };
 
-  // ── Map destination changes by delivery step ─────────────────────────────
-  // onitsway   → route to the RESTAURANT (pick up)
-  // delivering → route to the CUSTOMER   (drop off)
   const mapDestination =
     deliveryStep === "onitsway"   ? (activeOrder?.restaurantDestination ?? null) :
     deliveryStep === "delivering" ? (activeOrder?.customerDestination   ?? null) :
@@ -423,49 +383,75 @@ const HomeScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle={colors.statusBarStyle} translucent backgroundColor="transparent" />
 
-      {/* ── MAP — full screen base layer ── */}
       <View style={StyleSheet.absoluteFill}>
         <DriverMapView
-          destination={mapDestination}
-          destinationLabel={mapLabel}
-          northTrigger={northKey}
-          recenterTrigger={recenterKey}
-          pickupTrigger={pickupKey}
-          navigationModeTrigger={navModeKey}
+          destination={mapDestination} destinationLabel={mapLabel}
+          northTrigger={northKey} recenterTrigger={recenterKey}
+          pickupTrigger={pickupKey} navigationModeTrigger={navModeKey}
           onRouteSummary={setRouteSummary}
-          onLocationUpdate={(coord) => {
-            // Store latest coord in ref — sent to backend every 60 s via interval above
-            lastCoordRef.current = coord;
-          }}
+          onLocationUpdate={(coord) => { lastCoordRef.current = coord; }}
         />
       </View>
 
-      {/* ── TOP BAR ──────────────────────────────────────────────────────── */}
+      {/* ── TOP BAR ── */}
       <View style={styles.topBar} pointerEvents="box-none">
-        {/*
-          Menu button — completely removed (not rendered) when drawer is open.
-          Using conditional rendering (not opacity) ensures it has no hit area
-          that could block touches to NavDrawer's profile row.
-        */}
         {!drawerOpen && (
-          <TouchableOpacity
-            style={[styles.mapBtn, { backgroundColor: colors.card }]}
-            onPress={openDrawer}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.menuIcon, { color: colors.textPrimary }]}>☰</Text>
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              style={[styles.mapBtn, { backgroundColor: colors.card }]}
+              onPress={() => setDrawerOpen(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.menuIcon, { color: colors.textPrimary }]}>☰</Text>
+            </TouchableOpacity>
+
+            {inboxUnreadCount > 0 && (
+              <View style={styles.menuBadgeWrap} pointerEvents="none">
+                <Animated.View
+                  style={[styles.menuBadgePulse, { backgroundColor: colors.accentOrange, transform: [{ scale: menuPulseAnim }] }]}
+                />
+                <View style={[styles.menuBadgeDot, { backgroundColor: colors.accentOrange }]} />
+              </View>
+            )}
+          </View>
         )}
 
-        {/* Status dot — always present, right side */}
         <View style={[styles.statusDotWrap, { backgroundColor: colors.card }]}>
           <View style={[styles.statusDot, { backgroundColor: online ? "#18C55D" : "#FF3B30" }]} />
         </View>
       </View>
 
-      {/* ── MAP CONTROLS — always visible, bottom-right ───────────────────── */}
+      {/* ── MAP CONTROLS ── */}
       <View style={styles.mapControls}>
-        {/* Compass — reset map to face north */}
+        <TouchableOpacity
+          style={[
+            styles.mapControlBtn,
+            { backgroundColor: hasActiveHistoryOrder ? colors.accentOrange : colors.card },
+          ]}
+          onPress={() => setShowOrders(true)}
+          activeOpacity={0.8}
+        >
+          <IconSymbol
+            name="ClipboardListIcon"
+            size={20}
+            color={hasActiveHistoryOrder ? "#fff" : colors.iconColor}
+          />
+          {/* Badge: active order count only */}
+          {activeOrderCount > 0 && (
+            <View style={[
+              styles.ordersCountBadge,
+              { backgroundColor: hasActiveHistoryOrder ? "#fff" : colors.accentOrange },
+            ]}>
+              <Text style={[
+                styles.ordersCountText,
+                { color: hasActiveHistoryOrder ? colors.accentOrange : "#fff" },
+              ]}>
+                {activeOrderCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.mapControlBtn, { backgroundColor: colors.card }]}
           onPress={() => setNorthKey((k) => k + 1)}
@@ -474,7 +460,6 @@ const HomeScreen = () => {
           <IconSymbol name="SunCompass" size={22} color={colors.iconColor} />
         </TouchableOpacity>
 
-        {/* Location — re-centre on driver's position */}
         <TouchableOpacity
           style={[styles.mapControlBtn, { backgroundColor: colors.card }]}
           onPress={() => setRecenterKey((k) => k + 1)}
@@ -484,7 +469,37 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* ── BOTTOM PANEL — only when idle ─────────────────────────────────── */}
+      {/* ── RESUME BANNER ── */}
+      {bannerVisible && (
+        <Animated.View
+          style={[
+            styles.activeOrderBanner,
+            { opacity: bannerAnim, transform: [{ scale: bannerAnim }] },
+          ]}
+          pointerEvents="box-none"
+        >
+          <TouchableOpacity
+            style={[styles.activeOrderBtn, { backgroundColor: colors.accentOrange }]}
+            onPress={() => {
+              if (bannerTimer.current) clearTimeout(bannerTimer.current);
+              setBannerVisible(false);
+              if (historyActiveOrder) {
+                const step = resolveResumeStep(historyActiveOrder);
+                if (step) handleResumeOrder(historyActiveOrder, step);
+              }
+            }}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.activeBtnDot, { backgroundColor: "#fff" }]} />
+            <Text style={styles.activeOrderBtnText} numberOfLines={1}>
+              Resume: {historyActiveOrder?.restaurant_name ?? "Active Order"}
+            </Text>
+            <IconSymbol name="ArrowRightLongIcon" size={16} color="#fff" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
+      {/* ── BOTTOM PANEL ── */}
       {deliveryStep === "idle" && (
         <View style={styles.bottomPanel}>
           <View style={styles.bottomRow}>
@@ -500,21 +515,11 @@ const HomeScreen = () => {
 
           <TouchableOpacity
             style={[styles.toggleButton, { backgroundColor: online ? colors.accentOrange : colors.accentGreen }]}
-            onPress={() => {
-              const goingOnline = !online;
-              console.log(`[Driver Status] Button pressed — going ${goingOnline ? "ONLINE" : "OFFLINE"}`);
-              setOnline(goingOnline);
-            }}
+            onPress={() => setOnline((v) => !v)}
           >
-            <IconSymbol
-              name={online ? "PersonWalkingDashedLineArrowRightIcon" : "ArrowRightLongIcon"}
-              size={22} color="#fff" style={{ opacity: 0 }}
-            />
+            <IconSymbol name={online ? "PersonWalkingDashedLineArrowRightIcon" : "ArrowRightLongIcon"} size={22} color="#fff" style={{ opacity: 0 }} />
             <Text style={styles.toggleText}>{online ? "Go Offline" : "Go Online"}</Text>
-            <IconSymbol
-              name={online ? "PersonWalkingDashedLineArrowRightIcon" : "ArrowRightLongIcon"}
-              size={22} color="#fff"
-            />
+            <IconSymbol name={online ? "PersonWalkingDashedLineArrowRightIcon" : "ArrowRightLongIcon"} size={22} color="#fff" />
           </TouchableOpacity>
 
           <Text style={[styles.toggleHint, { color: colors.textMuted }]}>
@@ -523,58 +528,39 @@ const HomeScreen = () => {
         </View>
       )}
 
-      {/* ── DELIVERY FLOW OVERLAYS (non-Modal, z 20) ─────────────────────── */}
+      {/* ── DELIVERY FLOW ── */}
       <OnItsWayModal
         visible={deliveryStep === "onitsway"}
-        order={activeOrder}
-        routeSummary={routeSummary}
-        onClose={() => {}}
+        order={activeOrder} routeSummary={routeSummary}
+        onClose={() => setDeliveryStep("idle")}
         onStartDelivery={handleStartDelivery}
       />
       <DeliveryingModal
         visible={deliveryStep === "delivering"}
-        order={activeOrder}
-        routeSummary={routeSummary}
+        order={activeOrder} routeSummary={routeSummary}
         onDeliveryComplete={handleDeliveryComplete}
       />
-
-      {/* ── PICKUP MODAL (React Native Modal) ────────────────────────────── */}
       <PickUpModal
         visible={deliveryStep === "pickup"}
-        order={activeOrder}
-        routeSummary={routeSummary}
-        onPickUp={handlePickUp}
-        onReject={handleDismissPickup}
-        onClose={handleDismissPickup}
+        order={activeOrder} routeSummary={routeSummary}
+        onPickUp={handlePickUp} onReject={handleDismissPickup} onClose={handleDismissPickup}
+      />
+      <OrderSuccessModal visible={deliveryStep === "success"} onClose={handleSuccessClose} />
+
+      {/* ── ORDER HISTORY MODAL ── */}
+      <OrderHistoryModal
+        visible={showOrders}
+        onClose={() => setShowOrders(false)}
+        orders={orderHistory}
+        onResume={handleResumeOrder}
       />
 
-      {/* ── SUCCESS MODAL ────────────────────────────────────────────────── */}
-      <OrderSuccessModal
-        visible={deliveryStep === "success"}
-        onClose={handleSuccessClose}
-      />
-
-      {/*
-        ── NAV DRAWER — rendered LAST so it sits on top of everything ───────
-        zIndex 9999 in the NavDrawer wrapper guarantees it overlays all
-        delivery modals, the compass, and the bottom panel.
-        The hamburger button is fully unmounted when drawerOpen=true so
-        it can never block the drawer's profile row touch target.
-      */}
       <NavDrawer
-        visible={drawerOpen}
-        onClose={closeDrawer}
-        onNavigate={handleNavigate}
-        inboxUnreadCount={inboxUnreadCount}
+        visible={drawerOpen} onClose={() => setDrawerOpen(false)}
+        onNavigate={handleNavigate} inboxUnreadCount={inboxUnreadCount}
       />
 
-      {/* ── PAGE MODALS (full-screen slides) ─────────────────────────────── */}
-      <Modal
-        visible={activeScreen !== null}
-        animationType="slide"
-        onRequestClose={closeScreen}
-        presentationStyle="fullScreen"
-      >
+      <Modal visible={activeScreen !== null} animationType="slide" onRequestClose={closeScreen} presentationStyle="fullScreen">
         {renderActiveScreen()}
       </Modal>
     </View>
@@ -585,96 +571,76 @@ export default HomeScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
   topBar: {
-    position: "absolute",
-    top: 50, left: 16, right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    // Use space-between so status dot stays right whether menu is shown or not
-    justifyContent: "space-between",
-    zIndex: 10,
+    position: "absolute", top: 50, left: 16, right: 16,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 10,
   },
   mapBtn: {
     width: 46, height: 46, borderRadius: 23,
     alignItems: "center", justifyContent: "center",
-    elevation: 4,
-    shadowColor: "#000", shadowOpacity: 0.15,
+    elevation: 4, shadowColor: "#000", shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
   },
   menuIcon: { fontSize: 20, fontWeight: "700" },
-
+  menuBadgeWrap: {
+    position: "absolute", top: 0, right: 0,
+    width: 18, height: 18, alignItems: "center", justifyContent: "center",
+  },
+  menuBadgePulse: { position: "absolute", width: 18, height: 18, borderRadius: 9, opacity: 0.35 },
+  menuBadgeDot:   { width: 10, height: 10, borderRadius: 5 },
   statusDotWrap: {
     width: 46, height: 46, borderRadius: 23,
     alignItems: "center", justifyContent: "center",
-    elevation: 4,
-    shadowColor: "#000", shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
-    // When menu is hidden this stays right because topBar is space-between
-    marginLeft: "auto",
+    elevation: 4, shadowColor: "#000", shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 2 }, shadowRadius: 6, marginLeft: "auto",
   },
   statusDot: { width: 18, height: 18, borderRadius: 9 },
-
-  // Map controls column — always visible, bottom-right
   mapControls: {
-    position: "absolute",
-    right: 16,
-    bottom: 140,
-    gap: 10,
-    zIndex: 15,
-    alignItems: "center",
+    position: "absolute", right: 16, bottom: 140,
+    gap: 10, zIndex: 15, alignItems: "center",
   },
   mapControlBtn: {
     width: 46, height: 46, borderRadius: 23,
     alignItems: "center", justifyContent: "center",
-    elevation: 8,
-    shadowColor: "#000", shadowOpacity: 0.2,
+    elevation: 8, shadowColor: "#000", shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 3 }, shadowRadius: 8,
   },
-
-  // Bottom panel — floats over map with no background
+  ordersCountBadge: {
+    position: "absolute", top: -4, right: -4,
+    minWidth: 18, height: 18, borderRadius: 9,
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 3,
+  },
+  ordersCountText: { fontSize: 10, fontWeight: "700" },
+  activeOrderBanner: {
+    position: "absolute", bottom: 210, left: 16, right: 16,
+    zIndex: 12, alignItems: "center",
+  },
+  activeOrderBtn: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    borderRadius: 50, paddingVertical: 12, paddingHorizontal: 20,
+    shadowColor: "#000", shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, elevation: 6,
+  },
+  activeBtnDot:       { width: 8, height: 8, borderRadius: 4 },
+  activeOrderBtnText: { color: "#fff", fontWeight: "700", fontSize: 14, flex: 1 },
   bottomPanel: {
-    position: "absolute",
-    bottom: 0, width: "100%",
-    paddingHorizontal: 20,
-    paddingBottom: 36,
-    paddingTop: 12,
-    alignItems: "center",
-    gap: 12,
-    zIndex: 10,
+    position: "absolute", bottom: 0, width: "100%",
+    paddingHorizontal: 20, paddingBottom: 36, paddingTop: 12,
+    alignItems: "center", gap: 12, zIndex: 10,
   },
-  bottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
+  bottomRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   earningsTitle: {
-    fontSize: 14, fontWeight: "600",
-    paddingVertical: 8, paddingHorizontal: 14,
-    borderRadius: 20,
-    elevation: 4,
-    shadowColor: "#000", shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
+    fontSize: 14, fontWeight: "600", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20,
+    elevation: 4, shadowColor: "#000", shadowOpacity: 0.12, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
   },
   earnAmount: {
-    fontSize: 16, fontWeight: "700",
-    paddingVertical: 8, paddingHorizontal: 14,
-    borderRadius: 20,
-    elevation: 4,
-    shadowColor: "#000", shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
+    fontSize: 16, fontWeight: "700", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20,
+    elevation: 4, shadowColor: "#000", shadowOpacity: 0.12, shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
   },
   toggleButton: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 30,
-    paddingVertical: 16,
-    borderRadius: 50,
-    shadowColor: "#000", shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 4 }, shadowRadius: 8,
-    elevation: 6,
+    width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 30, paddingVertical: 16, borderRadius: 50,
+    shadowColor: "#000", shadowOpacity: 0.18, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, elevation: 6,
   },
   toggleText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   toggleHint: { fontSize: 12, textAlign: "center" },

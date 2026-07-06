@@ -7,8 +7,16 @@
 //
 // Layout:
 //   • Destination strip — pinned top, always visible
-//   • Bottom sheet     — collapsible via hamburger; contains all order detail
-//     and the "Start delivery" button
+//   • Bottom sheet     — collapsible via hamburger; contains all order detail,
+//     the accept-time order code, and the "Start delivery" button
+//
+// ── Order code vs delivery code ──────────────────────────────────────────
+// `orderCode` here is the code the backend returned when the driver hit
+// "accept" (see useDriverWebSocket.postDriverAction). It is DISPLAY ONLY —
+// shown so the driver can read it back to the customer or cross-check it.
+// It is NOT the same value that ultimately gets sent on "deliver": that one
+// is typed in fresh by the driver at the door, from whatever the customer
+// tells them, in a later delivery-confirmation screen.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -26,10 +34,16 @@ interface OnItsWayModalProps {
   onStartDelivery: () => void;
   order:           MockOrder | null;
   routeSummary:    RouteSummary | null;
+  /**
+   * The order_code returned by the backend on accept (see
+   * useDriverWebSocket.postDriverAction). Display-only — purely for the
+   * driver's reference. Pass null/undefined while it hasn't arrived yet.
+   */
+  orderCode?:      string | null;
 }
 
 const OnItsWayModal: React.FC<OnItsWayModalProps> = ({
-  visible, onClose, onStartDelivery, order, routeSummary,
+  visible, onClose, onStartDelivery, order, routeSummary, orderCode,
 }) => {
   const { colors } = useTheme();
 
@@ -58,6 +72,17 @@ const OnItsWayModal: React.FC<OnItsWayModalProps> = ({
     }
   }, [visible]);
 
+  // Log whenever the modal opens with (or without) an order code, so the
+  // accept → display flow is traceable in the console.
+  useEffect(() => {
+    if (!visible || !order) return;
+    if (orderCode) {
+      console.log(`[OnItsWayModal] 📦 Displaying order code for order ${order.order_id}: "${orderCode}"`);
+    } else {
+      console.warn(`[OnItsWayModal] ⚠️  No order code available to display for order ${order.order_id} — accept response may not have included one yet.`);
+    }
+  }, [visible, order, orderCode]);
+
   // Nothing to render when not visible or no order
   if (!visible || !order) return null;
 
@@ -77,6 +102,36 @@ const OnItsWayModal: React.FC<OnItsWayModalProps> = ({
         ]}
         pointerEvents="auto"
       >
+      {/* Always-visible header row */}
+<View style={styles.sheetHeaderRow}>
+  <View style={{ flex: 1 }}>
+    <Text style={[styles.statusText, { color: colors.textPrimary }]}>On its way</Text>
+    <Text style={[styles.restaurantSmall, { color: colors.textSecondary }]} numberOfLines={1}>
+      {order.restaurantName}
+      {routeSummary ? `  ·  ${routeSummary.duration}  ·  ${routeSummary.distance}` : ""}
+    </Text>
+  </View>
+
+  {/* Hamburger — collapse / expand */}
+  <TouchableOpacity
+    style={[styles.hamburgerBtn, { backgroundColor: colors.inputBg }]}
+    onPress={() => setExpanded((v) => !v)}
+    activeOpacity={0.7}
+    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+  >
+    <IconSymbol name="NavListIcon" size={20} color={colors.iconColor} />
+  </TouchableOpacity>
+
+  {/* X — dismiss the overlay entirely */}
+  <TouchableOpacity
+    style={[styles.closeBtn, { backgroundColor: colors.inputBg }]}
+    onPress={onClose}
+    activeOpacity={0.7}
+    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+  >
+    <IconSymbol name="XMarkIcon" size={18} color={colors.iconColor} />
+  </TouchableOpacity>
+</View>
         <View style={[styles.destIcon, { backgroundColor: colors.inputBg }]}>
           <IconSymbol name="LocationOutline" size={18} color={colors.accentOrange} />
         </View>
@@ -121,6 +176,19 @@ const OnItsWayModal: React.FC<OnItsWayModalProps> = ({
             <IconSymbol name="NavListIcon" size={20} color={colors.iconColor} />
           </TouchableOpacity>
         </View>
+
+        {/* Order code strip — always visible (even collapsed) when present */}
+        {orderCode && (
+          <View style={[styles.orderCodeRow, { backgroundColor: colors.inputBg }]}>
+            <IconSymbol name="ClockIcon" size={16} color={colors.accentOrange} />
+            <Text style={[styles.orderCodeLabel, { color: colors.textSecondary }]}>
+              Order code
+            </Text>
+            <Text style={[styles.orderCodeValue, { color: colors.textPrimary }]}>
+              {orderCode}
+            </Text>
+          </View>
+        )}
 
         {/* Expandable detail content */}
         {expanded && (
@@ -179,7 +247,7 @@ const OnItsWayModal: React.FC<OnItsWayModalProps> = ({
                   {order.customerName}
                 </Text>
                 <Text style={[styles.customerSub, { color: colors.textSecondary }]}>
-                  {order.orderId} • {order.itemCount} items
+                  {order.order_id} • {order.itemCount} items
                 </Text>
               </View>
               <TouchableOpacity
@@ -222,7 +290,10 @@ const OnItsWayModal: React.FC<OnItsWayModalProps> = ({
 
               <TouchableOpacity
                 style={[styles.startBtn, { backgroundColor: colors.accentOrange }]}
-                onPress={onStartDelivery}
+                onPress={() => {
+                  console.log(`[OnItsWayModal] ▶️  Start delivery pressed for order ${order.order_id} — handing off to delivery-confirmation flow where driver will enter the customer's code.`);
+                  onStartDelivery();
+                }}
                 activeOpacity={0.85}
               >
                 <IconSymbol name="ArrowRightLongIcon" size={18} color="#fff" />
@@ -299,6 +370,19 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
+  // ── Order code strip ─────────────────────────────────────────────────────
+  orderCodeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  orderCodeLabel: { fontSize: 12, fontWeight: "500" },
+  orderCodeValue: { fontSize: 14, fontWeight: "700", marginLeft: "auto", letterSpacing: 1 },
+
   // Expanded content
   expandContent:       { paddingBottom: 16 },
   restaurantHeaderRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
@@ -335,4 +419,9 @@ const styles = StyleSheet.create({
     gap: 10, borderRadius: 50, paddingVertical: 16,
   },
   startBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  closeBtn: {
+  width: 40, height: 40, borderRadius: 10,
+  alignItems: "center", justifyContent: "center",
+  marginLeft: 8,
+},
 });
