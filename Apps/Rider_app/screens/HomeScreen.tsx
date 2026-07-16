@@ -1,8 +1,9 @@
 // screens/HomeScreen.tsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
+// import NetworkBanner from "../components/NetworkBanner";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  StatusBar, Modal, unstable_batchedUpdates, Animated,
+  StatusBar, Modal, unstable_batchedUpdates, Animated, Alert
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
 import { useTheme } from "../context/ThemeContext";
@@ -272,18 +273,24 @@ const HomeScreen = () => {
     if (!activeOrder) return;
     const order_id = Number(activeOrder.order_id);
     if (Number.isNaN(order_id)) return;
-    const response = await postDriverAction("accept", order_id);
-    if (response?.message) {
-      addInboxMessage({
-        id:      `accept-${order_id}-${Date.now()}`,
-        sender:  activeOrder.restaurantName ?? "Ovena",
-        message: response.message,
-        time:    nowTimeLabel(),
-      });
+
+    try {
+      const response = await postDriverAction("accept", order_id);
+      if (response?.message) {
+        addInboxMessage({
+          id:      `accept-${order_id}-${Date.now()}`,
+          sender:  activeOrder.restaurantName ?? "Ovena",
+          message: response.message,
+          time:    nowTimeLabel(),
+        });
+      }
+      upsertOrder({ id: order_id, status: "picked_up", delivery_step: "onitsway", fullOrder: activeOrder });
+      setDeliveryStep("onitsway");
+      setPickupKey((k) => k + 1);
+    } catch (err: any) {
+      console.warn("[Pickup] Failed:", err);
+      Alert.alert("Couldn't accept order", err?.message || "Please try again.");
     }
-    upsertOrder({ id: order_id, status: "picked_up", delivery_step: "onitsway", fullOrder: activeOrder });
-    setDeliveryStep("onitsway");
-    setPickupKey((k) => k + 1);
   };
 
   const handleStartDelivery = () => {
@@ -294,20 +301,29 @@ const HomeScreen = () => {
     setNavModeKey((k) => k + 1);
   };
 
-  const handleDeliveryComplete = async (order_code?: string) => {
-    if (!activeOrder) return;
+  const handleDeliveryComplete = async (order_code?: string): Promise<boolean> => {
+    if (!activeOrder) return false;
     const order_id    = Number(activeOrder.order_id);
     const cleanedCode = order_code?.trim();
-    if (Number.isNaN(order_id)) return;
+    if (Number.isNaN(order_id)) return false;
+
     try {
       await postDriverAction("deliver", order_id, cleanedCode);
+      // Only reached on success now — postDriverAction throws on failure.
       upsertOrder({ id: order_id, status: "delivered", delivery_step: "success", fullOrder: activeOrder });
       setDeliveryStep("success");
-    } catch (err) {
+      return true;
+    } catch (err: any) {
       console.warn("[Deliver] Failed:", err);
+      Alert.alert(
+        "Couldn't complete delivery",
+        err?.message || "The delivery code may be incorrect. Please check with the customer and try again."
+      );
+      // deliveryStep stays "delivering" — flow does not advance.
+      return false;
     }
   };
-
+  
   const handleDismissPickup = async () => {
     if (!activeOrder) { setDeliveryStep("idle"); setActiveOrder(null); setRouteSummary(null); return; }
     const order_id = Number(activeOrder.order_id);
@@ -381,6 +397,7 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* <NetworkBanner /> */}
       <StatusBar barStyle={colors.statusBarStyle} translucent backgroundColor="transparent" />
 
       <View style={StyleSheet.absoluteFill}>
@@ -432,7 +449,7 @@ const HomeScreen = () => {
           activeOpacity={0.8}
         >
           <IconSymbol
-            name="ClipboardListIcon"
+            name="ClipboardIcon"
             size={20}
             color={hasActiveHistoryOrder ? "#fff" : colors.iconColor}
           />

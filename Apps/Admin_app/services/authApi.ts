@@ -258,10 +258,10 @@ function mapUserProfile(raw: UserProfileWireResponse): AdminUser {
   };
 }
 
-export async function fetchCurrentUser(accessToken: string): Promise<AdminUser> {
-  const raw = await getJSON<UserProfileWireResponse>('/api/admin/me', accessToken);
-  return mapUserProfile(raw);
-}
+// export async function fetchCurrentUser(accessToken: string): Promise<AdminUser> {
+//   const raw = await getJSON<UserProfileWireResponse>('/api/admin/me', accessToken);
+//   return mapUserProfile(raw);
+// }
 
 export async function logout(accessToken: string): Promise<void> {
   // Best-effort — don't throw if the server-side logout fails;

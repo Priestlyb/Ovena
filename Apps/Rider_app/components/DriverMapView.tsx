@@ -134,6 +134,24 @@ const DriverMapView: React.FC<DriverMapViewProps> = ({
   const lastDestRef       = useRef<Coordinate | null>(null);
   const routePointsRef    = useRef<[number, number][] | null>(null); // full polyline [lng,lat][]
 
+  // ← ADD THIS BLOCK
+  const cameraStateRef = useRef<{
+    center: [number, number] | null;
+    zoom: number;
+    bearing: number;
+    pitch: number;
+  }>({ center: null, zoom: ZOOM_DEFAULT, bearing: 0, pitch: 0 });
+
+  const handleCameraChanged = useCallback((state: any) => {
+    const props = state?.properties;
+    if (!props) return;
+    if (props.center) cameraStateRef.current.center = props.center;
+    if (typeof props.zoom === "number")    cameraStateRef.current.zoom    = props.zoom;
+    if (typeof props.bearing === "number") cameraStateRef.current.bearing = props.bearing;
+    if (typeof props.pitch === "number")   cameraStateRef.current.pitch   = props.pitch;
+  }, []);
+  // ← END ADD
+
   // Frozen initial coordinate — set once when the first GPS fix arrives.
   // Passed to <Camera> as a STATIC prop so it never changes after mount.
   // This is critical: if we passed driverCoord (state) to centerCoordinate,
@@ -161,6 +179,7 @@ const DriverMapView: React.FC<DriverMapViewProps> = ({
         // Freeze the initial coordinate as a static prop for <Camera>.
         // We never update this again — all subsequent camera movement is
         // done imperatively via cameraRef.current.setCamera().
+        cameraStateRef.current.center = [coord.longitude, coord.latitude];
         setInitialCoord([coord.longitude, coord.latitude]);
       }
     })();
@@ -218,45 +237,34 @@ const DriverMapView: React.FC<DriverMapViewProps> = ({
   // We query the map's current center and zoom first so the camera call is
   // complete. Passing only bearing/pitch with no center is unreliable in
   // @rnmapbox/maps and can be silently dropped.
+  // ── NORTH TRIGGER — reset bearing to 0 only. Keeps position, zoom, and
+  // pitch untouched (compass button rotates north, nothing else). ─────────
   useEffect(() => {
     if (northTrigger <= 0) return;
+    const { center, pitch } = cameraStateRef.current;
 
-    (async () => {
-      try {
-        // getCenter() returns [lng, lat], getZoom() returns a number
-        const center = await mapRef.current?.getCenter();
-        const zoom   = await mapRef.current?.getZoom();
-
-        cameraRef.current?.setCamera({
-          centerCoordinate: center ?? initialCoord ?? undefined,
-          zoomLevel:         zoom   ?? ZOOM_DEFAULT,
-          bearing:           0,   // ← north up
-          pitch:             0,   // ← flat
-          animationDuration: 500,
-          animationMode:     "easeTo",
-        });
-      } catch {
-        // Fallback: at minimum reset bearing even if center query fails
-        cameraRef.current?.setCamera({
-          bearing:           0,
-          pitch:             0,
-          animationDuration: 500,
-          animationMode:     "easeTo",
-        });
-      }
-    })();
+    cameraRef.current?.setCamera({
+      centerCoordinate:  center ?? initialCoord ?? undefined,
+      
+      pitch,
+      animationDuration:  500,
+      animationMode:      "easeTo",
+    });
   }, [northTrigger]);
-
-  // ── RECENTER TRIGGER — fly to driver, north, flat ────────────────────────
+  
+  // ── RECENTER TRIGGER — fly to driver position only. Bearing/pitch stay
+  // exactly as the user last set them. ─────────────────────────────────────
   useEffect(() => {
     if (recenterTrigger <= 0) return;
     const c = driverCoordRef.current;
     if (!c) return;
+    const { bearing, pitch } = cameraStateRef.current;
+
     cameraRef.current?.setCamera({
       centerCoordinate:  [c.longitude, c.latitude],
       zoomLevel:          ZOOM_DEFAULT,
-      bearing:            0,
-      pitch:              0,
+      bearing,
+      pitch,
       animationDuration:  700,
       animationMode:      "flyTo",
     });
@@ -381,6 +389,7 @@ const DriverMapView: React.FC<DriverMapViewProps> = ({
     <View style={styles.root}>
       <MapView
         ref={mapRef}
+        onCameraChanged={handleCameraChanged}   // ← ADD THIS LINE
         style={StyleSheet.absoluteFill}
         styleURL={isDark ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
         minZoomLevel={8}

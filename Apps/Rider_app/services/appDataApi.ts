@@ -126,7 +126,7 @@ export interface WithdrawalsData {
 
 export interface WithdrawalEligibilityData {
   detail: string;
-  data: {
+  data: { 
     eligible: boolean;
     minimum_amount: string;
     max_amount: string;

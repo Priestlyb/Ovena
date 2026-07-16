@@ -31,6 +31,7 @@ type AccountNavProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface AccountScreenProps {
   onBack: () => void;
+  disconnectSockets?: () => void; // from HomeScreen's useDriverWebSocket instance
 }
 
 type SubScreen = "Documents" | "Payment" | "EditInfo" | "AppSettings" | null;
@@ -52,7 +53,8 @@ const STORAGE_KEYS_TO_CLEAR = [
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const AccountScreen: React.FC<AccountScreenProps> = ({ onBack }) => {
+const AccountScreen: React.FC<AccountScreenProps> = ({ onBack, disconnectSockets }) => {
+  
   const { colors }      = useTheme();
   const navigation      = useNavigation<AccountNavProp>();
   const { refresh }     = useAppData();
@@ -82,15 +84,16 @@ const AccountScreen: React.FC<AccountScreenProps> = ({ onBack }) => {
   const performSignOut = async () => {
     setSigningOut(true);
     try {
-      // 1. Wipe all stored tokens and cached app data
+      // 1. Kill both channels immediately — don't wait on unmount to do it
+      disconnectSockets?.();
+
+      // 2. Wipe stored tokens and cached app data
       await AsyncStorage.multiRemove(STORAGE_KEYS_TO_CLEAR);
 
-      // 2. Clear in-memory app data so no stale data leaks to a future session
-      //    refresh() will run but find no token and return early — effectively
-      //    clearing the context state to null
+      // 3. Clear in-memory app data
       await refresh();
 
-      // 3. Reset navigation stack to Login_SignUp — user cannot go back to HomeScreen
+      // 4. Reset navigation stack
       navigation.reset({ index: 0, routes: [{ name: "Login_SignUp" }] });
     } catch (err: any) {
       setSigningOut(false);

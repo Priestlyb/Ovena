@@ -17,6 +17,7 @@ import Fontisto from "@expo/vector-icons/Fontisto";
 
 /* ---------- IONICONS (General UI) ---------- */
 export const IONICONS = {
+  ClipboardIcon: "clipboard-outline",
   DocumentIcon: "document-text-outline",
   PaymentIcon: "card-outline",
   CameraIcon: "camera-outline",

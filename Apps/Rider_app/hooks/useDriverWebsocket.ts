@@ -49,6 +49,28 @@ function makeChannel(): ChannelState {
 // classification. Add new envelope types here as the backend evolves.
 const ENVELOPE_TYPES = new Set(["notification", "order_message"]);
 
+
+
+// ── Token validation (mirrors App.tsx's splash-screen check) ───────────────
+function isTokenValid(token: string): boolean {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(
+      decodeURIComponent(
+        atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      )
+    );
+    if (!payload.exp) return false;
+    return payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
 export function useDriverWebSocket({
   token, isOnline, onOrder, onInbox, onMyOrders, onStatus,
 }: UseDriverWebSocketOptions) {
@@ -195,12 +217,14 @@ export function useDriverWebSocket({
 
   // ── Connect / disconnect on token change ──────────────────────────────────
 
+
+
   useEffect(() => {
-    if (!token) {
-      disconnectChannel(ordersRef.current);
-      disconnectChannel(locationRef.current);
-      return;
-    }
+    if (!token || !isTokenValid(token)) {
+    disconnectChannel(ordersRef.current);
+    disconnectChannel(locationRef.current);
+    return;
+  }
 
     const encodedToken = encodeURIComponent(token);
     const ordersUrl    = `${WS_BASE}/ws/driver/orders/?token=${encodedToken}`;
@@ -373,15 +397,31 @@ export function useDriverWebSocket({
             console.warn(`[driverAction] ⚠️  Accept succeeded but no order_code in response:`, json);
           }
         }
-      } else {
-        console.warn(`[driverAction] ❌ "${action}" failed (${res.status}):`, JSON.stringify(json));
+
+        return json;
       }
 
-      return json;
+      // ── Non-2xx response: log AND throw so callers' try/catch actually fires.
+      // Previously this fell through to `return json` below, silently handing
+      // the caller a "success" even on a rejected/invalid delivery code.
+      console.warn(`[driverAction] ❌ "${action}" failed (${res.status}):`, JSON.stringify(json));
+      const errorMessage =
+        json?.error ?? json?.message ?? `${action} failed (status ${res.status})`;
+      throw new Error(errorMessage);
+
     } catch (err) {
-      console.warn(`[driverAction] 🔴 Network error on "${action}":`, err);
+      // Re-throw so the caller (HomeScreen) can catch it, show the driver
+      // an error, and avoid advancing the delivery flow. We still log here
+      // so network errors and HTTP errors both show up in the console.
+      console.warn(`[driverAction] 🔴 "${action}" error:`, err);
+      throw err;
     }
   }, []);
 
-  return { sendLocation, sendStatus, postDriverAction };
+  const disconnectAll = useCallback(() => {
+  disconnectChannel(ordersRef.current);
+  disconnectChannel(locationRef.current);
+}, [disconnectChannel]);
+
+  return { sendLocation, sendStatus, postDriverAction, disconnectAll };
 }

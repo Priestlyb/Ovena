@@ -16,7 +16,7 @@ export interface CustomerModalProps {
   visible:            boolean;
   onClose:            () => void;
   onTakePhoto:        () => void;
-  onCompleteDelivery: (orderCode: string) => void;
+  onCompleteDelivery: (orderCode: string) => Promise<boolean> | void;  // ← now can report success/fail
   photoTaken:         boolean;
   order:              MockOrder | null;
   routeSummary:       RouteSummary | null;
@@ -97,9 +97,19 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
         const { dragX, dragXValue, trackWidth, onComplete } = gesture.current;
         const maxDrag   = trackWidth - PILL_WIDTH;
         const threshold = maxDrag * THRESHOLD_RATIO;
+
         if (dragXValue >= threshold) {
-          Animated.timing(dragX, { toValue: maxDrag, duration: 120, useNativeDriver: false })
-            .start(() => onComplete(orderCodeRef.current));
+          Animated.timing(dragX, { toValue: maxDrag, duration: 120, useNativeDriver: false }).start(async () => {
+            const result = onComplete(orderCodeRef.current);
+            const success = result instanceof Promise ? await result : true;
+
+            // If the parent couldn't complete the delivery (e.g. invalid
+            // code), snap the pill back so the driver can try again instead
+            // of leaving it stranded at the end of the track.
+            if (!success) {
+              Animated.spring(dragX, { toValue: 0, friction: 7, tension: 80, useNativeDriver: false }).start();
+            }
+          });
         } else {
           Animated.spring(dragX, { toValue: 0, friction: 7, tension: 80, useNativeDriver: false }).start();
         }
