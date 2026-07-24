@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, View } from "react-native";
 
+import * as ImagePicker from "expo-image-picker";
+
 import BusinessDetailsPage from "./screens/businessDetails";
 import EmailVerificationPage from "./screens/emailVerification";
 import LocationPage from "./screens/locationPage";
@@ -11,8 +13,6 @@ import { useAuth } from "@/app/_layout";
 import { BUSINESS_TYPES, COUNTRIES } from "@/constants/onboardingOptions";
 import api from "@/services/apiClient";
 import { getAccessToken } from "@/utils/authStorage";
-
-import SuccessModal from "@/components/SuccessModal";
 
 /* ========================================================= */
 export enum FormStep {
@@ -36,6 +36,12 @@ export interface FormData {
 }
 
 /* ========================================================= */
+type ImageType = {
+  uri: string;
+  uploadedUrl?: string;
+};
+
+/* ========================================================= */
 export default function SuperForm() {
   const {} = useAuth();
 
@@ -50,13 +56,15 @@ export default function SuperForm() {
     confirmPassword: "",
   });
 
+  const [productImage, setProductImage] = useState<ImageType | null>(null);
+  const [businessLogo, setBusinessLogo] = useState<ImageType | null>(null);
+
   const [currentStep, setCurrentStep] = useState<FormStep>(FormStep.Location);
   const [initializing, setInitializing] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const [showSuccess, setShowSuccess] = useState(false);
+  /* ================= FORM HELPERS ================= */
 
-  /* ========================================================= */
   const updateField = <K extends keyof FormData>(
     field: K,
     value: FormData[K],
@@ -71,17 +79,45 @@ export default function SuperForm() {
     goToStep((currentStep + 1) as FormStep);
   };
 
-  /* ========================================================= */
+  /* ================= IMAGE PICKER (FIXED) ================= */
+
+  const pickImage = async (setter: (img: ImageType | null) => void) => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert("Permission required", "Allow access to photos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+
+    setter({
+      uri: asset.uri,
+    });
+  };
+
+  const handleImageUpload = () => pickImage(setProductImage);
+  const handleLogoUpload = () => pickImage(setBusinessLogo);
+
+  /* ================= PHONE FORMAT ================= */
+
   const formatPhone = (phone: string) => {
     let cleaned = phone.trim();
-
     if (cleaned.startsWith("0")) return "+234" + cleaned.slice(1);
     if (!cleaned.startsWith("+234")) return "+234" + cleaned;
-
     return cleaned;
   };
 
-  /* ========================================================= */
+  /* ================= VALIDATION ================= */
+
   const validateForm = () => {
     if (!formData.businessName) return "Business name is required";
     if (!formData.businessType) return "Business type is required";
@@ -91,6 +127,9 @@ export default function SuperForm() {
     if (!formData.phoneNumber) return "Phone number is required";
     if (!formData.password) return "Password is required";
 
+    if (!productImage) return "Business image is required";
+    if (!businessLogo) return "Business logo is required";
+
     if (!formData.email.includes("@")) return "Invalid email format";
 
     if (formData.password !== formData.confirmPassword)
@@ -99,27 +138,8 @@ export default function SuperForm() {
     return null;
   };
 
-  /* ========================================================= */
-  const cleanPayload = (payload: any) => {
-    const cleaned: any = {};
+  /* ================= SUBMIT ================= */
 
-    Object.keys(payload).forEach((key) => {
-      const value = payload[key];
-      if (value !== undefined && value !== null && value !== "") {
-        cleaned[key] = value;
-      }
-    });
-
-    return cleaned;
-  };
-
-  /* ========================================================= */
-  const handleSuccessClose = () => {
-    setShowSuccess(false);
-    goToStep(FormStep.Checklist);
-  };
-
-  /* ========================================================= */
   const submitOnboarding = async () => {
     const errorMsg = validateForm();
     if (errorMsg) {
@@ -130,106 +150,79 @@ export default function SuperForm() {
     setSubmitting(true);
 
     try {
-      const rawPayload = {
-        business_name: formData.businessName,
-        business_type: formData.businessType,
-        country: formData.selectedCountry,
-        business_address: formData.businessAddress,
-        email: formData.email,
-        phone_number: formatPhone(formData.phoneNumber),
-        password: formData.password,
-      };
-
-      const payload = cleanPayload(rawPayload);
-
-      console.log("ONBOARD PAYLOAD:", JSON.stringify(payload, null, 2));
-
       const token = await getAccessToken();
-
       if (!token) {
         Alert.alert("Error", "You are not logged in.");
         return;
       }
 
+      const payload = new FormData();
+
+      payload.append("business_name", formData.businessName);
+      payload.append("business_type", formData.businessType);
+      payload.append("country", formData.selectedCountry);
+      payload.append("business_address", formData.businessAddress);
+      payload.append("email", formData.email);
+      payload.append("phone_number", formatPhone(formData.phoneNumber));
+      payload.append("password", formData.password);
+
+      if (productImage?.uri) {
+        payload.append("business_image", {
+          uri: productImage.uri,
+          name: `business_${Date.now()}.jpg`,
+          type: "image/jpeg",
+        } as any);
+      }
+
+      if (businessLogo?.uri) {
+        payload.append("business_logo", {
+          uri: businessLogo.uri,
+          name: `logo_${Date.now()}.jpg`,
+          type: "image/jpeg",
+        } as any);
+      }
+
+      console.log("========== IMAGES ==========");
+      console.log("Product:", productImage?.uri);
+      console.log("Logo:", businessLogo?.uri);
+      console.log("============================");
+
       const response = await api.post("/accounts/onboard/phase1/", payload, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          "Content-Type": "multipart/form-data",
         },
       });
 
-      console.log("ONBOARD SUCCESS:", response.data);
-
-      setShowSuccess(true);
+      goToStep(FormStep.Checklist);
     } catch (err: any) {
-      console.log("FULL ERROR:", err);
-      console.log("STATUS:", err?.response?.status);
-      console.log("BACKEND ERROR:", err?.response?.data);
-
-      let message = "Something went wrong";
-
-      if (err?.response?.data) {
-        const data = err.response.data;
-
-        // handle DRF / Laravel / Node formats
-        if (typeof data === "string") {
-          message = data;
-        } else if (data.message) {
-          message = data.message;
-        } else {
-          // extract first error
-          const firstKey = Object.keys(data)[0];
-          if (firstKey) {
-            message = Array.isArray(data[firstKey])
-              ? data[firstKey][0]
-              : data[firstKey];
-          }
-        }
-      }
-
-      Alert.alert("Onboarding Failed", message);
+      console.log("ERROR:", err);
+      Alert.alert(
+        "Onboarding Failed",
+        err?.response?.data?.message || "Something went wrong",
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  /* ========================================================= */
+  /* ================= INIT ================= */
+
   useEffect(() => {
-    let isMounted = true;
-
-    const initStep = async () => {
-      try {
-        goToStep(FormStep.Location);
-      } catch (err) {
-        console.error("INIT ERROR:", err);
-      } finally {
-        if (isMounted) setInitializing(false);
-      }
-    };
-
-    initStep();
-
-    return () => {
-      isMounted = false;
-    };
+    setCurrentStep(FormStep.Location);
+    setInitializing(false);
   }, []);
 
-  /* ========================================================= */
   if (initializing || submitting) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
       </View>
     );
   }
 
-  /* ========================================================= */
+  /* ================= UI ================= */
+
   return (
     <>
       {(() => {
@@ -265,6 +258,16 @@ export default function SuperForm() {
                 onChangePhone={(v) => updateField("phoneNumber", v)}
                 onNext={() => handleNext()}
                 onBack={() => goToStep(FormStep.Location)}
+                productImage={productImage}
+                businessLogo={businessLogo}
+                uploadProgress={0}
+                uploadLogoProgress={0}
+                isUploading={false}
+                isUploadingLogo={false}
+                handleImageUpload={handleImageUpload}
+                handleLogoUpload={handleLogoUpload}
+                removeImage={() => setProductImage(null)}
+                removeLogo={() => setBusinessLogo(null)}
               />
             );
 
@@ -272,6 +275,7 @@ export default function SuperForm() {
             return (
               <PasswordPage
                 data={{
+                  email: formData.email,
                   password: formData.password,
                   confirmPassword: formData.confirmPassword,
                 }}
@@ -294,30 +298,12 @@ export default function SuperForm() {
             );
 
           case FormStep.Checklist:
-            return (
-              <ChecklistPage
-                completionStatus={{
-                  verifyBusiness: false,
-                  completeProfile: false,
-                  setupPayments: false,
-                  setupOperations: false,
-                  addMenuItems: false,
-                }}
-                onBack={() => goToStep(FormStep.EmailVerification)}
-                onSubmit={() => console.log("Checklist completed")}
-              />
-            );
+            return <ChecklistPage />;
 
           default:
             return null;
         }
       })()}
-
-      <SuccessModal
-        visible={showSuccess}
-        message="Account created successfully"
-        onClose={handleSuccessClose}
-      />
     </>
   );
 }

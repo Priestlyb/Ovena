@@ -1,3 +1,4 @@
+import { useDashboardStore } from "@/stores/dashboardStore";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -12,8 +13,12 @@ import api from "@/services/apiClient";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 32;
 
-// ✅ Helper
-const buildDateRange = (key: string) => {
+type PeriodKey = "today" | "7d" | "30d" | "12m";
+
+// =========================
+// Helper
+// =========================
+const buildDateRange = (key: PeriodKey) => {
     const today = new Date();
     const start = new Date();
 
@@ -35,25 +40,32 @@ export const useDashboardScreen = () => {
     const topRef = useRef<ScrollView>(null);
     const bottomRef = useRef<ScrollView>(null);
 
-    const [isOpen, setIsOpen] = useState(false);
-    const [updatingStatus, setUpdatingStatus] = useState(false);
     const [showSales, setShowSales] = useState(true);
-    const [selectedPeriod, setSelectedPeriod] = useState("7d");
+
+    const [selectedPeriod, setSelectedPeriod] =
+        useState<PeriodKey>("7d");
 
     const [topCardIndex, setTopCardIndex] = useState(0);
     const [bottomCardIndex, setBottomCardIndex] = useState(0);
 
-    const [dashboardData, setDashboardData] = useState<any>(null);
-    const [loadingDashboard, setLoadingDashboard] = useState(true);
+    const [loadingDashboard, setLoadingDashboard] =
+        useState(true);
 
-    const [analysisData, setAnalysisData] = useState<any>(null);
-    const [loadingAnalysis, setLoadingAnalysis] = useState(true);
+    const [loadingAnalysis, setLoadingAnalysis] =
+        useState(true);
 
-    const [trendData, setTrendData] = useState<any[]>([]);
-    const hasSetTrend = useRef(false);
+    const {
+        getDashboardData,
+        setDashboardData,
+        setAnalysisData,
+        isCacheExpired,
+    } = useDashboardStore();
 
-    const isFirstDashboardLoad = useRef(true);
-    const isFirstAnalysisLoad = useRef(true);
+    const cached = getDashboardData(selectedPeriod);
+
+    const dashboardData = cached.dashboardData;
+    const analysisData = cached.analysisData;
+    const trendData = cached.trendData;
 
     const periods = [
         { key: "today", label: "Today" },
@@ -62,111 +74,128 @@ export const useDashboardScreen = () => {
         { key: "12m", label: "12 Months" },
     ];
 
-
-    const handleToggleOpen = async (value: boolean) => {
-        if (updatingStatus) return;
-
-        try {
-            setUpdatingStatus(true);
-
-            await api.post("/business/branches/close/all/", {
-                is_closed: !value,
-            });
-
-            setIsOpen(value);
-        } catch (error) {
-            console.log("❌ Failed to update branch status:", error);
-        } finally {
-            setUpdatingStatus(false);
+    const getParams = () => {
+        if (selectedPeriod === "today") {
+            return { range: "today" };
         }
+
+        return {
+            range: "custom",
+            ...buildDateRange(selectedPeriod),
+        };
     };
 
-    // =========================
-    // DASHBOARD FETCH
-    // =========================
     useEffect(() => {
         const fetchDashboardData = async () => {
-            // only show skeleton on first load
-            if (isFirstDashboardLoad.current) {
+            const expired = isCacheExpired(selectedPeriod);
+
+            // Show cached data immediately
+            if (dashboardData) {
+                setLoadingDashboard(false);
+
+                // Cache still valid
+                if (!expired) {
+                    return;
+                }
+
+                // Otherwise continue to refresh silently
+            } else {
                 setLoadingDashboard(true);
             }
 
             try {
-                let params: Record<string, any> = {};
+                const response = await api.get(
+                    "/business/dashboard/",
+                    {
+                        params: getParams(),
+                    }
+                );
 
-                if (selectedPeriod === "today") {
-                    params.range = "today";
-                } else {
-                    const range = buildDateRange(selectedPeriod);
-                    params = { range: "custom", ...range };
-                }
-
-                const response = await api.get("/business/dashboard/", { params });
-                setDashboardData(response.data.data);
+                setDashboardData(
+                    selectedPeriod,
+                    response.data.data
+                );
             } catch (error) {
-                console.log("❌ Failed to fetch dashboard:", error);
+                console.log(
+                    "❌ Failed to fetch dashboard:",
+                    error
+                );
             } finally {
-                if (isFirstDashboardLoad.current) {
-                    setLoadingDashboard(false);
-                    isFirstDashboardLoad.current = false;
-                }
+                setLoadingDashboard(false);
             }
         };
 
-        fetchDashboardData();
-    }, [selectedPeriod]);
-
-    // =========================
-    // ANALYSIS FETCH
-    // =========================
-    useEffect(() => {
         const fetchAnalysis = async () => {
-            if (isFirstAnalysisLoad.current) {
+            const expired = isCacheExpired(selectedPeriod);
+
+            // Show cached data immediately
+            if (analysisData) {
+                setLoadingAnalysis(false);
+
+                if (!expired) {
+                    return;
+                }
+            } else {
                 setLoadingAnalysis(true);
             }
 
             try {
-                let params: Record<string, any> = {};
+                const response = await api.get(
+                    "/business/analysis/store/",
+                    {
+                        params: getParams(),
+                    }
+                );
 
-                if (selectedPeriod === "today") {
-                    params.range = "today";
-                } else {
-                    const range = buildDateRange(selectedPeriod);
-                    params = { range: "custom", ...range };
-                }
-
-                const response = await api.get("/business/analysis/store/", { params });
                 const data = response.data.data;
 
-                setAnalysisData(data);
-
-                if (!hasSetTrend.current) {
-                    setTrendData(data.trend_revenue || []);
-                    hasSetTrend.current = true;
-                }
+                setAnalysisData(
+                    selectedPeriod,
+                    data,
+                    data.trend_revenue ?? []
+                );
             } catch (error) {
-                console.log("❌ Failed to fetch analysis:", error);
+                console.log(
+                    "❌ Failed to fetch analysis:",
+                    error
+                );
             } finally {
-                if (isFirstAnalysisLoad.current) {
-                    setLoadingAnalysis(false);
-                    isFirstAnalysisLoad.current = false;
-                }
+                setLoadingAnalysis(false);
             }
         };
 
+        fetchDashboardData();
         fetchAnalysis();
-    }, [selectedPeriod]);
+    }, [
+        selectedPeriod,
+        dashboardData,
+        analysisData,
+        isCacheExpired,
+        setDashboardData,
+        setAnalysisData,
+    ]);
 
     // =========================
-    // SCROLL HANDLERS
+    // Scroll Handlers
     // =========================
-    const handleTopScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const index = Math.round(e.nativeEvent.contentOffset.x / CARD_WIDTH);
+
+    const handleTopScroll = (
+        e: NativeSyntheticEvent<NativeScrollEvent>
+    ) => {
+        const index = Math.round(
+            e.nativeEvent.contentOffset.x / CARD_WIDTH
+        );
+
         setTopCardIndex(index);
     };
 
-    const handleBottomScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const index = Math.round(e.nativeEvent.contentOffset.x / CARD_WIDTH);
+    const handleBottomScroll = (
+        e: NativeSyntheticEvent<NativeScrollEvent>
+    ) => {
+        const index = Math.round(
+            e.nativeEvent.contentOffset.x / CARD_WIDTH
+        );
+
         setBottomCardIndex(index);
     };
 
@@ -175,14 +204,12 @@ export const useDashboardScreen = () => {
             x: index * CARD_WIDTH,
             animated: true,
         });
+
         setBottomCardIndex(index);
     };
 
     return {
         router,
-
-        isOpen,
-        setIsOpen: handleToggleOpen,
 
         showSales,
         setShowSales,
@@ -196,6 +223,7 @@ export const useDashboardScreen = () => {
 
         analysis: analysisData,
         loadingAnalysis,
+
         trendData,
 
         top: {

@@ -37,7 +37,7 @@ export default function ConfirmModal({
   onCancel,
 }: Props) {
   const colorMap = {
-    danger: "#F84E10",
+    danger: "#ef0e0e",
     warning: "#f59e0b",
     info: "#3b82f6",
   };

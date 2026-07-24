@@ -1,12 +1,6 @@
-import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { Text, View } from "react-native";
 
-export const DashboardHeader = ({
-  username,
-  isOpen,
-  setIsOpen,
-  styles,
-}: any) => {
+export const DashboardHeader = ({ username, styles }: any) => {
   return (
     <View style={styles.header}>
       <View>
@@ -15,7 +9,6 @@ export const DashboardHeader = ({
           Welcome back, {username || "User"}!
         </Text>
       </View>
-      <ToggleSwitch value={isOpen} onChange={setIsOpen} />
     </View>
   );
 };

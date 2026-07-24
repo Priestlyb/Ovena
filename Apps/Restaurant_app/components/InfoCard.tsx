@@ -1,30 +1,37 @@
-// components/InfoCard.tsx - Information card with title and content
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+// components/InfoCard.tsx
 
-// Atomic Components
-import { Text } from '@/components/atoms/Text';
-import { Spacer } from '@/components/atoms/Spacer';
-import { Divider } from '@/components/atoms/Divider';
+import React from "react";
+import { StyleSheet, View } from "react-native";
+
+import { Spacer } from "@/components/atoms/Spacer";
+import { Text } from "@/components/atoms/Text";
 
 interface InfoCardProps {
   title: string;
   children: React.ReactNode;
   showShadow?: boolean;
+  icon?: React.ReactNode;
 }
 
 export const InfoCard: React.FC<InfoCardProps> = ({
   title,
   children,
   showShadow = true,
+  icon,
 }) => {
   return (
     <View style={[styles.container, showShadow && styles.shadow]}>
-      <Text variant="h4" weight="bold">{title}</Text>
-      <Spacer size="md" />
-      <View style={styles.content}>
-        {children}
+      <View style={styles.header}>
+        {icon && <View style={styles.iconContainer}>{icon}</View>}
+
+        <Text variant="h4" weight="bold">
+          {title}
+        </Text>
       </View>
+
+      <Spacer size="md" />
+
+      <View style={styles.content}>{children}</View>
     </View>
   );
 };
@@ -35,12 +42,22 @@ interface InfoRowProps {
   bold?: boolean;
 }
 
-export const InfoRow: React.FC<InfoRowProps> = ({ label, value, bold = false }) => {
+export const InfoRow: React.FC<InfoRowProps> = ({
+  label,
+  value,
+  bold = false,
+}) => {
   return (
     <View style={styles.row}>
-      <Text variant="body" color="secondary">{label}</Text>
-      <Spacer size="xs" />
-      <Text variant="body" weight={bold ? 'bold' : 'regular'}>
+      <Text variant="body" color="secondary" style={styles.label}>
+        {label}
+      </Text>
+
+      <Text
+        variant="body"
+        weight={bold ? "bold" : "regular"}
+        style={styles.value}
+      >
         {value}
       </Text>
     </View>
@@ -49,24 +66,56 @@ export const InfoRow: React.FC<InfoRowProps> = ({ label, value, bold = false }) 
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    marginBottom: 25,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     padding: 20,
+
+    borderWidth: 1,
+    borderColor: "#F2F2F2",
   },
+
   shadow: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+
+    elevation: 6,
   },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  iconContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
   content: {
-    gap: 12,
+    gap: 14,
   },
+
   row: {
-    gap: 4,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+
+    minHeight: 24,
+  },
+
+  label: {
+    flex: 1,
+  },
+
+  value: {
+    flex: 1,
+    textAlign: "right",
   },
 });

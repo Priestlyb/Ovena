@@ -1,21 +1,23 @@
-// addMenuItems
+// app/addMenuItems/index.tsx
 
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    Text,
-    TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  View,
 } from "react-native";
 
 import { styles } from "@/constants/styles";
-import api from "@/services/apiClient";
 
+/* =========================================
+   COMPONENTS
+========================================= */
 import { AddonSection } from "@/components/AddonSection";
 import { BaseItemSection } from "@/components/BaseItemSection";
 import { CategorySection } from "@/components/CategorySection";
@@ -23,20 +25,38 @@ import { CustomSwitch } from "@/components/CustomSwitch";
 import FeedbackModal from "@/components/FeedbackModal";
 import { ImageSection } from "@/components/ImageSection";
 import { ProductInfoSection } from "@/components/ProductInfoSection";
+import { SubmitButton } from "@/components/SubmitButton";
 import { VariantSection } from "@/components/VariantSection";
+import { Header } from "@/components/molecules/Header";
 
-// HOOKS
+/* =========================================
+   HOOKS
+========================================= */
+import { useAddMenuSubmit } from "@/hooks/useAddMenuSubmit";
 import { useAddons } from "@/hooks/useAddons";
 import { useCategories } from "@/hooks/useCategories";
-import { useImageUpload } from "@/hooks/useImageUpload";
+import { useFeedback } from "@/hooks/useFeedback";
+import { useImageUploader } from "@/hooks/useImageUploader";
 import { useVariants } from "@/hooks/useVariants";
+
+/* =========================================
+   UTILS
+========================================= */
+import { formatPrice, unformatPrice } from "@/utils/formatPrice";
+import { cleanText } from "@/utils/text";
+
+/* =========================================
+   TYPES
+========================================= */
+type ProductImageState = {
+  uri: string;
+  uploadedUrl?: string;
+} | null;
 
 export default function MenuItemsPage() {
   const router = useRouter();
 
-  /* =========================================================
-     HOOKS
-  ========================================================= */
+  /* ================= CATEGORY ================= */
   const {
     categories,
     category,
@@ -49,21 +69,74 @@ export default function MenuItemsPage() {
     handleAddCategory,
   } = useCategories();
 
-  const { productImage, uploadProgress, handleImageUpload, removeImage } =
-    useImageUpload();
-
+  /* ================= VARIANTS ================= */
   const { variantGroups, setVariantGroups, addVariantGroup, addVariantOption } =
     useVariants();
 
+  /* ================= ADDONS ================= */
   const { addonGroups, setAddonGroups, addAddonGroup, addAddon } = useAddons();
 
-  /* =========================================================
-     LOCAL STATE
-  ========================================================= */
-  const [isActive, setIsActive] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  /* ================= FEEDBACK ================= */
+  const { feedback, setFeedback, showFeedback } = useFeedback();
 
+  /* ================= IMAGE ================= */
+  const { uploadImage } = useImageUploader(showFeedback);
+
+  const [productImage, setProductImage] = useState<ProductImageState>(null);
+
+  const [uploadProgress] = useState(0);
+  const [isUploading] = useState(false);
+
+  /* =========================================
+     IMAGE UPLOAD (FIXED)
+  ========================================= */
+  const handleImageUpload = async () => {
+    const url = await uploadImage();
+
+    if (!url) return;
+
+    setProductImage({
+      uri: url, // preview now uses uploaded URL
+      uploadedUrl: url,
+    });
+  };
+
+  const removeImage = () => setProductImage(null);
+
+  /* ================= ADDON IMAGE PICKER ================= */
+  const handlePickAddonImage = async (
+    groupIndex: number,
+    addonIndex: number,
+  ) => {
+    const url = await uploadImage();
+    if (!url) return;
+
+    setAddonGroups((prev) =>
+      prev.map((group, gIdx) => {
+        if (gIdx !== groupIndex) return group;
+
+        return {
+          ...group,
+          addons: group.addons.map((addon, aIdx) => {
+            if (aIdx !== addonIndex) return addon;
+
+            return {
+              ...addon,
+              image: {
+                uri: url,
+                uploadedUrl: url,
+              },
+            };
+          }),
+        };
+      }),
+    );
+  };
+
+  /* ================= LOCAL STATE ================= */
+  const [isActive, setIsActive] = useState(true);
   const [useMergeBase, setUseMergeBase] = useState(true);
+
   const [manualBaseName, setManualBaseName] = useState("");
   const [manualBaseDescription, setManualBaseDescription] = useState("");
   const [manualBasePrice, setManualBasePrice] = useState("");
@@ -72,210 +145,79 @@ export default function MenuItemsPage() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
 
-  const [feedback, setFeedback] = useState({
-    visible: false,
-    message: "",
-    variant: "error" as "success" | "error" | "warning" | "info",
+  /* ================= CLEAN VARIANTS ================= */
+  const cleanVariants = useMemo(() => {
+    return variantGroups
+      .filter((g) => g.name && g.options.length)
+      .map((g) => ({
+        name: cleanText(g.name),
+        is_required: !!g.is_required,
+        options: g.options.map((o) => ({
+          name: cleanText(o.name),
+          price_diff: unformatPrice(o.price_diff),
+        })),
+      }));
+  }, [variantGroups]);
+
+  /* ================= CLEAN ADDONS ================= */
+  const cleanAddons = useMemo(() => {
+    return addonGroups
+      .filter((g) => g.name && g.addons.length)
+      .map((g) => ({
+        name: cleanText(g.name),
+
+        is_required: !!g.is_required,
+
+        max_selection: Number(g.max_selection || 0),
+
+        addons: g.addons.map((a) => {
+          const priceVal = unformatPrice(a.price);
+
+          return {
+            name: cleanText(a.name),
+
+            description: cleanText(a.description || ""),
+
+            price: priceVal,
+
+            image: a.image,
+
+            base_item: {
+              name: cleanText(a.name),
+
+              description: cleanText(a.description || ""),
+
+              price: priceVal,
+
+              image: a.image,
+            },
+          };
+        }),
+      }));
+  }, [addonGroups]);
+
+  /* ================= SUBMIT ================= */
+  const { handleSubmit, isSubmitting } = useAddMenuSubmit({
+    category,
+    showAddCategory,
+    newCategory,
+    name,
+    description,
+    price,
+    isActive,
+    useMergeBase,
+    manualBaseName,
+    manualBaseDescription,
+    manualBasePrice,
+    productImage,
+    cleanVariants: cleanVariants as any,
+    cleanAddons: cleanAddons as any,
+    showFeedback,
+    fetchCategories,
+    onSuccess: () => router.push("/(tabs)/products/food"),
   });
 
-  const showError = (message: string) => {
-    setFeedback({
-      visible: true,
-      message,
-      variant: "error",
-    });
-  };
-
-  /* =========================================================
-     HELPERS
-  ========================================================= */
-  const cleanText = (text: string) => text.trim();
-
-  const formatPrice = (value: string) => {
-    const num = value.replace(/,/g, "");
-    if (!num) return "";
-    return Number(num).toLocaleString("en-NG");
-  };
-
-  const parsePrice = (value: string) => {
-    return Number(value.replace(/,/g, "")) || 0;
-  };
-
-  /* =========================================================
-     VALIDATION
-  ========================================================= */
-  const validateForm = () => {
-    // Category
-    if (!category) {
-      return "Please select or add a category";
-    }
-
-    if (showAddCategory && newCategory.trim()) {
-      return "You added a category but didn’t save it";
-    }
-
-    // Product Info
-    if (!name.trim()) {
-      return "Product name is required";
-    }
-
-    if (!price.trim()) {
-      return "Product price is required";
-    }
-
-    if (parsePrice(price) <= 0) {
-      return "Price must be greater than 0";
-    }
-
-    // Base Item
-    if (!useMergeBase) {
-      if (!manualBaseName.trim()) {
-        return "Base item name is required";
-      }
-
-      if (!manualBasePrice.trim()) {
-        return "Base item price is required";
-      }
-    }
-
-    // Variants
-    for (const group of variantGroups) {
-      if (!group.name.trim()) {
-        return "Variant group name is required";
-      }
-
-      for (const option of group.options) {
-        if (!option.name.trim()) {
-          return "Variant option name is required";
-        }
-      }
-    }
-
-    // Addons
-    for (const group of addonGroups) {
-      if (!group.name.trim()) {
-        return "Addon group name is required";
-      }
-
-      for (const addon of group.addons) {
-        if (!addon.name.trim()) {
-          return "Addon name is required";
-        }
-      }
-    }
-
-    return null;
-  };
-
-  /* =========================================================
-     CLEAN DATA
-  ========================================================= */
-  const cleanVariants = variantGroups
-    .filter((g) => g.name && g.options.length)
-    .map((g) => ({
-      name: cleanText(g.name),
-      is_required: g.is_required || true,
-      options: g.options.map((o) => ({
-        name: cleanText(o.name),
-        price_diff: parsePrice(o.price_diff),
-      })),
-    }));
-
-  const cleanAddons = addonGroups
-    .filter((g) => g.name && g.addons.length)
-    .map((g) => ({
-      name: cleanText(g.name),
-      is_required: g.is_required || true,
-      max_selection: Number(g.max_selection || 0),
-      addons: g.addons.map((a) => {
-        const price = parsePrice(a.price);
-        return {
-          price,
-          base_item: {
-            name: cleanText(a.name),
-            price,
-          },
-        };
-      }),
-    }));
-
-  /* =========================================================
-     SUBMIT
-  ========================================================= */
-  const handleSubmit = async () => {
-    const error = validateForm();
-
-    if (error) {
-      return showError(error);
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const cleanedName = cleanText(name);
-      const cleanedDescription = cleanText(description);
-      const parsedPrice = parsePrice(price);
-
-      const baseItemPayload = useMergeBase
-        ? {
-            name: cleanedName,
-            description: cleanedDescription,
-            price: parsedPrice,
-          }
-        : {
-            name: cleanText(manualBaseName),
-            description: cleanText(manualBaseDescription),
-            price: parsePrice(manualBasePrice),
-          };
-
-      const payload = {
-        menus: [
-          {
-            name: "Main Menu",
-            is_active: isActive,
-            categories: [
-              {
-                name: cleanText(category),
-                items: [
-                  {
-                    custom_name: cleanedName,
-                    description: cleanedDescription,
-                    price: parsedPrice,
-                    base_item: baseItemPayload,
-                    variant_groups: cleanVariants,
-                    addon_groups: cleanAddons,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      };
-
-      await api.post("/accounts/onboard/phase3/", payload);
-
-      setFeedback({
-        visible: true,
-        message: "Menu item added successfully",
-        variant: "success",
-      });
-
-      fetchCategories();
-      router.push("/(tabs)/products/food");
-    } catch (error: any) {
-      showError(
-        error?.response?.data
-          ? JSON.stringify(error.response.data)
-          : "Something went wrong",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  /* =========================================================
-     UI
-  ========================================================= */
+  /* ================= UI ================= */
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -283,11 +225,12 @@ export default function MenuItemsPage() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView style={styles.container}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <ArrowLeft size={24} />
-          </TouchableOpacity>
+          <Header
+            title="Set up your Menu"
+            leftIcon={<ArrowLeft size={24} />}
+            onLeftIconPress={() => router.back()}
+          />
 
-          <Text style={styles.pageTitle}>Set up your Menu</Text>
           <Text style={[styles.sectionTitle, { marginBottom: 20 }]}>
             Basic Info
           </Text>
@@ -336,37 +279,29 @@ export default function MenuItemsPage() {
             uploadProgress={uploadProgress}
             handleImageUpload={handleImageUpload}
             removeImage={removeImage}
+            isUploading={isUploading}
           />
 
           <VariantSection
             variantGroups={variantGroups}
-            setVariantGroups={setVariantGroups}
+            setVariantGroups={setVariantGroups as any}
             addVariantGroup={addVariantGroup}
             addVariantOption={addVariantOption}
             formatPrice={formatPrice}
           />
 
           <AddonSection
-            addonGroups={addonGroups}
-            setAddonGroups={setAddonGroups}
+            addonGroups={addonGroups as any}
+            setAddonGroups={setAddonGroups as any}
             addAddonGroup={addAddonGroup}
             addAddon={addAddon}
             formatPrice={formatPrice}
+            onPickAddonImage={handlePickAddonImage}
           />
 
-          <TouchableOpacity
-            style={[styles.continueBtn, isSubmitting && { opacity: 0.6 }]}
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-          >
-            <Text style={styles.continueBtnText}>
-              {isSubmitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.continueBtnText}>Submit</Text>
-              )}
-            </Text>
-          </TouchableOpacity>
+          <SubmitButton loading={isSubmitting} onPress={handleSubmit} />
+
+          <View style={{ height: 50 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 

@@ -1,14 +1,12 @@
 // dashboardTab.tsx
+
 import { useRouter } from "expo-router";
 import { Eye, MessageCircle } from "lucide-react-native";
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import {
-  Dimensions,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -19,157 +17,70 @@ import { FloatingChatButton } from "@/components/FloatingChatButton";
 import { StatsCard } from "@/components/StatsCard";
 import { ToggleSwitch } from "@/components/ToggleSwitch";
 
-import api from "@/services/apiClient";
+import { CARD_WIDTH, styles } from "@/constants/staffDashboardTab.styles";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_WIDTH = SCREEN_WIDTH - 32;
+import useBranchStatus from "@/hooks/staff/useBranchStatus";
+import useDashboardCarousel from "@/hooks/staff/useDashboardCarousel";
+import useDashboardStaff from "@/hooks/staff/useDashboardStaff";
+
+const PERIODS = [
+  { label: "Today", value: "today" },
+  { label: "7 Days", value: "7d" },
+  { label: "30 Days", value: "30d" },
+  { label: "12 Months", value: "12m" },
+];
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView>(null);
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [branchDay, setBranchDay] = useState<number | null>(null);
-  const [updating, setUpdating] = useState(false);
+  const {
+    scrollViewRef,
+    showSales,
+    setShowSales,
+    currentCardIndex,
+    selectedPeriod,
+    setSelectedPeriod,
+    handleScroll,
+    scrollToCard,
+  } = useDashboardCarousel();
 
-  const [showSales, setShowSales] = useState(true);
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [selectedPeriod, setSelectedPeriod] = useState("Today");
+  // Refetches automatically whenever selectedPeriod changes
+  const { staff, loading, error } = useDashboardStaff(selectedPeriod);
 
-  const [feedback, setFeedback] = useState<{
-    visible: boolean;
-    variant: "success" | "error" | "warning" | "info";
-    message: string;
-  }>({
-    visible: false,
-    variant: "info",
-    message: "",
-  });
+  const { isOpen, updating, feedback, setFeedback, toggleBranch } =
+    useBranchStatus();
 
-  const getMockData = (period: string) => {
-    switch (period) {
-      case "Today":
-        return { revenue: 12000, orders: 8, shipments: 5 };
-      case "7 Days":
-        return { revenue: 45000, orders: 30, shipments: 18 };
-      case "30 Days":
-        return { revenue: 120000, orders: 75, shipments: 50 };
-      case "12 Months":
-        return { revenue: 850000, orders: 420, shipments: 310 };
-      default:
-        return { revenue: 0, orders: 0, shipments: 0 };
-    }
+  const dashboard = staff ?? {
+    username: "User",
+    today_sales: 0,
+    today_sales_count: 0,
+    total_orders: {
+      filter: "",
+      count: 0,
+      amount: 0,
+    },
+    total_shipment: {
+      filter: "",
+      count: 0,
+      amount: 0,
+    },
   };
 
-  const data = getMockData(selectedPeriod);
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color="#FF5920" />
+      </SafeAreaView>
+    );
+  }
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const scrollPosition = event.nativeEvent.contentOffset.x;
-    const index = Math.round(scrollPosition / CARD_WIDTH);
-    setCurrentCardIndex(index);
-  };
-
-  const scrollToCard = (index: number) => {
-    scrollViewRef.current?.scrollTo({
-      x: index * CARD_WIDTH,
-      animated: true,
-    });
-    setCurrentCardIndex(index);
-  };
-
-  const [userProfile, setUserProfile] = useState<{
-    name?: string;
-    phone_number?: string;
-  }>({});
-
-  const [loadingProfile, setLoadingProfile] = useState(false);
-
-  // Fetch profile
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        setLoadingProfile(true);
-
-        const response = await api.get("/accounts/profile/", {
-          params: { profile_type: "businessstaff" },
-        });
-
-        const data = response.data;
-
-        console.log("Profile datails", data);
-
-        setUserProfile({
-          name: data.user?.name,
-          phone_number: data.user?.phone_number,
-        });
-      } catch (error: any) {
-        console.error("Profile fetch error:", error);
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
-
-    fetchProfile();
-  }, []);
-
-  // Fetch branch status
-  useEffect(() => {
-    const fetchBranchStatus = async () => {
-      try {
-        const response = await api.get("/business/branches/close/");
-
-        console.log("Branch status response:", response.data);
-
-        const isClosed = response.data?.is_closed;
-        const day = response.data?.day;
-
-        setIsOpen(!isClosed);
-        setBranchDay(day);
-      } catch (error: any) {
-        console.error("Branch status fetch error:", error);
-      }
-    };
-
-    fetchBranchStatus();
-  }, []);
-
-  // Toggle handler with FeedbackModal
-  const handleToggle = async (value: boolean) => {
-    if (updating || branchDay === null) return;
-
-    setIsOpen(value);
-    setUpdating(true);
-
-    try {
-      const payload = {
-        day: branchDay,
-        is_closed: !value,
-        open_time: "20:41:32.036Z",
-        close_time: "20:41:32.036Z",
-      };
-
-      await api.patch("/business/branches/close/", payload);
-
-      setFeedback({
-        visible: true,
-        variant: "success",
-        message: value ? "Branch is now OPEN" : "Branch is now CLOSED",
-      });
-    } catch (error: any) {
-      console.error("Toggle update error:", error);
-
-      // rollback
-      setIsOpen(!value);
-
-      setFeedback({
-        visible: true,
-        variant: "error",
-        message: "Failed to update branch status. Try again.",
-      });
-    } finally {
-      setUpdating(false);
-    }
-  };
+  if (error) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <Text>{error}</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -182,16 +93,16 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Dashboard</Text>
+
             <Text style={styles.welcomeText}>
-              Welcome back,{" "}
-              {loadingProfile ? "..." : userProfile?.name || "User"}!
+              Welcome back, {dashboard.username}
             </Text>
           </View>
 
           <View style={styles.statusContainer}>
             <ToggleSwitch
               value={isOpen}
-              onChange={handleToggle}
+              onChange={toggleBranch}
               activeColor="#FF6B35"
               inactiveColor="#D1D5DB"
               disabled={updating}
@@ -202,11 +113,13 @@ export default function DashboardScreen() {
         {/* Today's Sales */}
         <StatsCard
           title="TODAY'S SALES"
-          value={showSales ? `₦${data.revenue.toLocaleString()}` : "₦••,•••"}
+          value={
+            showSales ? `₦${dashboard.today_sales.toLocaleString()}` : "₦••,•••"
+          }
           subtitle="SALES"
-          subtitleValue={data.orders}
+          subtitleValue={dashboard.today_sales_count}
           icon={
-            <TouchableOpacity onPress={() => setShowSales(!showSales)}>
+            <TouchableOpacity onPress={() => setShowSales((prev) => !prev)}>
               <Eye color="#666" size={20} />
             </TouchableOpacity>
           }
@@ -214,13 +127,14 @@ export default function DashboardScreen() {
 
         {/* Period Filters */}
         <View style={styles.periodsContainer}>
-          {["Today", "7 Days", "30 Days", "12 Months"].map((label) => {
-            const isActive = selectedPeriod === label;
+          {PERIODS.map((period) => {
+            const isActive = selectedPeriod === period.value;
+
             return (
               <TouchableOpacity
-                key={label}
+                key={period.value}
                 style={[styles.periodChip, isActive && styles.activePeriodChip]}
-                onPress={() => setSelectedPeriod(label)}
+                onPress={() => setSelectedPeriod(period.value)}
               >
                 <Text
                   style={[
@@ -228,14 +142,14 @@ export default function DashboardScreen() {
                     isActive && styles.activePeriodText,
                   ]}
                 >
-                  {label}
+                  {period.label}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Stats Cards */}
+        {/* Stats Carousel */}
         <ScrollView
           ref={scrollViewRef}
           horizontal
@@ -251,7 +165,7 @@ export default function DashboardScreen() {
           <View style={styles.cardWrapper}>
             <StatsCard
               title="TOTAL REVENUE"
-              value={`₦${data.revenue.toLocaleString()}`}
+              value={`₦${dashboard.total_orders.amount.toLocaleString()}`}
               subtitle="REVENUE"
             />
           </View>
@@ -259,7 +173,7 @@ export default function DashboardScreen() {
           <View style={styles.cardWrapper}>
             <StatsCard
               title="TOTAL ORDERS"
-              value={`${data.orders}`}
+              value={`${dashboard.total_orders.count}`}
               subtitle="ORDERS"
             />
           </View>
@@ -267,7 +181,7 @@ export default function DashboardScreen() {
           <View style={styles.cardWrapper}>
             <StatsCard
               title="TOTAL SHIPMENT"
-              value={`${data.shipments}`}
+              value={`${dashboard.total_shipment.count}`}
               subtitle="SHIPMENTS"
             />
           </View>
@@ -294,107 +208,18 @@ export default function DashboardScreen() {
         onPress={() => router.push("/screens/staffs/SupportPage")}
       />
 
-      {/* ✅ Feedback Modal */}
+      {/* Feedback Modal */}
       <FeedbackModal
         visible={feedback.visible}
         variant={feedback.variant}
         message={feedback.message}
-        onClose={() => setFeedback((prev) => ({ ...prev, visible: false }))}
+        onClose={() =>
+          setFeedback((prev) => ({
+            ...prev,
+            visible: false,
+          }))
+        }
       />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#FFF",
-    paddingTop: 50,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#FFF",
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#000",
-    marginBottom: 4,
-  },
-  welcomeText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  statusContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#000",
-  },
-  periodsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    gap: 8,
-  },
-  periodChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: "#F5F5F5",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  activePeriodChip: {
-    backgroundColor: "#FF6B35",
-    borderColor: "#FF6B35",
-  },
-  periodText: {
-    fontSize: 12,
-    color: "#666",
-    fontWeight: "500",
-  },
-  activePeriodText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  statsScrollContainer: {
-    paddingRight: 16,
-  },
-  cardWrapper: {
-    width: CARD_WIDTH,
-  },
-  paginationContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 24,
-  },
-  paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#DDD",
-  },
-  activeDot: {
-    width: 24,
-    backgroundColor: "#FF6B35",
-  },
-});

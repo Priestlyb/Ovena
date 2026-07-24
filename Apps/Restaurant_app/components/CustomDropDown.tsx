@@ -17,6 +17,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
   onChange,
   label,
   required = false,
+  disabled = false,
   renderOptionRight,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,8 +32,18 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
       )}
 
       <TouchableOpacity
-        style={styles.dropdown}
-        onPress={() => setIsOpen(!isOpen)}
+        style={[
+          styles.dropdown,
+          disabled && {
+            opacity: 0.5,
+          },
+        ]}
+        disabled={disabled}
+        onPress={() => {
+          if (!disabled) {
+            setIsOpen(true);
+          }
+        }}
         activeOpacity={0.8}
       >
         <Text style={value ? styles.dropdownText : styles.dropdownPlaceholder}>
@@ -42,7 +53,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
       </TouchableOpacity>
 
       <Modal
-        visible={isOpen}
+        visible={!disabled && isOpen}
         transparent={true}
         animationType="fade"
         onRequestClose={() => setIsOpen(false)}

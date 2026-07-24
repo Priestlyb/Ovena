@@ -9,6 +9,9 @@ import { getOnboardingStatus } from "@/services/onboardingStatus";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { getAccessToken } from "@/utils/authStorage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 /* ------------------------
    Auth Context
@@ -106,8 +109,6 @@ const useRestoreSession = () => {
         // Detect role
         const type = await getUserProfileType();
         setProfileType(type);
-
-        console.log("[Auth] Profile Type:", type);
 
         // Staff → skip onboarding
         if (type === "businessstaff") {
@@ -212,11 +213,20 @@ export default function RootLayout() {
   if (isLoading) return null;
 
   return (
-    <AuthContext.Provider value={{ isLoading, token, step, profileType }}>
-      <Phase2Provider>
-        <Toast position="top" topOffset={50} />
-        <RootLayoutNav />
-      </Phase2Provider>
-    </AuthContext.Provider>
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider
+        value={{
+          isLoading,
+          token,
+          step,
+          profileType,
+        }}
+      >
+        <Phase2Provider>
+          <Toast position="top" topOffset={50} />
+          <RootLayoutNav />
+        </Phase2Provider>
+      </AuthContext.Provider>
+    </QueryClientProvider>
   );
 }

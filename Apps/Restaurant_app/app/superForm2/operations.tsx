@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -43,6 +44,7 @@ const isSameTime = (t1: string, t2: string) => {
 interface DayHours {
   open: string;
   close: string;
+  is_closed: boolean;
 }
 
 interface Branch {
@@ -121,7 +123,11 @@ export default function OperationsPage() {
 
     const hours: Record<number, DayHours> = {};
     currentBranch.operating_hours?.forEach((h) => {
-      hours[h.day] = { open: h.open_time, close: h.close_time };
+      hours[h.day] = {
+        open: h.open_time,
+        close: h.close_time,
+        is_closed: h.is_closed,
+      };
     });
 
     setWeeklyHours(hours);
@@ -173,10 +179,13 @@ export default function OperationsPage() {
       }
 
       Object.entries(weeklyHours).forEach(([dayIndex, h]) => {
-        if (!h?.open || !h?.close) return;
+        if (h.is_closed) return;
+
+        if (!h.open || !h.close) return;
 
         if (isSameTime(h.open, h.close)) {
           const dayName = days[Number(dayIndex)];
+
           errors.push(
             `${dayName}: Opening and closing times cannot be the same`,
           );
@@ -242,7 +251,7 @@ export default function OperationsPage() {
                   day,
                   open_time: formatTime(hours?.open || ""),
                   close_time: formatTime(hours?.close || ""),
-                  is_closed: false,
+                  is_closed: hours?.is_closed ?? false,
                 };
               })
             : [],
@@ -270,7 +279,23 @@ export default function OperationsPage() {
   ) => {
     setWeeklyHours((prev) => ({
       ...prev,
-      [dayIndex]: { ...prev[dayIndex], [field]: value },
+      [dayIndex]: {
+        open: prev[dayIndex]?.open || "",
+        close: prev[dayIndex]?.close || "",
+        is_closed: prev[dayIndex]?.is_closed ?? false,
+        [field]: value,
+      },
+    }));
+  };
+
+  const toggleClosed = (dayIndex: number, value: boolean) => {
+    setWeeklyHours((prev) => ({
+      ...prev,
+      [dayIndex]: {
+        open: prev[dayIndex]?.open || "",
+        close: prev[dayIndex]?.close || "",
+        is_closed: value,
+      },
     }));
   };
 
@@ -349,27 +374,55 @@ export default function OperationsPage() {
 
               {days.map((day, index) => (
                 <View key={index} style={localStyles.dayBlock}>
-                  <Text style={localStyles.dayLabel}>{day}</Text>
+                  {/* Day Header */}
+                  <View style={localStyles.dayHeader}>
+                    <Text style={localStyles.dayLabel}>{day}</Text>
 
-                  <View style={localStyles.hoursRow}>
-                    <View style={localStyles.timeBox}>
-                      <CustomDropdown
-                        options={timeSlots}
-                        value={weeklyHours[index]?.open || ""}
-                        placeholder="Open"
-                        onChange={(v) => updateHours(index, "open", v)}
-                      />
-                    </View>
+                    <View style={localStyles.switchRow}>
+                      <Text style={localStyles.closedText}>Closed</Text>
 
-                    <View style={localStyles.timeBox}>
-                      <CustomDropdown
-                        options={timeSlots}
-                        value={weeklyHours[index]?.close || ""}
-                        placeholder="Close"
-                        onChange={(v) => updateHours(index, "close", v)}
+                      <Switch
+                        value={weeklyHours[index]?.is_closed ?? false}
+                        onValueChange={(value) => toggleClosed(index, value)}
+                        trackColor={{
+                          false: "#D1D5DB",
+                          true: "#FF8C42",
+                        }}
+                        thumbColor="#FFFFFF"
+                        ios_backgroundColor="#D1D5DB"
                       />
                     </View>
                   </View>
+
+                  {/* Closed Message */}
+                  {weeklyHours[index]?.is_closed && (
+                    <Text style={localStyles.closedLabel}>
+                      This branch is closed on {day}.
+                    </Text>
+                  )}
+
+                  {/* Time Pickers */}
+                  {!(weeklyHours[index]?.is_closed ?? false) && (
+                    <View style={localStyles.hoursRow}>
+                      <View style={localStyles.timeBox}>
+                        <CustomDropdown
+                          options={timeSlots}
+                          value={weeklyHours[index]?.open || ""}
+                          placeholder="Open"
+                          onChange={(v) => updateHours(index, "open", v)}
+                        />
+                      </View>
+
+                      <View style={localStyles.timeBox}>
+                        <CustomDropdown
+                          options={timeSlots}
+                          value={weeklyHours[index]?.close || ""}
+                          placeholder="Close"
+                          onChange={(v) => updateHours(index, "close", v)}
+                        />
+                      </View>
+                    </View>
+                  )}
                 </View>
               ))}
             </>
@@ -413,6 +466,30 @@ const localStyles = StyleSheet.create({
     borderRadius: 8,
   },
   copyText: { fontSize: 12, fontWeight: "600", color: "#000" },
+  dayHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  closedText: {
+    marginRight: 8,
+    fontSize: 13,
+    color: "#6B7280",
+  },
+
+  closedLabel: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "#FF8C42",
+    fontStyle: "italic",
+  },
   dayBlock: {
     marginBottom: 16,
     padding: 14,

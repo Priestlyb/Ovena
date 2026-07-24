@@ -23,15 +23,17 @@ import { saveAuth } from "@/utils/authStorage";
 export default function AdminNumberVerificationPage() {
   const router = useRouter();
 
-  const { fullName, phone, email } = useLocalSearchParams<{
+  const { fullName, phone, email, pinId } = useLocalSearchParams<{
     fullName?: string;
     phone?: string;
     email?: string;
+    pinId?: string;
   }>();
 
   const [otp, setOTP] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [currentPinId, setCurrentPinId] = useState(pinId ?? "");
   const [timer, setTimer] = useState(60);
 
   const [feedback, setFeedback] = useState({
@@ -91,6 +93,7 @@ export default function AdminNumberVerificationPage() {
         email: email.toLowerCase(),
         phone_number: getNormalizedPhone(),
         otp_code: cleanOtp,
+        pin_id: pinId!,
       });
 
       await saveAuth(res.access, res.refresh);
@@ -147,7 +150,13 @@ export default function AdminNumberVerificationPage() {
 
     try {
       setResending(true);
-      await sendOtp(getNormalizedPhone());
+
+      const response = await sendOtp(getNormalizedPhone());
+
+      console.log("RESEND OTP RESPONSE:", response);
+
+      setCurrentPinId(response.pin_id);
+
       setTimer(60);
 
       setFeedback({
@@ -183,15 +192,19 @@ export default function AdminNumberVerificationPage() {
               Enter the 6-digit code sent to your phone
             </Text>
 
-            <Text style={styles.emailDisplay}>{phone}</Text>
+            <Text style={styles.numberDisplay}>{phone}</Text>
 
             <OTPInput value={otp} onChange={setOTP} />
 
+            <Text style={{ marginTop: 20 }}>No code in your inbox?</Text>
+
             {timer > 0 ? (
-              <Text>Resend in {timer}s</Text>
+              <Text style={styles.resendButton}>Resend in {timer}s</Text>
             ) : (
               <TouchableOpacity onPress={handleResendOTP}>
-                <Text>{resending ? "Resending..." : "Resend OTP"}</Text>
+                <Text style={styles.resendButton}>
+                  {resending ? "Resending..." : "Resend OTP"}
+                </Text>
               </TouchableOpacity>
             )}
           </View>

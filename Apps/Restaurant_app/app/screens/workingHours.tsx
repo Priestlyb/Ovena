@@ -22,6 +22,7 @@ type BranchHour = {
   day: number;
   open_time: string;
   close_time: string;
+  is_closed: boolean;
 };
 
 // Day mapping
@@ -38,7 +39,16 @@ const WEEK_DAYS = [
 // Format backend time → UI time
 const formatTime = (time: string) => {
   if (!time) return "";
-  return time.slice(0, 5);
+
+  const [hourStr, minute] = time.split(":");
+  let hour = Number(hourStr);
+
+  const period = hour >= 12 ? "PM" : "AM";
+
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+
+  return `${String(hour).padStart(2, "0")}:${minute} ${period}`;
 };
 
 // FIX: Convert ANY format → backend safe HH:mm:ss
@@ -93,7 +103,14 @@ export default function WorkingHourScreen() {
   const fetchBranchHours = async () => {
     try {
       const res = await api.get("/business/branches/hours/");
-      setData(res.data);
+      setData(
+        res.data.map((item: BranchHour) => ({
+          ...item,
+          open_time: item.open_time ? formatTime(item.open_time) : "",
+          close_time: item.close_time ? formatTime(item.close_time) : "",
+          is_closed: item.is_closed ?? false,
+        })),
+      );
       console.log("Branch data", res.data);
     } catch (error: any) {
       console.log(
@@ -123,6 +140,13 @@ export default function WorkingHourScreen() {
     setData(updated);
   };
 
+  const handleClosedChange = (index: number, value: boolean) => {
+    const updated = [...data];
+
+    updated[index].is_closed = value;
+    setData(updated);
+  };
+
   const getDayName = (day: number) => WEEK_DAYS[day] ?? `Unknown Day (${day})`;
 
   // FIXED UPDATE API CALL
@@ -134,8 +158,10 @@ export default function WorkingHourScreen() {
         day: item.day,
         open_time: normalizeTime(item.open_time),
         close_time: normalizeTime(item.close_time),
-        is_closed: !item.open_time || !item.close_time,
+        is_closed: item.is_closed,
       }));
+
+      console.log("Data Payload", payload);
 
       await api.put("/business/branches/hours/", payload);
 
@@ -188,10 +214,12 @@ export default function WorkingHourScreen() {
               <Text style={styles.dayText}>{getDayName(item.day)}</Text>
 
               <StoreHubTimeSelector
-                openingTime={formatTime(item.open_time)}
-                closingTime={formatTime(item.close_time)}
+                openingTime={item.open_time}
+                closingTime={item.close_time}
+                isClosed={item.is_closed}
                 onOpeningTimeChange={(val) => handleOpenChange(index, val)}
                 onClosingTimeChange={(val) => handleCloseChange(index, val)}
+                onClosedChange={(value) => handleClosedChange(index, value)}
               />
             </View>
           ))}

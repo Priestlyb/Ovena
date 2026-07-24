@@ -1,90 +1,49 @@
 // StoreAnalyticsPage.tsx
-import React, { useState, useEffect } from "react";
-import { SafeAreaView, ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowLeft, MessageCircle } from "lucide-react-native";
+import React from "react";
+import { SafeAreaView, ScrollView, View } from "react-native";
 
-import api from "@/services/apiClient";
-
-import { Text } from "@/components/atoms/Text";
 import { Spacer } from "@/components/atoms/Spacer";
-import { Header } from "@/components/molecules/Header";
+import { Text } from "@/components/atoms/Text";
 import { FloatingChatButton } from "@/components/FloatingChatButton";
+import { Header } from "@/components/molecules/Header";
 
-// ✅ COMPONENTS
-import { TopPerformingBranchCard } from "@/components/TopPerformingBranchCard";
 import { ReviewsCard } from "@/components/ReviewsCard";
+import { TopPerformingBranchCard } from "@/components/TopPerformingBranchCard";
+import { TopProductCard } from "@/components/TopProductCard";
 import { TrendRevenueChart } from "@/components/TrendRevenueChart";
-import { TopProductCard } from "@/components/TopProductCard"; // ✅ NEW
+
+import { useDashboardScreen } from "@/hooks/dashboard/useDashboardScreen";
 
 export default function StoreAnalyticsPage() {
   const router = useRouter();
 
-  const [selectedPeriod, setSelectedPeriod] = useState("week");
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  // ================= FETCH =================
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get("/business/analysis/store/", {
-          params: { period: selectedPeriod },
-        });
-
-        console.log("✅ ANALYTICS FETCHED:", res?.data);
-        console.log("📊 ANALYTICS DATA:", res?.data?.data);
-
-        setAnalytics(res?.data?.data);
-      } catch (err: any) {
-        console.error("❌ ANALYTICS ERROR:", err?.response || err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAnalytics();
-  }, [selectedPeriod]);
+  const { analysis, loadingAnalysis, trendData, selectedPeriod } =
+    useDashboardScreen();
 
   // ================= STATS =================
   const stats = [
     {
       label: "Total Revenue",
       value: `₦${Number(
-        analytics?.revenue_breakdown?.total_revenue_ngn || 0
+        analysis?.revenue_breakdown?.total_revenue_ngn || 0,
       ).toLocaleString()}`,
       highlight: true,
     },
     {
       label: "Total Orders",
-      value: analytics?.revenue_breakdown?.orders_count || 0,
+      value: analysis?.revenue_breakdown?.orders_count || 0,
     },
   ];
 
-  // ================= CHART =================
-  const days = ["S", "M", "T", "W", "T", "F", "S"];
-  const weekData = Array(7).fill(0);
-  const trend = analytics?.trend_revenue || [];
-
-  trend.forEach((item: any) => {
-    const date = new Date(item.date);
-    const dayIndex = date.getDay();
-    weekData[dayIndex] = item.amount;
-  });
-
-  const chartData = days.map((day, index) => ({
-    day,
-    value: weekData[index],
-    label: `₦${Number(weekData[index]).toLocaleString()}`,
-  }));
-
-  const maxValue =
-    chartData.length > 0 ? Math.max(...chartData.map((i) => i.value), 1) : 1;
-
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#F7EFE5", paddingTop: 50 }}
+      style={{
+        flex: 1,
+        backgroundColor: "#F7EFE5",
+        paddingTop: 50,
+      }}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* HEADER */}
@@ -99,7 +58,13 @@ export default function StoreAnalyticsPage() {
 
         {/* TITLE */}
         <View style={{ paddingHorizontal: 20 }}>
-          <Text variant="h3" style={{ fontSize: 20, fontWeight: "600" }}>
+          <Text
+            variant="h3"
+            style={{
+              fontSize: 20,
+              fontWeight: "600",
+            }}
+          >
             Analytics
           </Text>
         </View>
@@ -108,9 +73,20 @@ export default function StoreAnalyticsPage() {
 
         {/* STATS */}
         <View style={{ paddingHorizontal: 20 }}>
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+            }}
+          >
             {stats.map((item, i) => (
-              <View key={i} style={{ width: "50%", marginBottom: 18 }}>
+              <View
+                key={i}
+                style={{
+                  width: "50%",
+                  marginBottom: 18,
+                }}
+              >
                 <Text style={{ color: "#00000080" }}>{item.label}</Text>
 
                 <Text
@@ -121,7 +97,7 @@ export default function StoreAnalyticsPage() {
                     color: item.highlight ? "#FF5A1F" : "#111",
                   }}
                 >
-                  {loading ? "..." : item.value}
+                  {loadingAnalysis ? "..." : item.value}
                 </Text>
               </View>
             ))}
@@ -131,37 +107,37 @@ export default function StoreAnalyticsPage() {
         <Spacer size="lg" />
 
         {/* TREND */}
-        <TrendRevenueChart trend={analytics?.trend_revenue || []} />
+        <TrendRevenueChart trend={trendData} selectedPeriod={selectedPeriod} />
 
         <Spacer size="lg" />
         <Spacer size="lg" />
 
-        {/* ✅ TOP PRODUCT (NEW) */}
+        {/* TOP PRODUCT */}
         <TopProductCard
-          name={analytics?.top_product?.name}
-          orders={analytics?.top_product?.orders}
-          quantity={analytics?.top_product?.quantity_sold}
-          revenue={analytics?.top_product?.revenue}
-          loading={loading}
+          name={analysis?.top_product?.name}
+          orders={analysis?.top_product?.orders}
+          quantity={analysis?.top_product?.quantity_sold}
+          revenue={analysis?.top_product?.revenue}
+          loading={loadingAnalysis}
         />
 
         <Spacer size="lg" />
         <Spacer size="lg" />
 
-        {/* ✅ TOP PERFORMING BRANCH */}
+        {/* TOP PERFORMING BRANCH */}
         <TopPerformingBranchCard
-          branchName={analytics?.topseller_branch?.branch_name}
-          revenue={analytics?.topseller_branch?.amount}
-          orders={analytics?.topseller_branch?.orders_count}
+          branchName={analysis?.topseller_branch?.branch_name}
+          revenue={analysis?.topseller_branch?.amount}
+          orders={analysis?.topseller_branch?.orders_count}
         />
 
         <Spacer size="lg" />
         <Spacer size="lg" />
 
-        {/* ✅ REVIEWS */}
+        {/* REVIEWS */}
         <ReviewsCard
-          rating={analytics?.reviews?.average_rating}
-          count={analytics?.reviews?.count}
+          rating={analysis?.reviews?.average_rating}
+          count={analysis?.reviews?.count}
         />
 
         <Spacer size="xxl" />

@@ -14,7 +14,7 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setOnboarding: (step) =>
     set({
       step,
-      completed: step >= 3,
+      completed: step >= 4,
     }),
 
   reset: () =>

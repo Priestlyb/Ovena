@@ -21,6 +21,7 @@ export interface UploadedFile {
 ========================================================= */
 
 export interface CustomDropdownProps {
+  disabled?: boolean;
   options: string[];
   placeholder: string;
   value: string;
@@ -36,7 +37,7 @@ export interface CustomInputProps {
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
-  type?: "text" | "email" | "password" | "tel" | "currency";
+  type?: "text" | "email" | "password" | "tel" | "number" | "currency";
 }
 
 export interface PhoneInputProps {
@@ -255,12 +256,14 @@ export interface OnboardingStatus {
 export type AppRoute =
   | "/superForm"
   | "/superForm2/checklist"
+  | "/screens/subscriptionPlans"
   | "/superForm2/menu-items"
   | "/(tabs)";
 
 export const stepRoutes: Record<number, AppRoute> = {
   0: "/superForm",
   1: "/superForm2/checklist",
-  2: "/superForm2/menu-items",
-  3: "/(tabs)",
+  2: "/screens/subscriptionPlans",
+  3: "/superForm2/menu-items",
+  4: "/(tabs)",
 };

@@ -1,3 +1,4 @@
+import { useBanks } from "@/hooks/finances/useBanks";
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useState } from "react";
@@ -12,7 +13,7 @@ import {
 } from "react-native";
 
 import { usePhase2 } from "@/app/context/Phase2Context";
-import { CustomDropdown } from "@/components/CustomDropDown";
+import { BankCustomDropdown } from "@/components/BankCustomDropdown";
 import { CustomInput } from "@/components/CustomInput";
 import FeedbackModal from "@/components/FeedbackModal";
 import { styles } from "@/constants/styles";
@@ -35,6 +36,9 @@ export default function PaymentsPage() {
   const [accountName, setAccountName] = useState(
     phase2Data.payment?.account_name ?? "",
   );
+  const { data: banks = [], isLoading: banksLoading } = useBanks();
+
+  const bankOptions = banks.map((bank) => bank.name);
   const [bvn, setBvn] = useState(phase2Data.payment?.bvn ?? "");
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -42,19 +46,6 @@ export default function PaymentsPage() {
     message: "",
     variant: "info" as "success" | "error" | "warning" | "info",
   });
-
-  const banks = [
-    "Access Bank",
-    "GTBank",
-    "First Bank",
-    "UBA",
-    "Zenith Bank",
-    "Ecobank",
-    "Fidelity Bank",
-    "Union Bank",
-    "Stanbic IBTC",
-    "Sterling Bank",
-  ];
 
   /* ================= HELPERS ================= */
   const clean = (val: string) => String(val || "").trim();
@@ -158,10 +149,10 @@ export default function PaymentsPage() {
           <Text style={styles.subtitle}>Add your bank details</Text>
 
           {/* Bank */}
-          <CustomDropdown
+          <BankCustomDropdown
             label="Bank"
-            options={banks}
-            placeholder="Select"
+            options={bankOptions}
+            placeholder={banksLoading ? "Loading banks..." : "Select"}
             value={selectedBank}
             onChange={setSelectedBank}
             required

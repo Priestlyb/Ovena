@@ -14,9 +14,6 @@ export const profileBookingStyles = StyleSheet.create({
     position: 'relative',
   },
   profileRatingBadge: {
-    position: 'absolute',
-    top: 0,
-    right: '30%',
     backgroundColor: '#FF6B35',
     paddingHorizontal: 12,
     paddingVertical: 6,

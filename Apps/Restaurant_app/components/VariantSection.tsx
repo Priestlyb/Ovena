@@ -38,7 +38,7 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
   formatPrice,
 }) => {
   /* ================================
-     DELETE HANDLERS
+     DELETE HANDLERS (SAFE)
   ================================= */
 
   const deleteVariantGroup = (index: number) => {
@@ -46,22 +46,61 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
   };
 
   const deleteVariantOption = (groupIndex: number, optionIndex: number) => {
-    setVariantGroups((prev) => {
-      const updated = [...prev];
-      updated[groupIndex].options = updated[groupIndex].options.filter(
-        (_, i) => i !== optionIndex,
-      );
-      return updated;
-    });
+    setVariantGroups((prev) =>
+      prev.map((group, i) => {
+        if (i !== groupIndex) return group;
+
+        return {
+          ...group,
+          options: group.options.filter((_, j) => j !== optionIndex),
+        };
+      }),
+    );
+  };
+
+  /* ================================
+     UPDATE HELPERS (SAFE)
+  ================================= */
+
+  const updateGroupField = <K extends keyof VariantGroup>(
+    index: number,
+    field: K,
+    value: VariantGroup[K],
+  ) => {
+    setVariantGroups((prev) =>
+      prev.map((group, i) =>
+        i === index ? { ...group, [field]: value } : group,
+      ),
+    );
+  };
+
+  const updateOptionField = <K extends keyof VariantOption>(
+    groupIndex: number,
+    optionIndex: number,
+    field: K,
+    value: VariantOption[K],
+  ) => {
+    setVariantGroups((prev) =>
+      prev.map((group, i) => {
+        if (i !== groupIndex) return group;
+
+        return {
+          ...group,
+          options: group.options.map((opt, j) =>
+            j === optionIndex ? { ...opt, [field]: value } : opt,
+          ),
+        };
+      }),
+    );
   };
 
   return (
     <>
-      <Text style={[styles.sectionTitle, { marginBottom: 20 }]}>Variants</Text>
+      <Text style={[styles.pageTitle, { marginTop: 50 }]}>Variants</Text>
 
       {variantGroups.map((group, i) => (
         <View key={i}>
-          {/* HEADER WITH DELETE GROUP */}
+          {/* HEADER */}
           <View
             style={{
               flexDirection: "row",
@@ -71,7 +110,11 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
             }}
           >
             <Text
-              style={{ fontSize: 18, fontWeight: "600", marginVertical: 25 }}
+              style={{
+                fontSize: 18,
+                fontWeight: "600",
+                marginVertical: 25,
+              }}
             >
               Group Name
             </Text>
@@ -81,16 +124,14 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
             </TouchableOpacity>
           </View>
 
+          {/* GROUP NAME */}
           <CustomInput
             placeholder="Group Name"
             value={group.name}
-            onChange={(val) => {
-              const updated = [...variantGroups];
-              updated[i].name = val;
-              setVariantGroups(updated);
-            }}
+            onChange={(val) => updateGroupField(i, "name", val)}
           />
 
+          {/* REQUIRED SWITCH */}
           <View
             style={{
               flexDirection: "row",
@@ -101,14 +142,11 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
             <CustomSwitch
               label="Required?"
               value={group.is_required}
-              onValueChange={(val) => {
-                const updated = [...variantGroups];
-                updated[i].is_required = val;
-                setVariantGroups(updated);
-              }}
+              onValueChange={(val) => updateGroupField(i, "is_required", val)}
             />
           </View>
 
+          {/* OPTIONS */}
           {group.options.map((opt, j) => (
             <View
               key={j}
@@ -122,11 +160,7 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
                 <CustomInput
                   placeholder="Option (e.g. Large)"
                   value={opt.name}
-                  onChange={(val) => {
-                    const updated = [...variantGroups];
-                    updated[i].options[j].name = val;
-                    setVariantGroups(updated);
-                  }}
+                  onChange={(val) => updateOptionField(i, j, "name", val)}
                 />
               </View>
 
@@ -135,24 +169,31 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
                   type="currency"
                   placeholder="₦0.00"
                   value={opt.price_diff}
-                  onChange={(val) => {
-                    const updated = [...variantGroups];
-                    updated[i].options[j].price_diff = formatPrice(val);
-                    setVariantGroups(updated);
-                  }}
+                  onChange={(val) =>
+                    updateOptionField(
+                      i,
+                      j,
+                      "price_diff",
+                      formatPrice(val).replace(/,/g, ""),
+                    )
+                  }
                 />
               </View>
 
-              {/* DELETE OPTION */}
               <TouchableOpacity onPress={() => deleteVariantOption(i, j)}>
                 <Trash2 color="red" size={18} />
               </TouchableOpacity>
             </View>
           ))}
 
+          {/* ADD OPTION */}
           <TouchableOpacity onPress={() => addVariantOption(i)}>
             <Text
-              style={{ marginVertical: 30, fontWeight: "600", fontSize: 16 }}
+              style={{
+                marginVertical: 30,
+                fontWeight: "600",
+                fontSize: 16,
+              }}
             >
               + Add Option
             </Text>
@@ -160,6 +201,7 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
         </View>
       ))}
 
+      {/* ADD GROUP */}
       <TouchableOpacity onPress={addVariantGroup}>
         <Text
           style={{

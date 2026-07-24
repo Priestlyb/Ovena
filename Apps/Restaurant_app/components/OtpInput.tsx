@@ -1,32 +1,53 @@
-import React, { useRef } from 'react';
-import { View, TextInput } from 'react-native';
-import { OTPInputProps } from '../types';
-import { styles } from '../constants/styles';
-
+import React, { useMemo } from "react";
+import { TextInput, View } from "react-native";
+import { styles } from "../constants/styles";
+import { OTPInputProps } from "../types";
 
 export const OTPInput: React.FC<OTPInputProps> = ({
   value,
   onChange,
   length = 6,
 }) => {
-  const inputRefs = Array.from({ length }, () => useRef<TextInput>(null));
+  const inputRefs = useMemo(
+    () => Array.from({ length }, () => React.createRef<TextInput>()),
+    [length],
+  );
 
   const handleChange = (index: number, text: string) => {
-    if (text.length > 1) text = text[0];
-    
-    const newValue = value.split('');
-    while (newValue.length < length) newValue.push('');
-    newValue[index] = text;
-    onChange(newValue.join(''));
+    // Keep only digits
+    const digits = text.replace(/\D/g, "");
 
-    if (text && index < length - 1) {
-      inputRefs[index + 1].current?.focus();
+    // User pasted the whole OTP
+    if (digits.length > 1) {
+      const pasted = digits.slice(0, length);
+
+      onChange(pasted);
+
+      const lastIndex = Math.min(pasted.length - 1, length - 1);
+
+      inputRefs[lastIndex]?.current?.focus();
+
+      return;
+    }
+
+    const chars = value.split("");
+
+    while (chars.length < length) {
+      chars.push("");
+    }
+
+    chars[index] = digits;
+
+    onChange(chars.join(""));
+
+    if (digits && index < length - 1) {
+      inputRefs[index + 1]?.current?.focus();
     }
   };
 
   const handleKeyPress = (index: number, key: string) => {
-    if (key === 'Backspace' && !value[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
+    if (key === "Backspace" && !value[index] && index > 0) {
+      inputRefs[index - 1]?.current?.focus();
     }
   };
 
@@ -37,12 +58,19 @@ export const OTPInput: React.FC<OTPInputProps> = ({
           key={index}
           ref={inputRefs[index]}
           style={styles.otpBox}
-          value={value[index] || ''}
+          value={value[index] ?? ""}
           onChangeText={(text) => handleChange(index, text)}
-          onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
+          onKeyPress={({ nativeEvent }) =>
+            handleKeyPress(index, nativeEvent.key)
+          }
           keyboardType="number-pad"
-          maxLength={1}
+          maxLength={length}
           textAlign="center"
+          autoComplete="one-time-code"
+          textContentType="oneTimeCode"
+          importantForAutofill="yes"
+          autoCorrect={false}
+          autoCapitalize="none"
         />
       ))}
     </View>

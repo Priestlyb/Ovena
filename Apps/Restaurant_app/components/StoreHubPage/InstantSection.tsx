@@ -4,55 +4,81 @@ import { StoreHubTimeSelector } from "@/components/StoreHub_TimeSelector";
 import { BranchHour } from "@/types/storeHub";
 import { convertToISO, formatTime, timeToNumber } from "@/utils/time";
 import React from "react";
-import { View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 type Props = {
   hours: BranchHour[];
   setHours: React.Dispatch<React.SetStateAction<BranchHour[]>>;
 };
 
+const DAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
 export const InstantSection: React.FC<Props> = ({ hours, setHours }) => {
+  const copyMondayToAll = () => {
+    const monday = hours.find((h) => h.day === 0);
+
+    if (!monday) return;
+
+    setHours((prev) =>
+      prev.map((day) => ({
+        ...day,
+        open_time: monday.open_time,
+        close_time: monday.close_time,
+        is_closed: monday.is_closed,
+      })),
+    );
+  };
+
   return (
     <>
-      <Text
-        variant="label"
-        style={{ fontSize: 18, fontWeight: "bold", marginBottom: 25 }}
-      >
-        Working Hours
-      </Text>
+      <View style={localStyles.headerRow}>
+        <Text variant="label" style={{ fontSize: 18, fontWeight: "bold" }}>
+          Working Hours
+        </Text>
 
-      <Spacer size="sm" />
+        <TouchableOpacity style={localStyles.copyBtn} onPress={copyMondayToAll}>
+          <Text style={localStyles.copyText}>Copy Monday to All</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Spacer size="md" />
 
       {hours.map((dayHour) => (
-        <View key={dayHour.day} style={{ marginBottom: 16 }}>
-          <View
+        <View key={dayHour.day} style={{ marginBottom: 20 }}>
+          <Text
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
+              fontWeight: "bold",
+              fontSize: 16,
               marginBottom: 12,
             }}
           >
-            <Text
-              style={{ fontWeight: "bold", fontSize: 16, marginBottom: 20 }}
-            >
-              {
-                [
-                  "Monday",
-                  "Tuesday",
-                  "Wednesday",
-                  "Thursday",
-                  "Friday",
-                  "Saturday",
-                  "Sunday",
-                ][dayHour.day]
-              }
-            </Text>
-          </View>
+            {DAYS[dayHour.day]}
+          </Text>
 
           <StoreHubTimeSelector
             openingTime={formatTime(dayHour.open_time)}
             closingTime={formatTime(dayHour.close_time)}
+            isClosed={dayHour.is_closed}
+            onClosedChange={(closed) => {
+              setHours((prev) =>
+                prev.map((h) =>
+                  h.day !== dayHour.day
+                    ? h
+                    : {
+                        ...h,
+                        is_closed: closed,
+                      },
+                ),
+              );
+            }}
             onOpeningTimeChange={(newTime) => {
               const newISO = convertToISO(newTime);
 
@@ -95,3 +121,21 @@ export const InstantSection: React.FC<Props> = ({ hours, setHours }) => {
     </>
   );
 };
+
+/* ================= LOCAL STYLES ================= */
+const localStyles = StyleSheet.create({
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 24,
+    marginBottom: 10,
+  },
+  copyBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#FFB47E",
+    borderRadius: 8,
+  },
+  copyText: { fontSize: 12, fontWeight: "600", color: "#000" },
+});

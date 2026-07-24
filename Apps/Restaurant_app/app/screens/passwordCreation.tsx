@@ -1,10 +1,12 @@
 import { CustomInput } from "@/components/CustomInput";
 import FeedbackModal from "@/components/FeedbackModal";
 import { styles } from "@/constants/styles";
+import { useSendEmailOtp } from "@/hooks/useSendEmailOtp";
 import { NavigationProps } from "@/types";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -18,6 +20,7 @@ import {
 ========================================================= */
 interface PasswordPageProps extends NavigationProps<void> {
   data: {
+    email: string;
     password: string;
     confirmPassword: string;
   };
@@ -36,7 +39,15 @@ const PasswordPage: React.FC<PasswordPageProps> = ({
   onBack,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
-  const [modalMessage, setModalMessage] = useState("");
+
+  const [modalConfig, setModalConfig] = useState({
+    message: "",
+    variant: "error" as "success" | "error" | "warning" | "info",
+  });
+
+  const [sendingOtp, setSendingOtp] = useState(false);
+
+  const { sendEmailOtp } = useSendEmailOtp();
 
   /* =========================================================
      🔹 VALIDATION
@@ -64,18 +75,22 @@ const PasswordPage: React.FC<PasswordPageProps> = ({
       errors.push("Passwords do not match");
     }
 
-    // Optional stronger rules
     if (data.password) {
       if (!/[A-Z]/.test(data.password)) {
         errors.push("Password must include at least one uppercase letter");
       }
+
       if (!/[0-9]/.test(data.password)) {
         errors.push("Password must include at least one number");
       }
     }
 
     if (errors.length > 0) {
-      setModalMessage(errors.map((e) => `• ${e}`).join("\n"));
+      setModalConfig({
+        message: errors.map((e) => `• ${e}`).join("\n"),
+        variant: "error",
+      });
+
       setModalVisible(true);
       return false;
     }
@@ -83,9 +98,41 @@ const PasswordPage: React.FC<PasswordPageProps> = ({
     return true;
   };
 
-  const handleContinue = () => {
+  /* =========================================================
+     🔹 CONTINUE
+  ========================================================= */
+  const handleContinue = async () => {
+    if (sendingOtp) return;
+
     if (!validateFields()) return;
-    onNext();
+
+    try {
+      setSendingOtp(true);
+
+      console.log("📧 Sending OTP to:", data.email);
+
+      await sendEmailOtp({
+        email: data.email,
+      });
+
+      setModalConfig({
+        message: "A verification code has been sent to your email.",
+        variant: "success",
+      });
+
+      setModalVisible(true);
+    } catch (err) {
+      console.error("Send OTP Error:", err);
+
+      setModalConfig({
+        message: "Failed to send verification code. Please try again.",
+        variant: "error",
+      });
+
+      setModalVisible(true);
+    } finally {
+      setSendingOtp(false);
+    }
   };
 
   return (
@@ -126,17 +173,33 @@ const PasswordPage: React.FC<PasswordPageProps> = ({
           />
 
           {/* Continue Button */}
-          <TouchableOpacity style={styles.continueBtn} onPress={handleContinue}>
-            <Text style={styles.continueBtnText}>Continue</Text>
+          <TouchableOpacity
+            style={styles.continueBtn}
+            onPress={handleContinue}
+            disabled={sendingOtp}
+          >
+            <Text style={styles.continueBtnText}>
+              {sendingOtp ? "Sending Code..." : "Continue"}
+            </Text>
           </TouchableOpacity>
+
+          {sendingOtp && (
+            <ActivityIndicator size="small" style={{ marginTop: 12 }} />
+          )}
         </ScrollView>
 
         {/* FEEDBACK MODAL */}
         <FeedbackModal
           visible={modalVisible}
-          message={modalMessage}
-          variant="error"
-          onClose={() => setModalVisible(false)}
+          message={modalConfig.message}
+          variant={modalConfig.variant}
+          onClose={() => {
+            setModalVisible(false);
+
+            if (modalConfig.variant === "success") {
+              onNext();
+            }
+          }}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

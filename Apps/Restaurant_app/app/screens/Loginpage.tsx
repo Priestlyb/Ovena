@@ -27,6 +27,7 @@ import { VendorApprovalForm } from "@/components/login-page/VendorApprovalForm";
 type Variant = "success" | "error" | "warning" | "info";
 
 type Errors = {
+  email?: string;
   phone?: string;
   password?: string;
   otp?: string;
@@ -67,6 +68,7 @@ export default function LoginPage() {
     handleStaffLogin,
     handleVendorApproval,
     handleResetPassword,
+    handleConfirmReset,
   } = useLogin(deviceId, showFeedback);
 
   // ----------------------
@@ -83,7 +85,6 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
 
   const [resetVisible, setResetVisible] = useState(false);
-  const [resetPhone, setResetPhone] = useState("");
 
   const [errors, setErrors] = useState<Errors>({});
 
@@ -147,19 +148,23 @@ export default function LoginPage() {
               phone={phone}
               setPhone={(val: string) => {
                 setPhone(val);
-                setErrors((prev) => ({ ...prev, phone: undefined }));
+                setErrors((prev) => ({
+                  ...prev,
+                  phone: undefined,
+                }));
               }}
               password={password}
               setPassword={(val: string) => {
                 setPassword(val);
-                setErrors((prev) => ({ ...prev, password: undefined }));
+                setErrors((prev) => ({
+                  ...prev,
+                  password: undefined,
+                }));
               }}
               loading={loading}
               errors={errors}
               onLogin={onLoginPress}
-              onReset={() =>
-                phone ? handleResetPassword(phone) : setResetVisible(true)
-              }
+              onReset={() => setResetVisible(true)}
             />
           )}
 
@@ -168,17 +173,26 @@ export default function LoginPage() {
               otp={otp}
               setOtp={(val: string) => {
                 setOtp(val);
-                setErrors((prev) => ({ ...prev, otp: undefined }));
+                setErrors((prev) => ({
+                  ...prev,
+                  otp: undefined,
+                }));
               }}
               phone={vendorPhone}
               setPhone={(val: string) => {
                 setVendorPhone(val);
-                setErrors((prev) => ({ ...prev, phone: undefined }));
+                setErrors((prev) => ({
+                  ...prev,
+                  phone: undefined,
+                }));
               }}
               username={username}
               setUsername={(val: string) => {
                 setUsername(val);
-                setErrors((prev) => ({ ...prev, username: undefined }));
+                setErrors((prev) => ({
+                  ...prev,
+                  username: undefined,
+                }));
               }}
               loading={loading}
               onSubmit={onVendorSubmit}
@@ -186,12 +200,11 @@ export default function LoginPage() {
             />
           )}
 
-          {/* RESET MODAL 851147 */}
           <ResetPasswordModal
             visible={resetVisible}
-            phone={resetPhone}
-            setPhone={setResetPhone}
-            onSubmit={() => handleResetPassword(resetPhone)}
+            loading={loading}
+            onSendOtp={handleResetPassword}
+            onResetPassword={handleConfirmReset}
             onClose={() => setResetVisible(false)}
           />
 
@@ -199,7 +212,12 @@ export default function LoginPage() {
             visible={feedback.visible}
             message={feedback.message}
             variant={feedback.variant}
-            onClose={() => setFeedback((prev) => ({ ...prev, visible: false }))}
+            onClose={() =>
+              setFeedback((prev) => ({
+                ...prev,
+                visible: false,
+              }))
+            }
           />
         </ScrollView>
       </KeyboardAvoidingView>

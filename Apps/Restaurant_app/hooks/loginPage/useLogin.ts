@@ -7,6 +7,7 @@ type Variant = "success" | "error" | "warning" | "info";
 
 type LoginErrors = {
     phone?: string;
+    email?: string;
     password?: string;
     otp?: string;
     username?: string;
@@ -158,11 +159,11 @@ export const useLogin = (
         try {
             const endpoint =
                 loginAs === "admin"
-                    ? "/accounts/admin-login/"
+                    ? "/accounts/business/admin-login/"
                     : "/accounts/vendor-login/";
 
             const res = await api.post(endpoint, {
-                phone_number: getNormalizedPhone(phone), // ✅ FIXED
+                phone_number: getNormalizedPhone(phone),
                 password,
             });
 
@@ -256,7 +257,7 @@ export const useLogin = (
             const payload = {
                 otp,
                 device_id: deviceId,
-                phone_number: getNormalizedPhone(phone), // ✅ FIXED
+                phone_number: getNormalizedPhone(phone),
                 username,
             };
 
@@ -289,37 +290,128 @@ export const useLogin = (
     // ----------------------
 
     const handleResetPassword = async (
-        phone: string
+        email: string
     ): Promise<Result> => {
         const errors: LoginErrors = {};
 
-        if (!phone) {
-            errors.phone = "Phone number is required";
-        } else if (!isValidPhone(phone)) {
-            errors.phone = "Phone number is invalid";
+        if (!email.trim()) {
+            errors.email = "Email is required";
         }
 
         if (Object.keys(errors).length > 0) {
-            return { success: false, errors };
+            return {
+                success: false,
+                errors,
+            };
         }
 
         setLoading(true);
 
         try {
-            await api.post("/accounts/password-reset/send", {
-                phone_number: getNormalizedPhone(phone), // ✅ FIXED
+            console.log("[PASSWORD RESET] Sending OTP...");
+            console.log("[PASSWORD RESET] Email:", email.trim());
+
+            const response = await api.post("/accounts/password-reset/send/", {
+                email: email.trim(),
             });
 
-            showFeedback("OTP sent successfully", "success");
-            router.push("/screens/resetPassword");
+            console.log("[PASSWORD RESET] Success:", response.data);
 
-            return { success: true };
+            showFeedback(
+                "OTP sent successfully",
+                "success"
+            );
+
+            return {
+                success: true,
+            };
+        } catch (err: any) {
+            console.log("========== PASSWORD RESET ERROR ==========");
+            console.log("Message:", err?.message);
+            console.log("Code:", err?.code);
+            console.log("Status:", err?.response?.status);
+            console.log("Response:", err?.response?.data);
+            console.log("Full Error:", err);
+            console.log("=========================================");
+
+            const apiErrors: LoginErrors =
+                parseApiErrors(err) ?? {};
+
+            showFeedback(
+                apiErrors.general ?? "Failed to send OTP",
+                "error"
+            );
+
+            return {
+                success: false,
+                errors: apiErrors,
+            };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleConfirmReset = async (
+        email: string,
+        otp: string,
+        newPassword: string
+    ): Promise<Result> => {
+        const errors: LoginErrors = {};
+
+        if (!email.trim()) {
+            errors.email = "Email is required";
+        } else if (
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+        ) {
+            errors.email = "Email is invalid";
+        }
+
+        if (!otp.trim()) {
+            errors.otp = "OTP is required";
+        }
+
+        if (!newPassword) {
+            errors.password = "New password is required";
+        } else if (!isValidPassword(newPassword)) {
+            errors.password = "Password must be at least 6 characters";
+        }
+
+        if (Object.keys(errors).length > 0) {
+            return {
+                success: false,
+                errors,
+            };
+        }
+
+        setLoading(true);
+
+        try {
+            await api.post("/accounts/password-reset/", {
+                email: email.trim(),
+                otp_code: otp.trim(),
+                new_password: newPassword,
+            });
+
+            showFeedback(
+                "Password reset successful",
+                "success"
+            );
+
+            return {
+                success: true,
+            };
         } catch (err: any) {
             const apiErrors = parseApiErrors(err);
 
-            showFeedback(apiErrors.general || "Request failed", "error");
+            showFeedback(
+                apiErrors.general || "Password reset failed",
+                "error"
+            );
 
-            return { success: false, errors: apiErrors };
+            return {
+                success: false,
+                errors: apiErrors,
+            };
         } finally {
             setLoading(false);
         }
@@ -331,5 +423,6 @@ export const useLogin = (
         handleStaffLogin,
         handleVendorApproval,
         handleResetPassword,
+        handleConfirmReset
     };
 };

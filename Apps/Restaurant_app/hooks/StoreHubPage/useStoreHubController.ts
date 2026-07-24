@@ -4,22 +4,55 @@ import { useEffect, useState } from "react";
 /* ================= WEEK TEMPLATE ================= */
 const getWeekTemplate = (): BranchHour[] => {
     return [
-        { day: 0, open_time: "09:00:00", close_time: "17:00:00", is_closed: false },
-        { day: 1, open_time: "09:00:00", close_time: "17:00:00", is_closed: false },
-        { day: 2, open_time: "09:00:00", close_time: "17:00:00", is_closed: false },
-        { day: 3, open_time: "09:00:00", close_time: "17:00:00", is_closed: false },
-        { day: 4, open_time: "09:00:00", close_time: "17:00:00", is_closed: false },
-        { day: 5, open_time: "09:00:00", close_time: "17:00:00", is_closed: false },
-        { day: 6, open_time: "09:00:00", close_time: "17:00:00", is_closed: false },
+        {
+            day: 0,
+            open_time: "09:00:00",
+            close_time: "17:00:00",
+            is_closed: false,
+        },
+        {
+            day: 1,
+            open_time: "09:00:00",
+            close_time: "17:00:00",
+            is_closed: false,
+        },
+        {
+            day: 2,
+            open_time: "09:00:00",
+            close_time: "17:00:00",
+            is_closed: false,
+        },
+        {
+            day: 3,
+            open_time: "09:00:00",
+            close_time: "17:00:00",
+            is_closed: false,
+        },
+        {
+            day: 4,
+            open_time: "09:00:00",
+            close_time: "17:00:00",
+            is_closed: false,
+        },
+        {
+            day: 5,
+            open_time: "09:00:00",
+            close_time: "17:00:00",
+            is_closed: false,
+        },
+        {
+            day: 6,
+            open_time: "09:00:00",
+            close_time: "17:00:00",
+            is_closed: false,
+        },
     ];
 };
 
 export const useStoreHubController = (
-    branches: Branch[],
+    selectedBranch: Branch | null,
     apiHours: BranchHour[],
 ) => {
-    const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
-
     const [deliveryMethod, setDeliveryMethod] = useState<
         "Instant" | "Scheduled"
     >("Scheduled");
@@ -29,24 +62,16 @@ export const useStoreHubController = (
     const [preOrderTime, setPreOrderTime] = useState("12:00 AM");
     const [finalOrderTime, setFinalOrderTime] = useState("12:00 PM");
 
-    /* ================= INIT DEFAULT BRANCH ================= */
-    useEffect(() => {
-        if (branches.length > 0 && !selectedBranch) {
-            setSelectedBranch(branches[0]);
-        }
-    }, [branches]);
-
     /* ================= SYNC DELIVERY METHOD ================= */
     useEffect(() => {
         if (!selectedBranch) return;
 
-        const method =
+        setDeliveryMethod(
             selectedBranch.delivery_method === "instant"
                 ? "Instant"
-                : "Scheduled";
-
-        setDeliveryMethod(method);
-    }, [selectedBranch?.id]);
+                : "Scheduled",
+        );
+    }, [selectedBranch]);
 
     /* ================= NORMALIZE API HOURS → FULL WEEK ================= */
     useEffect(() => {
@@ -71,12 +96,9 @@ export const useStoreHubController = (
         if (deliveryMethod === "Instant" && hours.length === 0) {
             setHours(getWeekTemplate());
         }
-    }, [deliveryMethod]);
+    }, [deliveryMethod, hours.length]);
 
     return {
-        selectedBranch,
-        setSelectedBranch,
-
         deliveryMethod,
         setDeliveryMethod,
 

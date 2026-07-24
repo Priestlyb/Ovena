@@ -21,7 +21,9 @@ export const CustomInput: React.FC<CustomInputProps> = ({
       case "tel":
         return "phone-pad";
       case "currency":
-        return "numeric";
+        return "phone-pad";
+      case "number":
+        return "phone-pad";
       default:
         return "default";
     }

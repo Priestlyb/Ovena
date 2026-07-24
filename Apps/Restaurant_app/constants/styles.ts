@@ -32,14 +32,14 @@ export const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 32,
+    marginBottom: 10,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 10,
     lineHeight: 20,
   },
 
@@ -55,7 +55,7 @@ export const styles = StyleSheet.create({
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '500',
     color: '#111827',
   },
@@ -88,6 +88,18 @@ export const styles = StyleSheet.create({
   // ============================================================================
   // DROPDOWN STYLES
   // ============================================================================
+  searchInput: {
+    height: 44,
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 8,
+    fontSize: 16,
+    backgroundColor: "#FFF",
+  },
   dropdown: {
     backgroundColor: '#ffb47e45',
     borderRadius: 12,
@@ -346,22 +358,32 @@ export const styles = StyleSheet.create({
   // BUTTON STYLES
   // ============================================================================
   continueBtn: {
-    backgroundColor: '#FF5920',
+    backgroundColor: "#FF5920",
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 32,
     marginBottom: 75,
-    shadowColor: '#000000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
   },
+
+  continueBtnDisabled: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.7, // Optional
+  },
+
   continueBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+
+  continueBtnTextDisabled: {
+    color: "#E5E7EB",
   },
   disabledBtn1: {
     backgroundColor: '#9CA3AF',
@@ -390,10 +412,17 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emailDisplay: {
+  numberDisplay: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 24,
+    marginBottom: 25,
+  },
+  resendButton: {
+    color: "#FFB47E",
+    padding: 10,
+    marginTop: 5,
+    borderRadius: 10,
+    fontWeight: 700,
   },
 
   // ============================================================================
@@ -956,6 +985,7 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 22,
+    marginHorizontal: 25,
     boxShadow: '0px 4px 8px #ff592099',
   },
 
@@ -1347,9 +1377,6 @@ export const styles = StyleSheet.create({
 
   // Profile Page Styles
   profileHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   profileUserInfo: {
     alignItems: 'center',

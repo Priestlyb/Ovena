@@ -24,6 +24,8 @@ import FeedbackModal from "@/components/FeedbackModal";
 import { FloatingChatButton } from "@/components/FloatingChatButton";
 import { Header } from "@/components/molecules/Header";
 
+import { InstantSection } from "@/components/StoreHubPage/InstantSection";
+import { ScheduledSection } from "@/components/StoreHubPage/ScheduledSection";
 import api from "@/services/apiClient";
 
 /* ================= CONSTANTS ================= */
@@ -43,6 +45,8 @@ export default function CreateStoreHub() {
 
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+
+  const isDisabled = loading || latitude === null || longitude === null;
 
   const [deliveryMethod, setDeliveryMethod] = useState<"Instant" | "Scheduled">(
     "Scheduled",
@@ -129,6 +133,20 @@ export default function CreateStoreHub() {
 
     return null;
   };
+
+  /* ====
+  const HARDCODED_LOCATION = {
+    latitude: 5.00876,
+    longitude: 7.94412,
+  };
+
+  
+  useEffect(() => {
+    setLatitude(HARDCODED_LOCATION.latitude);
+    setLongitude(HARDCODED_LOCATION.longitude);
+  }, []);
+
+   ==== */
 
   /* ================= LOCATION FETCH ================= */
   useEffect(() => {
@@ -284,7 +302,7 @@ export default function CreateStoreHub() {
       <ScrollView>
         <View style={{ padding: 20 }}>
           <Header
-            title="Create Branch"
+            title="Create a Branch"
             leftIcon={<ArrowLeft size={24} />}
             onLeftIconPress={() => router.back()}
           />
@@ -322,36 +340,41 @@ export default function CreateStoreHub() {
           <Spacer size="lg" />
 
           {deliveryMethod === "Scheduled" && (
-            <>
-              <CustomDropdown
-                placeholder="Select a Opening Scheduled Period"
-                label="Opening Scheduled Period"
-                options={TIME_OPTIONS}
-                value={preOrderTime}
-                onChange={setPreOrderTime}
-              />
+            <ScheduledSection
+              preOrderTime={preOrderTime}
+              finalOrderTime={finalOrderTime}
+              setPreOrderTime={setPreOrderTime}
+              setFinalOrderTime={setFinalOrderTime}
+            />
+          )}
 
-              <Spacer size="md" />
-
-              <CustomDropdown
-                placeholder="Select a Final Order Time"
-                label="Final Order Time"
-                options={TIME_OPTIONS}
-                value={finalOrderTime}
-                onChange={setFinalOrderTime}
-              />
-            </>
+          {deliveryMethod === "Instant" && (
+            <InstantSection hours={branchHours} setHours={setBranchHours} />
           )}
 
           <Spacer size="xl" />
 
           <TouchableOpacity
-            style={styles.continueBtn}
+            style={[
+              styles.continueBtn,
+              isDisabled && styles.continueBtnDisabled,
+            ]}
             onPress={handleCreateBranch}
-            disabled={loading}
+            disabled={isDisabled}
           >
-            <Text style={styles.continueBtnText}>
-              {loading ? <ActivityIndicator color="#fff" /> : "Create Branch"}
+            <Text
+              style={[
+                styles.continueBtnText,
+                isDisabled && styles.continueBtnTextDisabled,
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : isDisabled ? (
+                "Getting Location..."
+              ) : (
+                "Create Branch"
+              )}
             </Text>
           </TouchableOpacity>
         </View>

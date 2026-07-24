@@ -2,13 +2,13 @@
 
 import React, { useRef } from "react";
 import {
-    ActivityIndicator,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface Props {
@@ -61,7 +61,7 @@ export const OtpModal = ({
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Enter OTP</Text>
           <Text style={styles.modalSubtitle}>
-            Enter the 6-digit code sent to you
+            Enter the 6-digit code sent to your email address
           </Text>
 
           <View style={styles.otpContainer}>

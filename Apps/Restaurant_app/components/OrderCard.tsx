@@ -1,15 +1,17 @@
 // components/OrderCard.tsx
+
 import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { StatusButton } from "./StatusButton";
 
-type OrderAction = "accept" | "cancel" | "made";
+type OrderAction = "accept" | "cancel" | "made" | "complete" | "pickup";
 
 interface OrderCardProps {
   id: string;
   itemName?: string;
   orderId?: string | number;
+  reference?: string;
   price?: number;
   time?: string;
   status: string;
@@ -17,7 +19,8 @@ interface OrderCardProps {
   customerName?: string;
   customerPhone?: string;
   created_at?: string;
-
+  picked_up_by_user?: boolean;
+  showFulfillmentBadge?: boolean;
   onStatusPress?: (action: OrderAction) => void;
 }
 
@@ -25,6 +28,7 @@ export function OrderCard({
   id,
   itemName,
   orderId,
+  reference,
   price,
   time,
   status,
@@ -32,6 +36,8 @@ export function OrderCard({
   customerName,
   customerPhone,
   created_at,
+  picked_up_by_user,
+  showFulfillmentBadge = true,
   onStatusPress,
 }: OrderCardProps) {
   const router = useRouter();
@@ -41,6 +47,7 @@ export function OrderCard({
       id,
       itemName,
       orderId,
+      reference,
       price,
       time,
       status,
@@ -58,24 +65,64 @@ export function OrderCard({
     });
   };
 
-  const displayTitle = customerName || itemName || `Order #${orderId || id}`;
+  const displayTitle =
+    customerName || itemName || `Order #${customerName || id}`;
 
-  const showPrice = typeof price === "number" && price > 0;
+  const showPrice = typeof price === "number" && !isNaN(price) && price > 0;
+
   const showPhone = !!customerPhone && customerPhone !== "N/A";
 
-  // ✅ Decide what action(s) to show
+  const formattedPrice = showPrice
+    ? new Intl.NumberFormat("en-NG", {
+        style: "currency",
+        currency: "NGN",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(price / 100)
+    : null;
+
   const getActions = (): OrderAction[] => {
     switch (status) {
       case "incoming":
         return ["accept", "cancel"];
+
       case "preparing":
         return ["made"];
+
+      case "ready":
+        return [picked_up_by_user ? "complete" : "pickup"];
+
+      case "picked_up":
+        return ["pickup"];
+
       default:
         return [];
     }
   };
 
   const actions = getActions();
+
+  const getActionLabel = (action: OrderAction) => {
+    switch (action) {
+      case "accept":
+        return "Accept";
+
+      case "cancel":
+        return "Cancel";
+
+      case "made":
+        return "Ready";
+
+      case "complete":
+        return "Complete";
+
+      case "pickup":
+        return "Deliver";
+
+      default:
+        return action;
+    }
+  };
 
   return (
     <TouchableOpacity
@@ -85,6 +132,18 @@ export function OrderCard({
     >
       <View style={styles.contentContainer}>
         <View style={styles.leftSection}>
+          {showFulfillmentBadge && (
+            <View
+              style={[
+                styles.fulfillmentBadge,
+                picked_up_by_user ? styles.pickupBadge : styles.deliveryBadge,
+              ]}
+            >
+              <Text style={styles.fulfillmentBadgeText}>
+                {picked_up_by_user ? "Pickup" : "Delivery"}
+              </Text>
+            </View>
+          )}
           <View style={styles.headerRow}>
             <Text style={styles.title}>{displayTitle}</Text>
 
@@ -95,12 +154,17 @@ export function OrderCard({
             )}
           </View>
 
-          {orderId !== undefined && (
+          {id ? (
             <>
               <Text style={styles.label}>Order ID</Text>
-              <Text style={styles.metaText}>#{orderId}</Text>
+              <Text style={styles.metaText}>{id}</Text>
             </>
-          )}
+          ) : reference !== undefined ? (
+            <>
+              <Text style={styles.label}>Reference</Text>
+              <Text style={styles.metaText}>#{reference}</Text>
+            </>
+          ) : null}
 
           {showPhone && (
             <>
@@ -114,15 +178,15 @@ export function OrderCard({
           {time && <Text style={styles.time}>{time}</Text>}
 
           {showPrice ? (
-            <Text style={styles.price}>₦{price!.toLocaleString()}</Text>
+            <Text style={styles.price}>{formattedPrice}</Text>
           ) : (
-            <Text style={styles.pendingPrice}>Pending</Text>
+            <Text style={styles.pendingPrice}>{status}</Text>
           )}
 
-          {/* ✅ ACTION BUTTONS */}
           {actions.length === 1 ? (
             <StatusButton
               status={status}
+              label={getActionLabel(actions[0])}
               onPress={() => onStatusPress?.(actions[0])}
             />
           ) : actions.length > 1 ? (
@@ -139,16 +203,12 @@ export function OrderCard({
                         : styles.made,
                   ]}
                   onPress={(e) => {
-                    e.stopPropagation(); // 🚫 prevent card click
+                    e.stopPropagation();
                     onStatusPress?.(action);
                   }}
                 >
                   <Text style={styles.actionText}>
-                    {action === "accept"
-                      ? "Accept"
-                      : action === "cancel"
-                        ? "Cancel"
-                        : "Ready"}
+                    {getActionLabel(action)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -167,13 +227,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F5",
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginVertical: 20,
   },
+
   contentContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  leftSection: { flex: 1, paddingRight: 10 },
+
+  leftSection: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
   rightSection: {
     alignItems: "flex-end",
     justifyContent: "space-between",
@@ -190,6 +256,28 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#000",
     marginRight: 8,
+  },
+
+  fulfillmentBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 8,
+  },
+
+  pickupBadge: {
+    backgroundColor: "#F5E675",
+  },
+
+  deliveryBadge: {
+    backgroundColor: "#FF592050",
+  },
+
+  fulfillmentBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#333",
   },
 
   badge: {
@@ -236,7 +324,6 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  /* ✅ Multi-action styles */
   multiActions: {
     flexDirection: "row",
     gap: 6,

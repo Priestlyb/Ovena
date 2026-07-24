@@ -4,6 +4,7 @@ import React from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
@@ -31,6 +32,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import api from "@/services/apiClient";
+import { Branch } from "@/types/storeHub";
 import { convertToISO, timeToNumber } from "@/utils/time";
 
 export default function StoreHubPage() {
@@ -40,14 +42,21 @@ export default function StoreHubPage() {
   const [loadingOpenState, setLoadingOpenState] = React.useState(false);
 
   const { branches, loading } = useBranches();
-  const { apiHours } = useBranchHours(branches.find((b) => b)?.id);
+  const [selectedBranch, setSelectedBranch] = React.useState<Branch | null>(
+    null,
+  );
+
+  React.useEffect(() => {
+    if (branches.length > 0 && !selectedBranch) {
+      setSelectedBranch(branches[0]);
+    }
+  }, [branches, selectedBranch]);
+  const { apiHours } = useBranchHours(selectedBranch?.id);
 
   const [confirmVisible, setConfirmVisible] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
   const {
-    selectedBranch,
-    setSelectedBranch,
     deliveryMethod,
     setDeliveryMethod,
     hours,
@@ -56,7 +65,7 @@ export default function StoreHubPage() {
     setPreOrderTime,
     finalOrderTime,
     setFinalOrderTime,
-  } = useStoreHubController(branches, apiHours);
+  } = useStoreHubController(selectedBranch, apiHours);
 
   const handleDeletePress = () => {
     if (!selectedBranch?.id) {
@@ -236,7 +245,10 @@ export default function StoreHubPage() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <ScrollView>
           <View style={{ padding: 20 }}>
             <Header

@@ -1,3 +1,5 @@
+import { BusinessImagePicker } from "@/components/BusinessImagePicker";
+import { BusinessLogoImagePicker } from "@/components/BusinessLogoImagePicker";
 import { CustomDropdown } from "@/components/CustomDropDown";
 import { CustomInput } from "@/components/CustomInput";
 import FeedbackModal from "@/components/FeedbackModal";
@@ -15,6 +17,11 @@ import {
   TouchableOpacity,
 } from "react-native";
 
+type ImageType = {
+  uri: string;
+  uploadedUrl?: string;
+};
+
 interface BusinessDetailsPageProps extends NavigationProps<void> {
   data: {
     businessName: string;
@@ -23,18 +30,44 @@ interface BusinessDetailsPageProps extends NavigationProps<void> {
     email: string;
     phoneNumber: string;
   };
+
+  productImage: ImageType | null;
+  businessLogo: ImageType | null;
+
+  uploadProgress: number;
+  isUploading?: boolean;
+
+  uploadLogoProgress: number;
+  isUploadingLogo?: boolean;
+
   onChangeBusinessName: (value: string) => void;
   onChangeBusinessType: (value: string) => void;
   onChangeEmail: (value: string) => void;
   onChangePhone: (value: string) => void;
+
+  handleImageUpload: () => void;
+  removeImage: () => void;
+
+  handleLogoUpload: () => void;
+  removeLogo: () => void;
 }
 
 const BusinessDetailsPage: React.FC<BusinessDetailsPageProps> = ({
   data,
+  productImage,
+  businessLogo,
+  uploadProgress,
+  isUploading = false,
+  uploadLogoProgress,
+  isUploadingLogo = false,
   onChangeBusinessName,
   onChangeBusinessType,
   onChangeEmail,
   onChangePhone,
+  handleImageUpload,
+  removeImage,
+  handleLogoUpload,
+  removeLogo,
   onNext,
   onBack,
 }) => {
@@ -49,17 +82,12 @@ const BusinessDetailsPage: React.FC<BusinessDetailsPageProps> = ({
     setModalVisible(true);
   };
 
-  /* =========================================================
-     EMAIL
-  ========================================================= */
+  /* ================= EMAIL ================= */
 
-  const normalizeEmail = (email: string) => {
-    return email.trim().toLowerCase();
-  };
+  const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
   const validateEmail = (email: string) => {
     const normalized = normalizeEmail(email);
-
     const regex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
 
     return {
@@ -68,28 +96,15 @@ const BusinessDetailsPage: React.FC<BusinessDetailsPageProps> = ({
     };
   };
 
-  /* =========================================================
-     PHONE (STRICT NIGERIAN VALIDATION)
-  ========================================================= */
+  /* ================= PHONE ================= */
 
   const normalizeNigerianPhone = (input: string): string => {
     let cleaned = input.replace(/[\s-()]/g, "");
 
-    if (cleaned.startsWith("00")) {
-      cleaned = "+" + cleaned.slice(2);
-    }
-
-    if (/^234\d{10}$/.test(cleaned)) {
-      cleaned = "+" + cleaned;
-    }
-
-    if (/^0\d{10}$/.test(cleaned)) {
-      cleaned = "+234" + cleaned.slice(1);
-    }
-
-    if (/^\d{10}$/.test(cleaned)) {
-      cleaned = "+234" + cleaned;
-    }
+    if (cleaned.startsWith("00")) cleaned = "+" + cleaned.slice(2);
+    if (/^234\d{10}$/.test(cleaned)) cleaned = "+" + cleaned;
+    if (/^0\d{10}$/.test(cleaned)) cleaned = "+234" + cleaned.slice(1);
+    if (/^\d{10}$/.test(cleaned)) cleaned = "+234" + cleaned;
 
     return cleaned;
   };
@@ -97,14 +112,12 @@ const BusinessDetailsPage: React.FC<BusinessDetailsPageProps> = ({
   const validatePhone = (phone: string) => {
     const normalized = normalizeNigerianPhone(phone);
 
-    // must match +234XXXXXXXXXX
     if (!/^\+234\d{10}$/.test(normalized)) {
       return { isValid: false, normalized };
     }
 
     const local = normalized.replace("+234", "");
 
-    // ✅ VALID NIGERIAN PREFIXES
     const validPrefixes = [
       "701",
       "702",
@@ -145,18 +158,13 @@ const BusinessDetailsPage: React.FC<BusinessDetailsPageProps> = ({
       "909",
     ];
 
-    const prefix = local.substring(0, 3);
-
-    if (!validPrefixes.includes(prefix)) {
-      return { isValid: false, normalized };
-    }
-
-    return { isValid: true, normalized };
+    return {
+      isValid: validPrefixes.includes(local.substring(0, 3)),
+      normalized,
+    };
   };
 
-  /* =========================================================
-     VALIDATION LOGIC
-  ========================================================= */
+  /* ================= VALIDATION ================= */
 
   const handleNext = () => {
     const errors: string[] = [];
@@ -164,44 +172,34 @@ const BusinessDetailsPage: React.FC<BusinessDetailsPageProps> = ({
 
     const cleanedEmail = normalizeEmail(data.email);
 
-    // Business Name
     if (!data.businessName.trim()) {
       errors.push("Business name is required");
       isValid = false;
     }
 
-    // Business Type
     if (!data.businessType) {
       errors.push("Please select a business type");
       isValid = false;
     }
 
-    // Email
     if (!cleanedEmail) {
-      const msg = "Email is required";
-      errors.push(msg);
-      setEmailError(msg);
+      errors.push("Email is required");
       isValid = false;
     } else {
       const { isValid: emailValid, normalized } = validateEmail(cleanedEmail);
 
       if (!emailValid) {
-        const msg =
-          "Email must be a valid Gmail address (e.g example@gmail.com)";
-        errors.push(msg);
-        setEmailError(msg);
+        errors.push(
+          "Email must be a valid Gmail address (e.g example@gmail.com)",
+        );
         isValid = false;
       } else {
-        setEmailError("");
         onChangeEmail(normalized);
       }
     }
 
-    // Phone
     if (!data.phoneNumber.trim()) {
-      const msg = "Phone number is required";
-      errors.push(msg);
-      setPhoneError(msg);
+      errors.push("Phone number is required");
       isValid = false;
     } else {
       const { isValid: phoneValid, normalized } = validatePhone(
@@ -209,14 +207,22 @@ const BusinessDetailsPage: React.FC<BusinessDetailsPageProps> = ({
       );
 
       if (!phoneValid) {
-        const msg = "Enter a valid Nigerian phone number (e.g 08012345678)";
-        errors.push(msg);
-        setPhoneError(msg);
+        errors.push("Enter a valid Nigerian phone number (e.g 08012345678)");
         isValid = false;
       } else {
-        setPhoneError("");
         onChangePhone(normalized);
       }
+    }
+
+    // ✅ IMAGE VALIDATION (NOW CHECK BOTH)
+    if (!productImage) {
+      errors.push("Business image is required");
+      isValid = false;
+    }
+
+    if (!businessLogo) {
+      errors.push("Business logo is required");
+      isValid = false;
     }
 
     if (!isValid) {
@@ -242,6 +248,22 @@ const BusinessDetailsPage: React.FC<BusinessDetailsPageProps> = ({
           </TouchableOpacity>
 
           <Text style={styles.pageTitle}>Begin your Ovena experience</Text>
+
+          <BusinessLogoImagePicker
+            businessLogo={businessLogo}
+            uploadLogoProgress={uploadLogoProgress}
+            isUploadingLogo={isUploadingLogo}
+            handleImageUpload={handleLogoUpload}
+            removeImage={removeLogo}
+          />
+
+          <BusinessImagePicker
+            productImage={productImage}
+            uploadProgress={uploadProgress}
+            isUploading={isUploading}
+            handleImageUpload={handleImageUpload}
+            removeImage={removeImage}
+          />
 
           <CustomInput
             label="Business Name"

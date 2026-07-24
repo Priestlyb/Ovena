@@ -10,17 +10,19 @@ import {
 } from "react-native";
 
 import { AddonSection } from "@/components/AddonSection";
-import { BaseItemSection } from "@/components/BaseItemSection";
 import { CategorySection } from "@/components/CategorySection";
 import { CustomSwitch } from "@/components/CustomSwitch";
 import FeedbackModal from "@/components/FeedbackModal";
 import { ImageSection } from "@/components/ImageSection";
 import { ProductInfoSection } from "@/components/ProductInfoSection";
 import { VariantSection } from "@/components/VariantSection";
-import { styles } from "@/constants/styles";
+import { Spacer } from "@/components/atoms/Spacer";
+import { Header } from "@/components/molecules/Header";
 
+import { styles } from "@/constants/styles";
 import { formatPrice } from "@/utils/formatPrice";
-import { useEditMenuDetails } from "../../hooks/useEditMenuDetails";
+
+import { useEditMenuDetails } from "../../hooks/foodTab/useEditMenuDetails";
 
 export default function EditMenuDetailsPage() {
   const {
@@ -34,32 +36,27 @@ export default function EditMenuDetailsPage() {
     setShowAddCategory,
     handleAddCategory,
 
+    // image
     productImage,
     uploadProgress,
     handleImageUpload,
     removeImage,
 
+    // variants
     variantGroups,
     setVariantGroups,
     addVariantGroup,
     addVariantOption,
 
+    // addons
     addonGroups,
     setAddonGroups,
     addAddonGroup,
     addAddon,
 
+    // menu state
     isActive,
     setIsActive,
-
-    useMergeBase,
-    setUseMergeBase,
-    manualBaseName,
-    setManualBaseName,
-    manualBaseDescription,
-    setManualBaseDescription,
-    manualBasePrice,
-    setManualBasePrice,
 
     name,
     setName,
@@ -72,6 +69,7 @@ export default function EditMenuDetailsPage() {
     setFeedback,
 
     handleSubmit,
+    isSubmitting,
   } = useEditMenuDetails();
 
   return (
@@ -80,13 +78,20 @@ export default function EditMenuDetailsPage() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView style={styles.container}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <ArrowLeft size={24} />
-          </TouchableOpacity>
+        <ScrollView
+          style={styles.container}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* HEADER */}
+          <Header
+            title="Edit Menu Item"
+            leftIcon={<ArrowLeft size={22} color="#111" />}
+            onLeftIconPress={() => router.back()}
+          />
 
-          <Text style={styles.pageTitle}>Edit Menu Item</Text>
+          <Spacer size="lg" />
 
+          {/* CATEGORY */}
           <CategorySection
             categories={categories}
             category={category}
@@ -98,24 +103,14 @@ export default function EditMenuDetailsPage() {
             handleAddCategory={handleAddCategory}
           />
 
+          {/* ACTIVE SWITCH */}
           <CustomSwitch
             label="Menu Active"
             value={isActive}
             onValueChange={setIsActive}
           />
 
-          <BaseItemSection
-            useMergeBase={useMergeBase}
-            setUseMergeBase={setUseMergeBase}
-            manualBaseName={manualBaseName}
-            setManualBaseName={setManualBaseName}
-            manualBaseDescription={manualBaseDescription}
-            setManualBaseDescription={setManualBaseDescription}
-            manualBasePrice={manualBasePrice}
-            setManualBasePrice={setManualBasePrice}
-            formatPrice={formatPrice}
-          />
-
+          {/* PRODUCT INFO */}
           <ProductInfoSection
             name={name}
             setName={setName}
@@ -126,6 +121,7 @@ export default function EditMenuDetailsPage() {
             formatPrice={formatPrice}
           />
 
+          {/* IMAGE */}
           <ImageSection
             productImage={productImage}
             uploadProgress={uploadProgress}
@@ -133,6 +129,7 @@ export default function EditMenuDetailsPage() {
             removeImage={removeImage}
           />
 
+          {/* VARIANTS */}
           <VariantSection
             variantGroups={variantGroups}
             setVariantGroups={setVariantGroups}
@@ -141,25 +138,35 @@ export default function EditMenuDetailsPage() {
             formatPrice={formatPrice}
           />
 
+          {/* ADDONS */}
           <AddonSection
             addonGroups={addonGroups}
             setAddonGroups={setAddonGroups}
             addAddonGroup={addAddonGroup}
             addAddon={addAddon}
             formatPrice={formatPrice}
+            onPickAddonImage={handleImageUpload}
           />
 
-          <TouchableOpacity style={styles.continueBtn} onPress={handleSubmit}>
-            <Text style={styles.continueBtnText}>Update Menu</Text>
+          {/* SUBMIT BUTTON */}
+          <TouchableOpacity
+            style={[styles.continueBtn, isSubmitting && { opacity: 0.5 }]}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.continueBtnText}>
+              {isSubmitting ? "Updating..." : "Update Menu"}
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* FEEDBACK MODAL */}
       <FeedbackModal
         visible={feedback.visible}
         message={feedback.message}
         variant={feedback.variant}
-        onClose={() => setFeedback((p) => ({ ...p, visible: false }))}
+        onClose={() => setFeedback((prev) => ({ ...prev, visible: false }))}
       />
     </SafeAreaView>
   );

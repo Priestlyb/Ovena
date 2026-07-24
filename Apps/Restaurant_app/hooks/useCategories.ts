@@ -10,25 +10,35 @@ export const useCategories = () => {
 
   const cleanText = (text: string) => text.trim();
 
+  const extractCategories = (menus: any[]) => {
+    const result: string[] = [];
+
+    menus.forEach((menu) => {
+      (menu.categories || []).forEach((cat: any) => {
+        if (cat?.name) {
+          result.push(cat.name.trim());
+        }
+      });
+    });
+
+    return [...new Set(result)];
+  };
+
   const fetchCategories = async () => {
     try {
       setLoadingCategories(true);
 
       const res = await api.get("/menu/business/menu-list/");
 
-      const menus = Array.isArray(res.data)
-        ? res.data
-        : res.data?.menus || res.data?.data?.menus || res.data?.results || [];
+      const menus =
+        Array.isArray(res.data)
+          ? res.data
+          : res.data?.menus ||
+            res.data?.data?.menus ||
+            res.data?.results ||
+            [];
 
-      const extracted: string[] = [];
-
-      menus.forEach((menu: any) => {
-        (menu.categories || []).forEach((cat: any) => {
-          if (cat?.name) extracted.push(cat.name.trim());
-        });
-      });
-
-      setCategories([...new Set(extracted)]);
+      setCategories(extractCategories(menus));
     } catch (err) {
       console.log("CATEGORY FETCH ERROR:", err);
     } finally {
@@ -41,7 +51,10 @@ export const useCategories = () => {
 
     const cleaned = cleanText(newCategory);
 
-    setCategories((prev) => [...new Set([...prev, cleaned])]);
+    setCategories((prev) => [
+      ...new Set([...prev, cleaned]),
+    ]);
+
     setCategory(cleaned);
     setNewCategory("");
     setShowAddCategory(false);

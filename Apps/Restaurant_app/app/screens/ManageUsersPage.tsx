@@ -20,11 +20,13 @@ import { Badge } from "@/components/atoms/Badge";
 import { Spacer } from "@/components/atoms/Spacer";
 import { Text } from "@/components/atoms/Text";
 import { CustomDropdown } from "@/components/CustomDropDown";
-import FeedbackModal from "@/components/FeedbackModal"; // ✅ ADDED
+import FeedbackModal from "@/components/FeedbackModal";
 import { Card } from "@/components/molecules/Card";
 import { Header } from "@/components/molecules/Header";
+import * as Clipboard from "expo-clipboard";
 
 /* TYPES */
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
   AdminSectionProps,
   AdminUser,
@@ -90,7 +92,7 @@ const AdminSection = ({ router, users }: AdminSectionProps) => (
         Manage Users
       </Text>
 
-      <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+      <TouchableOpacity>
         <Text style={{ color: "#FF6B35" }}>+ Invite new user</Text>
       </TouchableOpacity>
     </View>
@@ -166,7 +168,7 @@ const DeviceList = ({ devices, loading, onSelect }: DeviceListProps) => {
   ));
 };
 
-const OTPModal = ({ visible, otp, onClose }: OTPModalProps) => (
+const OTPModal = ({ visible, otp, onClose, onCopy }: OTPModalProps) => (
   <Modal visible={visible} transparent animationType="fade">
     <View
       style={{
@@ -196,9 +198,28 @@ const OTPModal = ({ visible, otp, onClose }: OTPModalProps) => (
         <Text variant="h4">Link Device Code</Text>
         <Spacer size="md" />
 
-        <Text style={{ fontSize: 36, fontWeight: "bold", letterSpacing: 4 }}>
-          {otp}
+        <Text
+          variant="bodySmall"
+          style={{
+            color: "#6B7280",
+            marginTop: 8,
+          }}
+        >
+          <IconSymbol name="FileClipboardIcon" size={25} color="#333" /> Tap the
+          code to copy
         </Text>
+
+        <TouchableOpacity onPress={onCopy}>
+          <Text
+            style={{
+              fontSize: 36,
+              fontWeight: "bold",
+              letterSpacing: 4,
+            }}
+          >
+            {otp}
+          </Text>
+        </TouchableOpacity>
 
         <Spacer size="md" />
         <Text align="center">Share this code with the staff device</Text>
@@ -432,6 +453,14 @@ export default function ManageUsersPage() {
     }
   };
 
+  const handleCopyOTP = async () => {
+    if (!otp) return;
+
+    await Clipboard.setStringAsync(otp);
+
+    showFeedback("Link code copied to clipboard.", "success", "Copied");
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -515,6 +544,7 @@ export default function ManageUsersPage() {
         visible={showOtpModal}
         otp={otp}
         onClose={() => setShowOtpModal(false)}
+        onCopy={handleCopyOTP}
       />
 
       <RevokeModal

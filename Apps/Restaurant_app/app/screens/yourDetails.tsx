@@ -3,15 +3,14 @@
 import { styles } from "@/constants/styles";
 import apiClient from "@/services/apiClient";
 import { ArrowLeft } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
   ScrollView,
-  TouchableOpacity
+  TouchableOpacity,
 } from "react-native";
 
 // Atomic Components
@@ -23,15 +22,10 @@ import { Header } from "@/components/molecules/Header";
 
 // Existing Components
 import { CustomInput } from "@/components/CustomInput";
-import { OtpModal } from "@/components/OtpModal"; // ✅ NEW
-import { useRouter } from "expo-router";
+import FeedbackModal from "@/components/FeedbackModal";
+import { OtpModal } from "@/components/OtpModal";
 
-interface UserDetails {
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  emailAddress: string;
-}
+import { useRouter } from "expo-router";
 
 const OTP_LENGTH = 6;
 
@@ -40,6 +34,7 @@ const YourDetailsPage = () => {
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [emailAddress, setEmailAddress] = useState("");
+  const [originalEmail, setOriginalEmail] = useState("");
 
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,51 +44,102 @@ const YourDetailsPage = () => {
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [verifyingOtp, setVerifyingOtp] = useState(false);
 
+  // Feedback Modal
+  const [feedback, setFeedback] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    variant: "info" as "success" | "error" | "warning" | "info",
+  });
+
   const router = useRouter();
+
+  const showFeedback = (
+    message: string,
+    variant: "success" | "error" | "warning" | "info",
+    title?: string,
+  ) => {
+    setFeedback({
+      visible: true,
+      title: title || "",
+      message,
+      variant,
+    });
+  };
 
   // ----------------------
   // Fetch profile
   // ----------------------
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await apiClient.get("/accounts/profile/", {
-          params: { profile_type: "businessadmin" },
-        });
+  const fetchProfile = useCallback(async () => {
+    try {
+      setLoadingProfile(true);
 
-        const user = response.data.user;
+      const response = await apiClient.get("/accounts/profile/", {
+        params: {
+          profile_type: "businessadmin",
+        },
+      });
 
-        const [first, ...rest] = (user.name || "").split(" ");
-        const last = rest.join(" ");
+      console.log("Profile fetched successfully:", response.data);
 
-        setFirstName(first || "");
-        setLastName(last || "");
-        setPhoneNumber(user.phone_number || "");
-        setEmailAddress(user.email || "");
-      } catch (err: any) {
-        console.warn("❌ Failed to fetch profile:", err);
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
+      const user = response.data?.user;
+      const profile = response.data?.profile;
 
-    fetchProfile();
+      const fullName = profile?.name || "";
+
+      const [first, ...rest] = fullName.split(" ");
+
+      const last = rest.join(" ");
+
+      const email = (user?.email || "").trim();
+
+      setFirstName(first || "");
+
+      setLastName(last || "");
+
+      setPhoneNumber(user?.phone_number || "");
+
+      setEmailAddress(email);
+
+      setOriginalEmail(email);
+    } catch (err: any) {
+      console.warn(
+        "❌ Failed to fetch profile:",
+        err.response?.data || err.message,
+      );
+
+      showFeedback("Failed to load profile", "error");
+    } finally {
+      setLoadingProfile(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
   // ----------------------
-  // Handle Save (TRIGGERS OTP)
+  // Handle Save
   // ----------------------
   const handleSave = async () => {
     const fullName = `${firstName} ${lastName}`.trim();
 
     const payload: any = {
-      phone_number: phoneNumber,
-      full_name: fullName,
+      phone_number: phoneNumber.trim(),
+
+      name: fullName,
     };
 
-    if (emailAddress?.trim()) {
-      payload.email = emailAddress;
+    const trimmedEmail = emailAddress.trim();
+
+    if (
+      trimmedEmail &&
+      trimmedEmail.toLowerCase() !== originalEmail.trim().toLowerCase()
+    ) {
+      payload.email = trimmedEmail;
     }
+
+    console.log("📤 Update Payload:", payload);
 
     try {
       setSaving(true);
@@ -102,9 +148,11 @@ const YourDetailsPage = () => {
 
       setOtpModalVisible(true);
     } catch (err: any) {
-      Alert.alert(
-        "Error",
+      console.log("❌ Update Error:", err.response?.data);
+
+      showFeedback(
         err.response?.data?.message || "Failed to update profile",
+        "error",
       );
     } finally {
       setSaving(false);
@@ -117,8 +165,9 @@ const YourDetailsPage = () => {
   const handleVerifyOtp = async () => {
     const otpCode = otp.join("");
 
-    if (otpCode.length !== 6) {
-      Alert.alert("Error", "Enter complete OTP");
+    if (otpCode.length !== OTP_LENGTH) {
+      showFeedback("Enter complete OTP", "warning");
+
       return;
     }
 
@@ -130,11 +179,14 @@ const YourDetailsPage = () => {
       });
 
       setOtpModalVisible(false);
+
       setOtp(Array(OTP_LENGTH).fill(""));
 
-      Alert.alert("Success", "Profile updated successfully!");
+      await fetchProfile();
+
+      showFeedback("Profile updated successfully!", "success");
     } catch (err: any) {
-      Alert.alert("Error", err.response?.data?.message || "Invalid OTP");
+      showFeedback(err.response?.data?.message || "Invalid OTP", "error");
     } finally {
       setVerifyingOtp(false);
     }
@@ -168,18 +220,21 @@ const YourDetailsPage = () => {
                 value={firstName}
                 onChange={setFirstName}
               />
+
               <CustomInput
                 placeholder="Enter Your Last Name"
                 label="Last name"
                 value={lastName}
                 onChange={setLastName}
               />
+
               <CustomInput
                 placeholder="Enter Your Phone Number"
                 label="Phone number"
                 value={phoneNumber}
                 onChange={setPhoneNumber}
               />
+
               <CustomInput
                 placeholder="Enter Your Email"
                 label="Email address"
@@ -204,7 +259,6 @@ const YourDetailsPage = () => {
           )}
         </ScrollView>
 
-        {/* ✅ OTP MODAL COMPONENT */}
         <OtpModal
           visible={otpModalVisible}
           otp={otp}
@@ -212,6 +266,19 @@ const YourDetailsPage = () => {
           verifying={verifyingOtp}
           onVerify={handleVerifyOtp}
           onClose={() => setOtpModalVisible(false)}
+        />
+
+        <FeedbackModal
+          visible={feedback.visible}
+          title={feedback.title}
+          message={feedback.message}
+          variant={feedback.variant}
+          onClose={() =>
+            setFeedback((prev) => ({
+              ...prev,
+              visible: false,
+            }))
+          }
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

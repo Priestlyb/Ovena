@@ -40,8 +40,6 @@ export const getOnboardingStatus = async (): Promise<OnboardingStatus | null> =>
 
     const type = await getUserProfileType();
 
-    console.log("[Onboarding] Detected profile type:", type);
-
     if (type === "businessstaff") {
       console.log("[Onboarding] 🚫 Staff user — skipping onboarding call");
       return null;

@@ -1,5 +1,6 @@
 // Dashboard
 import { FloatingChatButton } from "@/components/FloatingChatButton";
+import { Spacer } from "@/components/atoms/Spacer";
 import { BottomStatsCarousel } from "@/components/dashboard/BottomStatsCarousel";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardTopBranchSection } from "@/components/dashboard/DashboardTopBranchSection";
@@ -9,14 +10,17 @@ import { PaginationDots } from "@/components/dashboard/PaginationDots";
 import { PeriodFilters } from "@/components/dashboard/PeriodFilters";
 import { TopStatsCarousel } from "@/components/dashboard/TopStatsCarousel";
 import { useDashboardScreen } from "@/hooks/dashboard/useDashboardScreen";
+import { useFoodMenu } from "@/hooks/foodTab/useFoodMenu";
+import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { MessageCircle } from "lucide-react-native";
 import { SafeAreaView, ScrollView, StyleSheet } from "react-native";
 
 export default function DashboardScreen() {
+  const { profile, profileLoading } = useBusinessProfile();
+  const { branches, menuItems, MenuLoading } = useFoodMenu();
+
   const {
     router,
-    isOpen,
-    setIsOpen,
     showSales,
     setShowSales,
     data,
@@ -33,18 +37,29 @@ export default function DashboardScreen() {
     scrollToBottomCard,
   } = useDashboardScreen();
 
+  const isInitialLoading =
+    profileLoading || MenuLoading || loading || loadingAnalysis;
+
+  if (isInitialLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <InlineSkeleton />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
       >
-        <DashboardHeader
-          username={data?.username}
-          isOpen={isOpen}
-          setIsOpen={setIsOpen}
-          styles={styles}
-        />
+        <DashboardHeader username={data?.username} styles={styles} />
 
         <TopStatsCarousel
           refScroll={top.ref}
@@ -58,18 +73,21 @@ export default function DashboardScreen() {
           styles={styles}
         />
 
-        <DashboardTrendSection
-          loading={loadingAnalysis}
-          trendData={trendData}
-          cardWidth={top.CARD_WIDTH}
-        />
-
         <PeriodFilters
           periods={periods}
           selectedPeriod={selectedPeriod}
           setSelectedPeriod={setSelectedPeriod}
           styles={styles}
         />
+
+        <DashboardTrendSection
+          loading={loadingAnalysis}
+          trendData={trendData}
+          selectedPeriod={selectedPeriod}
+          cardWidth={top.CARD_WIDTH}
+        />
+
+        <Spacer size="xxl" />
 
         <BottomStatsCarousel
           refScroll={bottom.ref}
@@ -88,6 +106,8 @@ export default function DashboardScreen() {
           styles={styles}
         />
 
+        <Spacer size="xl" />
+
         <DashboardTopBranchSection
           loading={loadingAnalysis}
           analysis={analysis}
@@ -105,27 +125,48 @@ export default function DashboardScreen() {
 
 // --- Styles
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#FFF", paddingTop: 50 },
-  container: { flex: 1, backgroundColor: "#FFF" },
-  scrollContent: { paddingBottom: 120 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFF",
+    paddingTop: 50,
+  },
+
+  container: {
+    flex: 1,
+    backgroundColor: "#FFF",
+  },
+
+  scrollContent: {
+    paddingBottom: 120,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    padding: 25,
+    paddingRight: 20,
+    paddingLeft: 20,
     marginBottom: 16,
   },
 
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
     color: "#000",
     marginBottom: 4,
   },
 
-  welcomeText: { fontSize: 14, color: "#666" },
+  welcomeText: {
+    fontSize: 12,
+    color: "#666",
+  },
 
   statusContainer: {
     flexDirection: "row",
@@ -173,8 +214,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  statsScrollContainer: { paddingRight: 16 },
-  cardWrapper: { width: "100%" },
+  statsScrollContainer: {
+    paddingRight: 16,
+  },
+
+  cardWrapper: {
+    width: "100%",
+  },
 
   paginationContainer: {
     flexDirection: "row",

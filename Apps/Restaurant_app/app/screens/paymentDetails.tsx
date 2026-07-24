@@ -1,9 +1,12 @@
 // app/(tabs)/paymentDetails.tsx
 
 import { Text } from "@/components/atoms/Text";
+import { BankCustomDropdown } from "@/components/BankCustomDropdown";
 import { CustomInput } from "@/components/CustomInput";
 import { Header } from "@/components/molecules/Header";
-import { OtpModal } from "@/components/OtpModal"; // ✅ NEW
+import { OtpModal } from "@/components/OtpModal";
+import { styles } from "@/constants/paymentStyle";
+import { useBanks } from "@/hooks/finances/useBanks";
 import api from "@/services/apiClient";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Pencil, X } from "lucide-react-native";
@@ -13,7 +16,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
-  StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -22,7 +24,7 @@ interface PaymentDetails {
   account_name: string;
   account_number: string;
   bank: string;
-  bank_code?: string;
+  bank_code: string;
   bvn?: string;
 }
 
@@ -30,6 +32,10 @@ const OTP_LENGTH = 6;
 
 const PaymentDetailsScreen = () => {
   const router = useRouter();
+
+  const { data: banks = [], isLoading: banksLoading } = useBanks();
+
+  const bankOptions = banks.map((bank) => bank.name);
 
   const [payment, setPayment] = useState<PaymentDetails | null>(null);
   const [form, setForm] = useState<PaymentDetails | null>(null);
@@ -43,26 +49,60 @@ const PaymentDetailsScreen = () => {
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [verifying, setVerifying] = useState(false);
 
-  const fetchPaymentDetails = useCallback(async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
+  const fetchPaymentDetails = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) setLoading(true);
 
-      const response = await api.get("/business/payment/");
-      setPayment(response.data);
-      setForm(response.data);
-    } catch (error: any) {
-      console.error(
-        "Error fetching payment details:",
-        error?.response || error,
-      );
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, []);
+        const response = await api.get("/business/payment/");
+        const paymentData = response.data;
+
+        console.log("Paymenent Details", response.data);
+
+        if (!paymentData.bank_code && paymentData.bank) {
+          const matchedBank = banks.find(
+            (bank) =>
+              bank.name.toLowerCase() === paymentData.bank.toLowerCase(),
+          );
+
+          paymentData.bank_code = matchedBank?.code ?? "";
+        }
+
+        setPayment(paymentData);
+        setForm(paymentData);
+      } catch (error: any) {
+        console.error(
+          "Error fetching payment details:",
+          error?.response || error,
+        );
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [banks],
+  );
 
   useEffect(() => {
-    fetchPaymentDetails();
-  }, []);
+    if (banks.length > 0) {
+      fetchPaymentDetails();
+    }
+  }, [banks, fetchPaymentDetails]);
+
+  const handleBankChange = (bankName: string) => {
+    const selectedBank = banks.find((bank) => bank.name === bankName);
+
+    if (!selectedBank) return;
+
+    setForm((prev) =>
+      prev
+        ? {
+            ...prev,
+            bank: selectedBank.name,
+            bank_code: selectedBank.code,
+          }
+        : prev,
+    );
+  };
 
   const handleChange = (key: keyof PaymentDetails, value: string) => {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -73,6 +113,11 @@ const PaymentDetailsScreen = () => {
   // ========================
   const handleUpdate = async () => {
     if (!form) return;
+
+    if (!form.bank_code) {
+      console.log("Please select a valid bank");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -118,7 +163,7 @@ const PaymentDetailsScreen = () => {
     }
   };
 
-  if (loading) {
+  if (loading || banksLoading) {
     return (
       <SafeAreaView style={styles.center}>
         <ActivityIndicator size="large" color="#F65513" />
@@ -183,11 +228,13 @@ const PaymentDetailsScreen = () => {
 
           {/* BANK */}
           {isEditing ? (
-            <CustomInput
-              placeholder="Enter bank name"
+            <BankCustomDropdown
               label="Bank"
+              placeholder="Select Bank"
               value={form.bank}
-              onChange={(text) => handleChange("bank", text)}
+              options={bankOptions}
+              onChange={handleBankChange}
+              required
             />
           ) : (
             <View style={styles.row}>
@@ -235,7 +282,7 @@ const PaymentDetailsScreen = () => {
           </TouchableOpacity>
         )}
 
-        {/* ✅ OTP MODAL COMPONENT */}
+        {/* OTP MODAL COMPONENT */}
         <OtpModal
           visible={otpModalVisible}
           otp={otp}
@@ -250,71 +297,3 @@ const PaymentDetailsScreen = () => {
 };
 
 export default PaymentDetailsScreen;
-
-// ================= STYLES =================
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 25,
-    paddingVertical: 55,
-    backgroundColor: "#fff",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  card: {
-    padding: 20,
-    borderRadius: 12,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 16,
-  },
-  row: {
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 12,
-    color: "#777",
-  },
-  value: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  actions: {
-    flexDirection: "row",
-    marginTop: 20,
-  },
-  button: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 8,
-    flex: 1,
-    justifyContent: "center",
-  },
-  cancel: {
-    backgroundColor: "#999",
-    marginRight: 10,
-  },
-  save: {
-    backgroundColor: "#FF5920",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  fab: {
-    position: "absolute",
-    right: 20,
-    bottom: 40,
-    backgroundColor: "#FF5920",
-    padding: 16,
-    borderRadius: 50,
-  },
-});

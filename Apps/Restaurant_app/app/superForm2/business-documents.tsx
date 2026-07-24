@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -12,11 +13,14 @@ import {
 } from "react-native";
 
 import { usePhase2 } from "@/app/context/Phase2Context";
+import { Spacer } from "@/components/atoms/Spacer";
 import { CustomDropdown } from "@/components/CustomDropDown";
 import { CustomInput } from "@/components/CustomInput";
 import FeedbackModal from "@/components/FeedbackModal";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { styles } from "@/constants/styles";
 import { useCompletionStore } from "@/stores/completionStore";
+import * as DocumentPicker from "expo-document-picker";
 
 export default function BusinessDocumentsPage() {
   const router = useRouter();
@@ -25,6 +29,7 @@ export default function BusinessDocumentsPage() {
     (state) => state.markGroupComplete,
   );
 
+  const [documentImage, setDocumentImage] = useState<string | null>(null);
   const [businessType, setBusinessType] = useState("");
   const [registeredName, setRegisteredName] = useState("");
   const [taxId, setTaxId] = useState("");
@@ -45,12 +50,13 @@ export default function BusinessDocumentsPage() {
 
   /* ================= INIT ================= */
   useEffect(() => {
-    const docs = phase2Data.business_documents ?? {};
+    const docs = phase2Data.business_documents;
 
     setBusinessType(docs.business_type ?? "");
     setRegisteredName(docs.registered_business_name ?? "");
     setTaxId(docs.tax_identification_number ?? "");
     setRcNumber(docs.rc_number ?? "");
+    setDocumentImage(docs.document_image || null);
   }, [phase2Data.business_documents]);
 
   /* ================= HELPERS ================= */
@@ -72,6 +78,19 @@ export default function BusinessDocumentsPage() {
       return "RC-" + cleaned.replace(/^RC-*/, "");
     }
     return cleaned;
+  };
+
+  /* ================= DOCUMENT PICKER ================= */
+  const pickDocumentImage = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ["application/pdf", "image/jpeg", "image/png"],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+
+    if (result.canceled) return;
+
+    setDocumentImage(result.assets[0].uri);
   };
 
   /* ================= VALIDATION ================= */
@@ -115,6 +134,10 @@ export default function BusinessDocumentsPage() {
       }
     }
 
+    if (!documentImage) {
+      errors.push("Upload your business document");
+    }
+
     if (errors.length > 0) {
       setModalConfig({
         message: errors.map((e) => `• ${e}`).join("\n"),
@@ -136,6 +159,7 @@ export default function BusinessDocumentsPage() {
       registered_business_name: clean(registeredName),
       tax_identification_number: clean(taxId),
       rc_number: clean(rcNumber),
+      document_image: documentImage ?? "",
     };
 
     console.log("SAVING BUSINESS DOCS:", payload);
@@ -177,6 +201,108 @@ export default function BusinessDocumentsPage() {
           <Text style={styles.subtitle}>
             Enter your official business information
           </Text>
+
+          <Spacer size="xxl" />
+
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: "600",
+              marginTop: 20,
+              marginBottom: 10,
+              color: "#111827",
+            }}
+          >
+            Business Document <Text style={{ color: "red" }}>*</Text>
+          </Text>
+
+          <TouchableOpacity
+            onPress={pickDocumentImage}
+            style={{
+              borderWidth: 1,
+              borderStyle: "dashed",
+              borderColor: "#D1D5DB",
+              borderRadius: 12,
+              height: 180,
+              overflow: "hidden",
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "#F9FAFB",
+            }}
+          >
+            {documentImage ? (
+              documentImage.toLowerCase().endsWith(".pdf") ? (
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    paddingHorizontal: 20,
+                  }}
+                >
+                  <View>
+                    <IconSymbol name="FileIcon" size={25} color="#333" />
+                  </View>
+
+                  <Text
+                    style={{
+                      marginTop: 12,
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#111827",
+                      textAlign: "center",
+                    }}
+                  >
+                    PDF Selected
+                  </Text>
+
+                  <Text
+                    style={{
+                      marginTop: 6,
+                      color: "#6B7280",
+                      textAlign: "center",
+                    }}
+                    numberOfLines={2}
+                  >
+                    {documentImage.split("/").pop()}
+                  </Text>
+                </View>
+              ) : (
+                <Image
+                  source={{ uri: documentImage }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                  resizeMode="cover"
+                />
+              )
+            ) : (
+              <>
+                <Text
+                  style={{
+                    fontWeight: "600",
+                    fontSize: 16,
+                    color: "#374151",
+                  }}
+                >
+                  Upload Business Document
+                </Text>
+
+                <Text
+                  style={{
+                    marginTop: 6,
+                    color: "#6B7280",
+                    fontSize: 13,
+                  }}
+                >
+                  Tap to choose a PDF or image
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <Spacer size="xl" />
 
           <CustomDropdown
             label="Business Type"

@@ -1,14 +1,16 @@
-// components/ProfileMenuItem.tsx - Menu item for profile sections
-import React from 'react';
-import { TouchableOpacity, View, StyleSheet } from 'react-native';
-import { ChevronRight, LucideIcon } from 'lucide-react-native';
+// components/ProfileMenuItem.tsx
+
+import React from "react";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 // Atomic Components
-import { Text } from '@/components/atoms/Text';
-import { Badge } from '@/components/atoms/Badge';
+import { Text } from "@/components/atoms/Text";
+
+// Icon System
+import { IconName, IconSymbol } from "@/components/ui/icon-symbol";
 
 interface ProfileMenuItemProps {
-  icon: LucideIcon;
+  icon: IconName;
   label: string;
   onPress: () => void;
   badge?: {
@@ -18,7 +20,7 @@ interface ProfileMenuItemProps {
 }
 
 export const ProfileMenuItem: React.FC<ProfileMenuItemProps> = ({
-  icon: Icon,
+  icon,
   label,
   onPress,
   badge,
@@ -30,17 +32,28 @@ export const ProfileMenuItem: React.FC<ProfileMenuItemProps> = ({
       activeOpacity={0.7}
     >
       <View style={styles.leftContent}>
-        <Icon size={20} color="#6B7280" />
-        <Text variant="body" color="primary">{label}</Text>
+        <IconSymbol name={icon} size={20} color="#6B7280" />
+
+        <Text variant="body" color="primary">
+          {label}
+        </Text>
       </View>
 
       <View style={styles.rightContent}>
         {badge && (
-          <View style={[styles.badgeCircle, { backgroundColor: badge.color || '#FF6B35' }]}>
+          <View
+            style={[
+              styles.badgeCircle,
+              {
+                backgroundColor: badge.color || "#FF6B35",
+              },
+            ]}
+          >
             {badge.icon}
           </View>
         )}
-        <ChevronRight size={20} color="#9CA3AF" />
+
+        <IconSymbol name="ChevronForwardIcon" size={20} color="#9CA3AF" />
       </View>
     </TouchableOpacity>
   );
@@ -48,30 +61,33 @@ export const ProfileMenuItem: React.FC<ProfileMenuItemProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F3F4F6',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F3F4F6",
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 8,
   },
+
   leftContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     flex: 1,
   },
+
   rightContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
+
   badgeCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

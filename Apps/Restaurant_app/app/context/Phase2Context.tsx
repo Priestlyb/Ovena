@@ -24,10 +24,8 @@ interface Branch {
   latitude?: number | null;
   longitude?: number | null;
 
-  // ✅ supports backend
   delivery_method?: string | null;
 
-  // ✅ ADD THESE
   pre_order_open_period?: string | null;
   final_order_time?: string | null;
 
@@ -46,6 +44,7 @@ interface BusinessDocuments {
   business_type: string;
   tax_identification_number: string;
   rc_number: string;
+  document_image: string;
 }
 
 interface Phase2Data {
@@ -65,7 +64,7 @@ interface Phase2ContextType {
 }
 
 /* ================= CONTEXT ================= */
-const Phase2Context = createContext<Phase2ContextType | null>(null);
+export const Phase2Context = createContext<Phase2ContextType | null>(null);
 
 /* ================= HELPERS ================= */
 const clean = (val: any) => {
@@ -87,6 +86,7 @@ const defaultState: Phase2Data = {
     business_type: "",
     tax_identification_number: "",
     rc_number: "",
+    document_image: "",
   },
 };
 
@@ -154,14 +154,12 @@ export const Phase2Provider = ({ children }: { children: ReactNode }) => {
 
       delivery_method: deliveryMethod,
 
-      // ✅ ONLY for scheduled
       pre_order_open_period: isScheduled
         ? cleanOrNull(b.pre_order_open_period)
         : null,
 
       final_order_time: isScheduled ? cleanOrNull(b.final_order_time) : null,
 
-      // ✅ ONLY for instant
       operating_hours: !isScheduled
         ? (b.operating_hours || []).map((h) => ({
             day: Number(h.day ?? 0),
@@ -187,6 +185,7 @@ export const Phase2Provider = ({ children }: { children: ReactNode }) => {
     business_type: clean(d.business_type),
     tax_identification_number: clean(d.tax_identification_number),
     rc_number: clean(d.rc_number),
+    document_image: clean(d.document_image),
   });
 
   /* ================= UPDATERS ================= */

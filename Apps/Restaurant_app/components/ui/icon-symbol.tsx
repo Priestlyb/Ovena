@@ -1,13 +1,12 @@
 // IconSymbol.tsx
-import React from "react";
-import { ComponentProps } from "react";
+import React, { ComponentProps } from "react";
 import { OpaqueColorValue, StyleProp, TextStyle } from "react-native";
 
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import AntDesignIcon from "@expo/vector-icons/AntDesign";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Octicons from "@expo/vector-icons/Octicons";
 
 /* ======================================================
@@ -38,10 +37,8 @@ export const IONICONS = {
   TrashOutline: "trash-outline",
   LockClosedOutline: "lock-closed-outline",
   LogoThreads: "logo-threads",
-} as const satisfies Record<
-  string,
-  ComponentProps<typeof Ionicons>["name"]
->;
+  Chaticon: "chatbubble-ellipses-outline",
+} as const satisfies Record<string, ComponentProps<typeof Ionicons>["name"]>;
 
 /* ---------- ANT DESIGN ICONS ---------- */
 export const ANT_DESIGN_ICONS = {
@@ -53,6 +50,7 @@ export const ANT_DESIGN_ICONS = {
   ArrowLeftIcon: "arrow-left",
   ShareAltIcon: "share-alt",
   CheckIcon: "check-circle",
+  InfoCircleIcon: "info-circle",
 } as const satisfies Record<
   string,
   ComponentProps<typeof AntDesignIcon>["name"]
@@ -63,6 +61,7 @@ export const MATERIAL_ICONS = {
   FoodIcon: "food-bank",
   PoolIcon: "pool",
   SpaIcon: "spa",
+  AddCircleIcon: "add-circle-outline",
   RestaurantIcon: "restaurant",
   ParkingIcon: "local-parking",
   MapIcon: "map",
@@ -89,6 +88,8 @@ export const COMMUNITY_ICONS = {
 
 /* ---------- FONT AWESOME 6 ICONS ---------- */
 export const FONT_AWESOME_6_ICONS = {
+  FileClipboardIcon: "file-clipboard",
+  FileIcon: "file-pdf",
   WalletIcon: "wallet",
   CreditCardIcon: "credit-card",
   LanguageIcon: "language",
@@ -98,6 +99,8 @@ export const FONT_AWESOME_6_ICONS = {
   PersonThroughWindowIcon: "person-through-window",
   UserOutlineIcon: "user",
   LocationDotIcon: "location-dot",
+  CircleInfoicon: "circle-info",
+  KeyIcon: "key",
 } as const satisfies Record<
   string,
   ComponentProps<typeof FontAwesome6>["name"]
@@ -106,10 +109,7 @@ export const FONT_AWESOME_6_ICONS = {
 /* ---------- OCTICONS (NEW) ---------- */
 export const OCTICONS = {
   LawIcon: "law",
-} as const satisfies Record<
-  string,
-  ComponentProps<typeof Octicons>["name"]
->;
+} as const satisfies Record<string, ComponentProps<typeof Octicons>["name"]>;
 
 /* ======================================================
    TYPES
@@ -121,7 +121,7 @@ export type IconName =
   | keyof typeof COMMUNITY_ICONS
   | keyof typeof ANT_DESIGN_ICONS
   | keyof typeof FONT_AWESOME_6_ICONS
-  | keyof typeof OCTICONS; // ✅ added
+  | keyof typeof OCTICONS;
 
 type IconProps = {
   name: IconName;
@@ -134,12 +134,7 @@ type IconProps = {
    ICON REGISTRY COMPONENT
 ====================================================== */
 
-export function IconSymbol({
-  name,
-  size = 24,
-  color,
-  style,
-}: IconProps) {
+export function IconSymbol({ name, size = 24, color, style }: IconProps) {
   if (name in IONICONS) {
     return (
       <Ionicons

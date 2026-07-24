@@ -2,6 +2,7 @@
 import { CustomInput } from "@/components/CustomInput";
 import { PhoneInput } from "@/components/PhoneInput";
 import { styles } from "@/constants/styles";
+import { sendOtp } from "@/services/adminAuthService";
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useState } from "react";
@@ -85,7 +86,7 @@ const AdminDetailsScreen: React.FC = () => {
     };
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const cleanedEmail = normalizeEmail(email);
 
     if (!fullName.trim() || !phone.trim() || !cleanedEmail) {
@@ -107,14 +108,23 @@ const AdminDetailsScreen: React.FC = () => {
       return;
     }
 
-    router.push({
-      pathname: "/screens/adminNumberVerificationPage",
-      params: {
-        fullName: fullName.trim(),
-        phone: normalized,
-        email: cleanedEmail,
-      },
-    });
+    try {
+      const otpResponse = await sendOtp(normalized);
+
+      console.log("OTP RESPONSE:", otpResponse);
+
+      router.push({
+        pathname: "/screens/adminNumberVerificationPage",
+        params: {
+          fullName: fullName.trim(),
+          phone: normalized,
+          email: cleanedEmail,
+          pinId: otpResponse.pin_id,
+        },
+      });
+    } catch (error: any) {
+      showError(error?.message || "Failed to send OTP. Please try again.");
+    }
   };
 
   return (

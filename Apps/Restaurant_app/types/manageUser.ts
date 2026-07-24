@@ -49,9 +49,10 @@ export interface DeviceListProps {
 }
 
 export interface OTPModalProps {
-    visible: boolean;
-    otp: string | null;
-    onClose: () => void;
+  visible: boolean;
+  otp: string | null;
+  onClose: () => void;
+  onCopy: () => void;
 }
 
 export interface RevokeModalProps {

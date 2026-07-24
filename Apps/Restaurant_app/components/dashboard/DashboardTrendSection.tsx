@@ -5,6 +5,7 @@ import { InlineSkeleton } from "./InlineSkeleton";
 export const DashboardTrendSection = ({
   loading,
   trendData,
+  selectedPeriod,
   cardWidth,
 }: any) => {
   return (
@@ -14,7 +15,7 @@ export const DashboardTrendSection = ({
           <InlineSkeleton width={cardWidth} height={260} />
         </View>
       ) : (
-        <TrendRevenueChart trend={trendData} />
+        <TrendRevenueChart trend={trendData} selectedPeriod={selectedPeriod} />
       )}
     </View>
   );

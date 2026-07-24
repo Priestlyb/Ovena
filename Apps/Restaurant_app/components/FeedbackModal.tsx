@@ -18,7 +18,6 @@ interface Props {
   variant?: Variant;
   onClose: () => void;
 
-  // ✅ NEW (optional action button)
   actionLabel?: string;
   onAction?: () => void;
 }
@@ -52,14 +51,14 @@ export default function FeedbackModal({
         return {
           iconColor: "#000",
           textColor: "#000",
-          color: "#ffb47e45",
+          color: "#ffb47e",
           defaultTitle: "Warning",
         };
       default:
         return {
           iconColor: "#000",
           textColor: "#000",
-          color: "#ffb47e45",
+          color: "#ffb47e",
           defaultTitle: "Notice",
         };
     }
@@ -74,23 +73,29 @@ export default function FeedbackModal({
     }
   }, [visible, onClose]);
 
+  const safeMessage =
+    typeof message === "string"
+      ? message
+      : message
+        ? JSON.stringify(message)
+        : "Something went wrong";
+
   return (
     <Modal transparent visible={visible} animationType="fade">
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
             <View style={[styles.container, { backgroundColor: color }]}>
-              {/* TEXT */}
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: textColor }]}>
                   {title || defaultTitle}
                 </Text>
 
+                {/* ✅ FIXED: ALWAYS STRING */}
                 <Text style={[styles.message, { color: textColor }]}>
-                  {message}
+                  {safeMessage}
                 </Text>
 
-                {/* ✅ ACTION BUTTON */}
                 {actionLabel && onAction && (
                   <TouchableOpacity
                     onPress={() => {
@@ -104,7 +109,6 @@ export default function FeedbackModal({
                 )}
               </View>
 
-              {/* CLOSE BUTTON */}
               <TouchableOpacity style={styles.button} onPress={onClose}>
                 <IconSymbol name="CloseIcon" size={20} color={iconColor} />
               </TouchableOpacity>
@@ -122,7 +126,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     alignItems: "center",
-    paddingBottom: "6%",
+    paddingBottom: "12%",
   },
   container: {
     flexDirection: "row",
@@ -145,15 +149,13 @@ const styles = StyleSheet.create({
   button: {
     borderRadius: 10,
   },
-
-  // ✅ NEW ACTION BUTTON
   actionButton: {
     marginTop: 10,
     alignSelf: "flex-start",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: "#2563eb",
+    backgroundColor: "#000",
   },
   actionText: {
     color: "#fff",

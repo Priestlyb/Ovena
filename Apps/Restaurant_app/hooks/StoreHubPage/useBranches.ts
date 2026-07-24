@@ -19,6 +19,8 @@ export const useBranches = () => {
 
             const res = await api.get("/business/list-branches");
 
+            //console.log("Business Profile Response:", res);
+
             setBranches(res?.data?.results?.data || []);
             hasLoadedOnce.current = true;
         } catch (e) {
