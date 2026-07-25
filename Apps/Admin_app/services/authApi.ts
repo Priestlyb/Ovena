@@ -195,7 +195,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 }
 
 export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
-  const raw = await postJSON<LoginWireResponse>('/api/admin/refresh', {
+  const raw = await postJSON<LoginWireResponse>('/api/admin/refresh/', {
     refresh: refreshToken,
   });
 
@@ -258,16 +258,16 @@ function mapUserProfile(raw: UserProfileWireResponse): AdminUser {
   };
 }
 
-// export async function fetchCurrentUser(accessToken: string): Promise<AdminUser> {
-//   const raw = await getJSON<UserProfileWireResponse>('/api/admin/me', accessToken);
-//   return mapUserProfile(raw);
-// }
+export async function fetchCurrentUser(accessToken: string): Promise<AdminUser> {
+  const raw = await getJSON<UserProfileWireResponse>('/api/admin/profile/', accessToken);
+  return mapUserProfile(raw);
+}
 
 export async function logout(accessToken: string): Promise<void> {
   // Best-effort — don't throw if the server-side logout fails;
   // the client clears its local session regardless.
   try {
-    await postJSON('/api/admin/logout', {}, accessToken);
+    await postJSON('/api/admin/logout/', {}, accessToken);
   } catch {
     // Network errors on logout are non-fatal
   }

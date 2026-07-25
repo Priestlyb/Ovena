@@ -22,8 +22,6 @@ const PickUpModal: React.FC<PickUpModalProps> = ({
   const { colors } = useTheme();
   if (!order) return null;
 
-
-
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: colors.overlayBg }]}>

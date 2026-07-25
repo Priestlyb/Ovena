@@ -180,12 +180,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const colors = isDark ? darkColors : lightColors;
 
-  return (
-    <ThemeContext.Provider
-      value={{ nightMode, setNightMode, isDark, colors, isThemeLoaded }}
-    >
-      {children}
-    </ThemeContext.Provider>
+  return React.createElement(
+    ThemeContext.Provider,
+    { value: { nightMode, setNightMode, isDark, colors, isThemeLoaded } },
+    children
   );
 };
 

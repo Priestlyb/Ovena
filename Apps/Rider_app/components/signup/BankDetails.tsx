@@ -3,8 +3,9 @@ import {
   View, Text, StyleSheet, ScrollView,
   KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
 import FormInput, { validateField } from "../FormInput";
+import SelectField from "../SelectField";
+import { useTheme } from "../../context/ThemeContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,7 @@ interface Props {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const BankDetails = forwardRef<BankDetailsRef, Props>(({ data, setData }, ref) => {
+  const { colors } = useTheme();
   const [errors, setErrors] = useState<ErrorMap>({});
 
   useImperativeHandle(ref, () => ({
@@ -91,43 +93,34 @@ const BankDetails = forwardRef<BankDetailsRef, Props>(({ data, setData }, ref) =
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.title}>Bank Details</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Bank Details</Text>
 
           {/* ── Bank picker — shows label, stores both name + code ── */}
-          <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Bank</Text>
-            <View style={[styles.pickerBox, errors.bank_name ? styles.pickerError : null]}>
-              <Picker
-                selectedValue={data.bank_code}
-                onValueChange={(code) => {
-                  const bank = BANKS.find((b) => b.code === code);
-                  update({
-                    bank_code: code,
-                    bank_name: bank?.label ?? "",
-                  });
-                  setErrors((p) => ({ ...p, bank_name: "" }));
-                }}
-              >
-                <Picker.Item label="Select Bank" value="" />
-                {BANKS.map((b) => (
-                  <Picker.Item key={b.code} label={b.label} value={b.code} />
-                ))}
-              </Picker>
-            </View>
-            {errors.bank_name
-              ? <Text style={styles.errorText}>{errors.bank_name}</Text>
-              : null}
-          </View>
+          <SelectField
+            label="Bank"
+            options={BANKS.map((b) => ({ label: b.label, value: b.code }))}
+            value={data.bank_code}
+            onChange={(code) => {
+              const bank = BANKS.find((b) => b.code === code);
+              update({
+                bank_code: code,
+                bank_name: bank?.label ?? "",
+              });
+              setErrors((p) => ({ ...p, bank_name: "" }));
+            }}
+            placeholder="Select Bank"
+            error={errors.bank_name}
+          />
 
           {/* ── Account Number ── */}
           <FormInput
@@ -166,14 +159,4 @@ const styles = StyleSheet.create({
     fontSize: 22, fontWeight: "bold", marginBottom: 16,
     marginTop: 8, textAlign: "center",
   },
-  inputWrapper: { marginVertical: 10 },
-  label: { marginBottom: 8, fontWeight: "600", color: "#333", fontSize: 16 },
-  pickerBox: {
-    borderWidth: 1, borderColor: "#ccc", borderRadius: 12,
-    backgroundColor: "#fff", shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1,
-    shadowRadius: 4, elevation: 3,
-  },
-  pickerError: { borderColor: "#e53935", borderWidth: 1.5 },
-  errorText: { color: "#e53935", fontSize: 12, marginTop: 4, marginLeft: 4 },
 });

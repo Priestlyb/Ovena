@@ -13,6 +13,7 @@ import {
   CameraType,
   useCameraPermissions,
 } from "expo-camera";
+import { useTheme } from "../../context/ThemeContext";
 
 interface Props {
   image: string;
@@ -28,6 +29,7 @@ export default function VerifyIdentity({
   onContinue,
   isSubmitting = false,
 }: Props) {
+  const { colors } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView | null>(null);
   const [faceOk, setFaceOk] = useState(true);
@@ -42,9 +44,12 @@ export default function VerifyIdentity({
 
   if (!permission.granted) {
     return (
-      <View style={styles.center}>
-        <Text>Camera permission required</Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.permissionBtn}>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.textPrimary }}>Camera permission required</Text>
+        <TouchableOpacity
+          onPress={requestPermission}
+          style={[styles.permissionBtn, { backgroundColor: colors.accentOrange }]}
+        >
           <Text style={styles.permissionText}>Allow Camera</Text>
         </TouchableOpacity>
       </View>
@@ -66,8 +71,8 @@ export default function VerifyIdentity({
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Verify Your Identity</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Verify Your Identity</Text>
 
       {!image ? (
         <>
@@ -77,15 +82,18 @@ export default function VerifyIdentity({
               style={styles.camera}
               facing={"front" as CameraType}
             />
-            <View style={styles.circleMask} />
+            <View style={[styles.circleMask, { borderColor: colors.accentOrange }]} />
           </View>
 
-          <Text style={styles.infoText}>
+          <Text style={[styles.infoText, { color: colors.textMuted }]}>
             Make sure your face is inside the circle. Remove glasses & face mask.
           </Text>
 
           <TouchableOpacity
-            style={[styles.captureBtn, { opacity: faceOk ? 1 : 0.5 }]}
+            style={[
+              styles.captureBtn,
+              { backgroundColor: colors.accentOrange, opacity: faceOk ? 1 : 0.5 },
+            ]}
             disabled={!faceOk}
             onPress={capturePhoto}
           >
@@ -94,12 +102,15 @@ export default function VerifyIdentity({
         </>
       ) : (
         <>
-          <Image source={{ uri: image }} style={styles.captured} />
+          <Image
+            source={{ uri: image }}
+            style={[styles.captured, { borderColor: colors.accentOrange }]}
+          />
 
           {/* Retake — hidden while submitting */}
           {!isSubmitting && (
             <TouchableOpacity
-              style={[styles.captureBtn, { backgroundColor: "#000" }]}
+              style={[styles.captureBtn, { backgroundColor: colors.textPrimary }]}
               onPress={() => setImage("")}
             >
               <Text style={styles.captureText}>Retake Photo</Text>
@@ -108,7 +119,11 @@ export default function VerifyIdentity({
 
           {/* Continue — shows spinner while API call is in flight */}
           <TouchableOpacity
-            style={[styles.continueBtn, isSubmitting && { opacity: 0.6 }]}
+            style={[
+              styles.continueBtn,
+              { backgroundColor: colors.accentOrange },
+              isSubmitting && { opacity: 0.6 },
+            ]}
             onPress={onContinue}
             disabled={isSubmitting}
           >
@@ -125,7 +140,7 @@ export default function VerifyIdentity({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 20, alignItems: "center", backgroundColor: "#fff" },
+  container: { flex: 1, paddingTop: 20, alignItems: "center" },
   title: { fontSize: 22, fontWeight: "bold" },
 
   cameraWrapper: {
@@ -142,7 +157,6 @@ const styles = StyleSheet.create({
     height: 260,
     borderRadius: 150,
     borderWidth: 3,
-    borderColor: "#D44C0C",
     alignSelf: "center",
     top: 40,
   },
@@ -156,7 +170,6 @@ const styles = StyleSheet.create({
 
   captureBtn: {
     marginTop: 15,
-    backgroundColor: "#D44C0C",
     paddingVertical: 12,
     paddingHorizontal: 35,
     borderRadius: 40,
@@ -169,12 +182,10 @@ const styles = StyleSheet.create({
     borderRadius: 150,
     marginTop: 20,
     borderWidth: 3,
-    borderColor: "#D44C0C",
   },
 
   continueBtn: {
     marginTop: 20,
-    backgroundColor: "#D44C0C",
     paddingVertical: 14,
     paddingHorizontal: 50,
     borderRadius: 40,
@@ -184,6 +195,6 @@ const styles = StyleSheet.create({
   continueText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  permissionBtn: { backgroundColor: "#D44C0C", padding: 12, borderRadius: 8 },
+  permissionBtn: { padding: 12, borderRadius: 8, marginTop: 12 },
   permissionText: { color: "#fff" },
 });

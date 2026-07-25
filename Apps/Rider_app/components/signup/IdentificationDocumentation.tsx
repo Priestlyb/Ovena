@@ -9,6 +9,8 @@ import { Picker } from "@react-native-picker/picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import FormInput, { validateField } from "../FormInput";
+import SelectField from "../SelectField";
+import { useTheme } from "../../context/ThemeContext";
 
 export interface DocInfo {
   drivers_license: string;
@@ -66,6 +68,7 @@ interface DocumentStepProps {
 
 const DocumentStep = forwardRef<DocumentStepRef, DocumentStepProps>(
   ({ docInfo, setDocInfo }, ref) => {
+    const { colors } = useTheme();
     const [errors, setErrors] = useState<ErrorMap>({});
     const [imageLoading, setImageLoading] = useState(false);
 
@@ -128,27 +131,28 @@ const DocumentStep = forwardRef<DocumentStepRef, DocumentStepProps>(
 
     return (
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: colors.background }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: colors.background }}>
             <View style={styles.header}>
-              <Text style={styles.headerText}>Identification & Documentation</Text>
+              <Text style={[styles.headerText, { color: colors.textPrimary }]}>Identification & Documentation</Text>
             </View>
 
             <ScrollView
-              style={styles.form}
+              style={[styles.form, { backgroundColor: colors.background }]}
               contentContainerStyle={{ paddingVertical: 20, paddingBottom: 40 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
               {/* Driver's License Upload */}
-              <Text style={styles.label}>Driver's License Photo</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Driver's License Photo</Text>
               <TouchableOpacity
                 style={[
                   styles.uploadBox,
+                  { backgroundColor: colors.inputBg, borderColor: colors.separatorColor },
                   errors.drivers_license ? styles.uploadBoxError : null,
                 ]}
                 onPress={pickLicenseImage}
@@ -156,7 +160,7 @@ const DocumentStep = forwardRef<DocumentStepRef, DocumentStepProps>(
                 disabled={imageLoading}
               >
                 {imageLoading ? (
-                  <ActivityIndicator size="large" color="#D44C0C" />
+                  <ActivityIndicator size="large" color={colors.accentOrange} />
                 ) : docInfo.drivers_license ? (
                   <>
                     <Image
@@ -174,12 +178,16 @@ const DocumentStep = forwardRef<DocumentStepRef, DocumentStepProps>(
                     <IconSymbol
                       name="IdCard"
                       size={30}
-                      color={errors.drivers_license ? "#e53935" : "#888"}
+                      color={errors.drivers_license ? "#e53935" : colors.textMuted}
                     />
-                    <Text style={[styles.uploadPrompt, errors.drivers_license ? { color: "#e53935" } : null]}>
+                    <Text style={[
+                      styles.uploadPrompt,
+                      { color: colors.textMuted },
+                      errors.drivers_license ? { color: "#e53935" } : null,
+                    ]}>
                       Choose Picture
                     </Text>
-                    <Text style={styles.uploadSubtext}>JPG, PNG supported</Text>
+                    <Text style={[styles.uploadSubtext, { color: colors.textMuted }]}>JPG, PNG supported</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -210,25 +218,21 @@ const DocumentStep = forwardRef<DocumentStepRef, DocumentStepProps>(
                 error={errors.bvn}
               />
 
-              <View style={styles.inputWrapper}>
-                <Text style={styles.label}>Vehicle Type</Text>
-                <View style={[styles.pickerContainer, errors.vehicleType ? styles.pickerError : null]}>
-                  <Picker
-                    selectedValue={docInfo.vehicleType}
-                    style={{ flex: 1 }}
-                    onValueChange={(v) => {
-                      setDocInfo({ ...docInfo, vehicleType: v });
-                      setErrors((p) => ({ ...p, vehicleType: "" }));
-                    }}
-                  >
-                    <Picker.Item label="Select Vehicle Type" value="" />
-                    <Picker.Item label="Bike" value="bike" />
-                    <Picker.Item label="Car" value="car" />
-                    <Picker.Item label="Van" value="van" />
-                  </Picker>
-                </View>
-                {errors.vehicleType ? <Text style={styles.errorText}>{errors.vehicleType}</Text> : null}
-              </View>
+              <SelectField
+                label="Vehicle Type"
+                options={[
+                  { label: "Bike", value: "bike" },
+                  { label: "Car",  value: "car"  },
+                  { label: "Van",  value: "van"  },
+                ]}
+                value={docInfo.vehicleType}
+                onChange={(v) => {
+                  setDocInfo({ ...docInfo, vehicleType: v });
+                  setErrors((p) => ({ ...p, vehicleType: "" }));
+                }}
+                placeholder="Select Vehicle Type"
+                error={errors.vehicleType}
+              />
 
               <FormInput
                 label="Vehicle Make"
@@ -303,24 +307,24 @@ export default DocumentStep;
 const styles = StyleSheet.create({
   form: { flex: 1, paddingHorizontal: 20 },
   header: { alignItems: "center", marginBottom: 20, marginTop: 10 },
-  headerText: { fontSize: 20, fontWeight: "bold", color: "#333" },
+  headerText: { fontSize: 20, fontWeight: "bold" },
   inputWrapper: { marginVertical: 10 },
-  label: { marginBottom: 8, fontWeight: "600", color: "#333", fontSize: 16 },
+  label: { marginBottom: 8, fontWeight: "600", fontSize: 16 },
   pickerContainer: {
-    borderWidth: 1, borderColor: "#ccc", borderRadius: 15,
-    backgroundColor: "#fff", shadowColor: "#000",
+    borderWidth: 1, borderRadius: 15,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
   },
   pickerError: { borderColor: "#e53935", borderWidth: 1.5 },
   uploadBox: {
-    height: 175, borderWidth: 1, borderColor: "#ccc", borderRadius: 15,
+    height: 175, borderWidth: 1, borderRadius: 15,
     justifyContent: "center", alignItems: "center", marginVertical: 8,
-    backgroundColor: "#F5F5F5", overflow: "hidden", shadowColor: "#000",
+    overflow: "hidden", shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
   },
   uploadBoxError: { borderColor: "#e53935", borderWidth: 1.5 },
-  uploadPrompt: { color: "#555", fontSize: 16, marginTop: 8 },
-  uploadSubtext: { color: "#aaa", fontSize: 12, marginTop: 4 },
+  uploadPrompt: { fontSize: 16, marginTop: 8 },
+  uploadSubtext: { fontSize: 12, marginTop: 4 },
   previewImage: { width: "100%", height: "100%", borderRadius: 15 },
   changeOverlay: {
     position: "absolute", bottom: 0, left: 0, right: 0,

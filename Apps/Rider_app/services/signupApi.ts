@@ -5,6 +5,42 @@ import { SafetyReliabilityState } from "../components/signup/SafetyAndReliabilit
 const BASE_URL = "https://ovena-backend-production.up.railway.app";
 // https://ovena-backend-production.up.railway.app
 
+// ── JSON helper (GET) ─────────────────────────────────────────────────────────
+async function getJSON(endpoint: string, token?: string) {
+  console.log("🌐 GET →", endpoint);
+
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  const rawText = await res.text();
+  console.log(`📥 Raw response (${res.status}):`, rawText.slice(0, 500));
+
+  let data: any;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    console.error("❌ Non-JSON response body:", rawText);
+    throw new Error(
+      `Server returned a non-JSON response (HTTP ${res.status}).\n\nPreview:\n${rawText.slice(0, 300)}`
+    );
+  }
+
+  if (!res.ok) {
+    console.error("❌ Backend error response:", JSON.stringify(data, null, 2));
+    throw new Error(
+      data?.message || data?.detail || JSON.stringify(data) || `Request failed: ${res.status}`
+    );
+  }
+
+  console.log("✅ Response:", JSON.stringify(data, null, 2));
+  return data;
+}
+
 // ── JSON helper (PUT) ─────────────────────────────────────────────────────────
 async function putJSON(endpoint: string, body: object, token?: string) {
   console.log("🌐 PUT →", endpoint);
@@ -80,6 +116,31 @@ async function putFormData(endpoint: string, formData: FormData, token: string) 
 
   console.log("✅ Response:", JSON.stringify(data, null, 2));
   return data;
+}
+
+// ── Onboarding status — resume-in-progress signup ────────────────────────────
+// GET /api/accounts/onboard/driver/status/ tells us where an applicant
+// currently stands in the onboarding flow, so Signup.tsx can drop a
+// returning applicant back at the right step instead of restarting at 1.
+//
+//   current_phase      — how many submission phases have been completed
+//                         (0 = none, 1 = phase/1/ done, … 4 = phase/4/ done)
+//   phases_complete     — list of completed phase numbers
+//   all_phases_complete — true once phase/4/ has been submitted
+//   submission_status   — backend's review status string (e.g. "pending")
+//   reviewer_note       — optional note from a reviewer, if any
+//   phase_data          — raw per-phase data the backend has on file
+export interface OnboardingStatus {
+  current_phase: number;
+  phases_complete: number[];
+  all_phases_complete: boolean;
+  submission_status: string;
+  reviewer_note: string;
+  phase_data: Record<string, any>;
+}
+
+export async function getOnboardingStatus(token: string): Promise<OnboardingStatus> {
+  return getJSON("/api/accounts/onboard/driver/status/", token);
 }
 
 // ── Step 1 — Personal Info ────────────────────────────────────────────────────
@@ -170,7 +231,7 @@ export async function submitWorkAndSafety(
     how_long_worked_as_rider:          work.how_long_worked_as_rider,
     familiarity_with_local_routes:     work.familiarity_with_local_routes,
     have_used_gps_for_deliveries:      work.have_used_gps_for_deliveries,
-    can_handle_cash_on_delivery:       work.can_handle_cash_on_delivery,
+
     willing_to_follow_traffic_rules:   safety.trafficRules,
     willing_to_wear_helmet_and_gear:   safety.helmet,
     punctuality_self_rating:           safety.punctuality,

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, TextInput, ScrollView,
   KeyboardAvoidingView, TouchableWithoutFeedback,
@@ -8,6 +8,7 @@ import {
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { IconSymbol } from "../../components/ui/icon-symbol";
+import { useTheme } from "../../context/ThemeContext";
 import FormInput from "../FormInput";
 
 // ── State shape ───────────────────────────────────────────────────────────────
@@ -24,10 +25,10 @@ export interface SafetyReliabilityState {
 }
 
 export const DEFAULT_SAFETY_STATE: SafetyReliabilityState = {
-  trafficRules: "",
-  helmet: "",
-  punctuality: "",
-  healthIssue: "",
+  trafficRules: "yes",
+  helmet: "yes",
+  punctuality: "excellent",
+  healthIssue: "no",
   healthDetails: "",
   reason: "",
   availability: "",
@@ -71,8 +72,33 @@ interface SafetyAndReliabilityProps {
 const SafetyAndReliability: React.FC<SafetyAndReliabilityProps> = ({
   data, setData, onBack, onContinue, isSubmitting = false,
 }) => {
+  const { colors } = useTheme();
   const [errors, setErrors] = useState<ErrorMap>({});
   const [bagLoading, setBagLoading] = useState(false);
+
+  // If the parent hands us blank answer-buttons (e.g. it initialised with
+  // its own empty shape instead of importing DEFAULT_SAFETY_STATE), apply
+  // the defaults once on mount so they show as selected — free-text fields
+  // (reason/availability/bagImage) are left alone since they have no
+  // sensible default.
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+
+    const isBlank =
+      !data.trafficRules && !data.helmet && !data.punctuality && !data.healthIssue;
+
+    if (isBlank) {
+      setData((prev) => ({
+        ...prev,
+        trafficRules: DEFAULT_SAFETY_STATE.trafficRules,
+        helmet: DEFAULT_SAFETY_STATE.helmet,
+        punctuality: DEFAULT_SAFETY_STATE.punctuality,
+        healthIssue: DEFAULT_SAFETY_STATE.healthIssue,
+      }));
+    }
+  }, []);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const set = (patch: Partial<SafetyReliabilityState>) =>
@@ -123,7 +149,7 @@ const SafetyAndReliability: React.FC<SafetyAndReliabilityProps> = ({
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, paddingHorizontal: 20 }}
+      style={{ flex: 1, paddingHorizontal: 20, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
@@ -132,7 +158,7 @@ const SafetyAndReliability: React.FC<SafetyAndReliabilityProps> = ({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.title}>Safety & Reliability</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Safety & Reliability</Text>
 
           {/* ── Traffic rules ─────────────────────────────────────────────── */}
           <FormInput
@@ -214,11 +240,15 @@ const SafetyAndReliability: React.FC<SafetyAndReliabilityProps> = ({
           {/* Health details — only shown when "yes" ──────────────────────── */}
           {data.healthIssue === "yes" && (
             <View style={styles.textAreaWrapper}>
-              <Text style={styles.textAreaLabel}>Please describe your condition</Text>
+              <Text style={[styles.textAreaLabel, { color: colors.textPrimary }]}>Please describe your condition</Text>
               <TextInput
-                style={[styles.textArea, errors.healthDetails ? styles.textAreaError : null]}
+                style={[
+                  styles.textArea,
+                  { backgroundColor: colors.card, color: colors.textPrimary, borderColor: colors.separatorColor },
+                  errors.healthDetails ? styles.textAreaError : null,
+                ]}
                 placeholder="e.g. Mild asthma, managed with inhaler…"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textMuted}
                 value={data.healthDetails}
                 onChangeText={(t) => { set({ healthDetails: t }); clearError("healthDetails"); }}
                 multiline
@@ -231,13 +261,17 @@ const SafetyAndReliability: React.FC<SafetyAndReliabilityProps> = ({
 
           {/* ── Why work with us ──────────────────────────────────────────── */}
           <View style={styles.textAreaWrapper}>
-            <Text style={styles.textAreaLabel}>
+            <Text style={[styles.textAreaLabel, { color: colors.textPrimary }]}>
               Why do you want to work as a delivery rider with us?
             </Text>
             <TextInput
-              style={[styles.textArea, errors.reason ? styles.textAreaError : null]}
+              style={[
+                styles.textArea,
+                { backgroundColor: colors.card, color: colors.textPrimary, borderColor: colors.separatorColor },
+                errors.reason ? styles.textAreaError : null,
+              ]}
               placeholder="e.g. Flexible work and good pay…"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
               value={data.reason}
               onChangeText={(t) => { set({ reason: t }); clearError("reason"); }}
               multiline
@@ -249,11 +283,15 @@ const SafetyAndReliability: React.FC<SafetyAndReliabilityProps> = ({
 
           {/* ── How soon can you start ────────────────────────────────────── */}
           <View style={styles.textAreaWrapper}>
-            <Text style={styles.textAreaLabel}>How soon can you start if selected?</Text>
+            <Text style={[styles.textAreaLabel, { color: colors.textPrimary }]}>How soon can you start if selected?</Text>
             <TextInput
-              style={[styles.textArea, errors.availability ? styles.textAreaError : null]}
+              style={[
+                styles.textArea,
+                { backgroundColor: colors.card, color: colors.textPrimary, borderColor: colors.separatorColor },
+                errors.availability ? styles.textAreaError : null,
+              ]}
               placeholder="e.g. Immediately, In 2 weeks…"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
               value={data.availability}
               onChangeText={(t) => { set({ availability: t }); clearError("availability"); }}
               multiline
@@ -264,15 +302,19 @@ const SafetyAndReliability: React.FC<SafetyAndReliabilityProps> = ({
           </View>
 
           {/* ── Delivery bag image ────────────────────────────────────────── */}
-          <Text style={styles.textAreaLabel}>Upload an image of your Delivery Bag</Text>
+          <Text style={[styles.textAreaLabel, { color: colors.textPrimary }]}>Upload an image of your Delivery Bag</Text>
           <TouchableOpacity
-            style={[styles.uploadBox, errors.bagImage ? styles.uploadBoxError : null]}
+            style={[
+              styles.uploadBox,
+              { backgroundColor: colors.inputBg, borderColor: colors.separatorColor },
+              errors.bagImage ? styles.uploadBoxError : null,
+            ]}
             onPress={pickBagImage}
             activeOpacity={0.75}
             disabled={bagLoading || isSubmitting}
           >
             {bagLoading ? (
-              <ActivityIndicator size="large" color="#D44C0C" />
+              <ActivityIndicator size="large" color={colors.accentOrange} />
             ) : data.bagImage ? (
               <>
                 <Image
@@ -290,15 +332,16 @@ const SafetyAndReliability: React.FC<SafetyAndReliabilityProps> = ({
                 <IconSymbol
                   name="IdCard"
                   size={28}
-                  color={errors.bagImage ? "#e53935" : "#888"}
+                  color={errors.bagImage ? "#e53935" : colors.textMuted}
                 />
                 <Text style={[
                   styles.uploadPrompt,
+                  { color: colors.textMuted },
                   errors.bagImage ? { color: "#e53935" } : null,
                 ]}>
                   Choose Picture
                 </Text>
-                <Text style={styles.uploadSubtext}>JPG, PNG supported</Text>
+                <Text style={[styles.uploadSubtext, { color: colors.textMuted }]}>JPG, PNG supported</Text>
               </>
             )}
           </TouchableOpacity>
@@ -308,7 +351,11 @@ const SafetyAndReliability: React.FC<SafetyAndReliabilityProps> = ({
 
           {/* ── Continue ─────────────────────────────────────────────────── */}
           <TouchableOpacity
-            style={[styles.continueBtn, isSubmitting && { opacity: 0.6 }]}
+            style={[
+              styles.continueBtn,
+              { backgroundColor: colors.accentOrange },
+              isSubmitting && { opacity: 0.6 },
+            ]}
             onPress={handleContinue}
             disabled={isSubmitting}
           >
@@ -337,11 +384,11 @@ const styles = StyleSheet.create({
 
   // Text areas
   textAreaWrapper: { marginVertical: 10 },
-  textAreaLabel: { fontWeight: "600", fontSize: 15, color: "#333", marginBottom: 6 },
+  textAreaLabel: { fontWeight: "600", fontSize: 15, marginBottom: 6 },
   textArea: {
-    borderWidth: 1, borderColor: "#ccc", borderRadius: 12,
-    padding: 12, minHeight: 80, fontSize: 14, color: "#111",
-    backgroundColor: "#fff", textAlignVertical: "top",
+    borderWidth: 1, borderRadius: 12,
+    padding: 12, minHeight: 80, fontSize: 14,
+    textAlignVertical: "top",
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 3, elevation: 2,
   },
@@ -349,15 +396,15 @@ const styles = StyleSheet.create({
 
   // Bag image upload
   uploadBox: {
-    height: 160, borderWidth: 1, borderColor: "#ccc", borderRadius: 15,
+    height: 160, borderWidth: 1, borderRadius: 15,
     justifyContent: "center", alignItems: "center", marginTop: 8,
-    backgroundColor: "#F5F5F5", overflow: "hidden",
+    overflow: "hidden",
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08, shadowRadius: 4, elevation: 3,
   },
   uploadBoxError: { borderColor: "#e53935", borderWidth: 1.5 },
-  uploadPrompt: { color: "#555", fontSize: 15, marginTop: 8 },
-  uploadSubtext: { color: "#aaa", fontSize: 12, marginTop: 4 },
+  uploadPrompt: { fontSize: 15, marginTop: 8 },
+  uploadSubtext: { fontSize: 12, marginTop: 4 },
   previewImage: { width: "100%", height: "100%", borderRadius: 15 },
   changeOverlay: {
     position: "absolute", bottom: 0, left: 0, right: 0,
@@ -372,7 +419,7 @@ const styles = StyleSheet.create({
   // Continue button
   continueBtn: {
     marginTop: 24, marginBottom: 30,
-    backgroundColor: "#D44C0C", padding: 15, borderRadius: 50,
+    padding: 15, borderRadius: 50,
     alignItems: "center",
   },
   continueText: {

@@ -43,12 +43,13 @@ interface MenuItemProps {
   borderBottom?: boolean;
 }
 
-// Keys cleared on logout — tokens + app data cache
+// Auth tokens cleared on logout. The app-data cache itself is cleared via
+// AppDataContext's clearCache() below, rather than duplicating its cache
+// key here — that way this list can't silently go stale if the context
+// ever changes what/how it caches.
 const STORAGE_KEYS_TO_CLEAR = [
   "accessToken",
   "refreshToken",
-  "ovena_appdata_cache_v1",
-  "ovena_appdata_cache_v2",
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ const AccountScreen: React.FC<AccountScreenProps> = ({ onBack, disconnectSockets
   
   const { colors }      = useTheme();
   const navigation      = useNavigation<AccountNavProp>();
-  const { refresh }     = useAppData();
+  const { clearCache }  = useAppData();
 
   const [subScreen, setSubScreen]       = useState<SubScreen>(null);
   const [signingOut, setSigningOut]     = useState(false);
@@ -87,11 +88,12 @@ const AccountScreen: React.FC<AccountScreenProps> = ({ onBack, disconnectSockets
       // 1. Kill both channels immediately — don't wait on unmount to do it
       disconnectSockets?.();
 
-      // 2. Wipe stored tokens and cached app data
+      // 2. Wipe stored auth tokens
       await AsyncStorage.multiRemove(STORAGE_KEYS_TO_CLEAR);
 
-      // 3. Clear in-memory app data
-      await refresh();
+      // 3. Wipe the cached app data (disk + in-memory) so the next person
+      //    signed in on this device never sees a flash of this user's data
+      await clearCache();
 
       // 4. Reset navigation stack
       navigation.reset({ index: 0, routes: [{ name: "Login_SignUp" }] });

@@ -102,46 +102,41 @@ const OnItsWayModal: React.FC<OnItsWayModalProps> = ({
         ]}
         pointerEvents="auto"
       >
-      {/* Always-visible header row */}
-<View style={styles.sheetHeaderRow}>
-  <View style={{ flex: 1 }}>
-    <Text style={[styles.statusText, { color: colors.textPrimary }]}>On its way</Text>
-    <Text style={[styles.restaurantSmall, { color: colors.textSecondary }]} numberOfLines={1}>
-      {order.restaurantName}
-      {routeSummary ? `  ·  ${routeSummary.duration}  ·  ${routeSummary.distance}` : ""}
-    </Text>
-  </View>
+ {/* Header row: title + dismiss (X) — collapse/expand hamburger lives
+            on the bottom sheet only; the strip doesn't have its own
+            expandable content, so it doesn't need one here too. */}
+     <View style={styles.destStripHeaderRow}>
+         <View style={{ flex: 1 }}>
+            <Text style={[styles.statusText, { color: colors.textPrimary }]}>On its way</Text>
+            <Text style={[styles.restaurantSmall, { color: colors.textSecondary }]} numberOfLines={1}>
+              {order.restaurantName}
+             {routeSummary ? `  ·  ${routeSummary.duration}  ·  ${routeSummary.distance}` : ""}
+            </Text>
+          </View>
 
-  {/* Hamburger — collapse / expand */}
-  <TouchableOpacity
-    style={[styles.hamburgerBtn, { backgroundColor: colors.inputBg }]}
-    onPress={() => setExpanded((v) => !v)}
-    activeOpacity={0.7}
-    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-  >
-    <IconSymbol name="NavListIcon" size={20} color={colors.iconColor} />
-  </TouchableOpacity>
-
-  {/* X — dismiss the overlay entirely */}
-  <TouchableOpacity
-    style={[styles.closeBtn, { backgroundColor: colors.inputBg }]}
-    onPress={onClose}
-    activeOpacity={0.7}
-    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-  >
-    <IconSymbol name="XMarkIcon" size={18} color={colors.iconColor} />
-  </TouchableOpacity>
-</View>
-        <View style={[styles.destIcon, { backgroundColor: colors.inputBg }]}>
-          <IconSymbol name="LocationOutline" size={18} color={colors.accentOrange} />
+          <TouchableOpacity
+           style={[styles.closeBtn, { backgroundColor: colors.inputBg }]}
+            onPress={onClose}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <IconSymbol name="XMarkIcon" size={18} color={colors.iconColor} />
+          </TouchableOpacity>
         </View>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[styles.destName, { color: colors.textPrimary }]} numberOfLines={1}>
-            {order.restaurantName}
-          </Text>
-          <Text style={[styles.destAddr, { color: colors.textSecondary }]} numberOfLines={1}>
-            {order.restaurantAddress}
-          </Text>
+
+        {/* Destination row: icon + name/address, stacked below the header */}
+        <View style={styles.destStripBodyRow}>
+          <View style={[styles.destIcon, { backgroundColor: colors.inputBg }]}>
+            <IconSymbol name="LocationOutline" size={18} color={colors.accentOrange} />
+                      </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={[styles.destName, { color: colors.textPrimary }]} numberOfLines={1}>
+              {order.restaurantName}
+            </Text>
+            <Text style={[styles.destAddr, { color: colors.textSecondary }]} numberOfLines={1}>
+              {order.restaurantAddress}
+            </Text>
+         </View>
         </View>
       </Animated.View>
 
@@ -323,8 +318,7 @@ const styles = StyleSheet.create({
     top: Platform.OS === "ios" ? 60 : 48,
     left: 16,
     right: 16,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
     borderRadius: 16,
     padding: 14,
     shadowColor: "#000",
@@ -333,12 +327,21 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 10,
   },
-  destIcon: {
+    destStripHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
+    destStripBodyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+    destIcon: {
     width: 36, height: 36, borderRadius: 10,
     alignItems: "center", justifyContent: "center",
   },
-  destName: { fontSize: 14, fontWeight: "700" },
-  destAddr: { fontSize: 12, marginTop: 2 },
+    destName: { fontSize: 14, fontWeight: "700" },
+    destAddr: { fontSize: 12, marginTop: 2 },
 
   // ── Bottom sheet ──────────────────────────────────────────────────────────
   sheet: {

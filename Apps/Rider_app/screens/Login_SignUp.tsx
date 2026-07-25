@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import TermsModal from "../modals/TermsModal";
+import { useTheme } from "../context/ThemeContext";
 
 type RootStackParamList = {
   Splash: undefined;
@@ -23,6 +24,7 @@ type RootStackParamList = {
 type Props = NativeStackScreenProps<RootStackParamList, "Login_SignUp">;
 
 const Login_SignUp: React.FC<Props> = ({ navigation }) => {
+  const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const { width, height } = useWindowDimensions();
 
@@ -41,7 +43,7 @@ const Login_SignUp: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* LOGO */}
       <View style={styles.imageWrapper}>
         <Image
@@ -52,18 +54,21 @@ const Login_SignUp: React.FC<Props> = ({ navigation }) => {
       </View>
 
       {/* CONTENT */}
-      <View style={[styles.textContainer, { paddingVertical: height * 0.05 }]}>
-        <Text style={styles.title}>
+      <View style={[
+        styles.textContainer,
+        { paddingVertical: height * 0.05, backgroundColor: colors.card, borderColor: colors.separatorColor },
+      ]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
           Welcome to {"\n"} Ovena rider app
         </Text>
 
-        <Text style={styles.subtitle}>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
           Choose Your Schedule and {"\n"} Maximize Your Earnings
         </Text>
 
         {/* Sign in → SignIn screen, which navigates to HomeScreen on success */}
         <TouchableOpacity
-          style={[styles.primaryButton, { width: width * 0.9 }]}
+          style={[styles.primaryButton, { width: width * 0.9, backgroundColor: colors.accentOrange }]}
           onPress={() => navigation.navigate("SignIn")}
         >
           <Text style={styles.primaryButtonText}>Sign in</Text>
@@ -71,13 +76,13 @@ const Login_SignUp: React.FC<Props> = ({ navigation }) => {
 
         {/* Apply here → show Terms modal first, then go to Signup */}
         <TouchableOpacity
-          style={[styles.secondaryButton, { width: width * 0.9 }]}
+          style={[styles.secondaryButton, { width: width * 0.9, backgroundColor: colors.inputBg }]}
           onPress={() => setModalVisible(true)}
         >
-          <Text style={styles.secondaryButtonText}>Apply here</Text>
+          <Text style={[styles.secondaryButtonText, { color: colors.textPrimary }]}>Apply here</Text>
         </TouchableOpacity>
 
-        <Text style={styles.versionText}>v4.9914.5</Text>
+        <Text style={[styles.versionText, { color: colors.textMuted }]}>v4.9914.5</Text>
       </View>
 
       <TermsModal
@@ -95,7 +100,6 @@ export default Login_SignUp;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   imageWrapper: {
     flex: 1,
@@ -106,7 +110,6 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#000",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
@@ -124,7 +127,6 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: 30,
-    backgroundColor: "#D44C0C",
     paddingVertical: 15,
     borderRadius: 50,
   },
@@ -136,12 +138,10 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     marginTop: 20,
-    backgroundColor: "#F5F5F5",
     paddingVertical: 15,
     borderRadius: 50,
   },
   secondaryButtonText: {
-    color: "#000",
     textAlign: "center",
     fontSize: 17,
     fontWeight: "600",

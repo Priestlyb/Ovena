@@ -5,11 +5,17 @@ import {
   SafeAreaView, StatusBar, Modal, TextInput,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../context/ThemeContext";
 import { useAppData } from "../context/appDataContext";
 import { IconSymbol } from "../components/ui/icon-symbol";
 import PayoutList, { historyEntryToPayout, Payout } from "../components/PayoutList";
 import ScreenWrapper from "../components/ScreenWrapper";
+import { submitWithdrawal } from "../services/appDataApi";
+import {
+ getOrCreateWithdrawalIdempotencyKey,
+  clearWithdrawalIdempotencyKey,
+} from "../utils/idempotencyKey";
 
 interface OvenaBankScreenProps {
   onBack: () => void;
@@ -23,17 +29,24 @@ interface WithdrawModalProps {
   balance:  number;
   minAmount: number;
   eligible: boolean;
+  onSuccess?: () => void; // let the parent screen refresh balance/history
 }
 
-function WithdrawModal({ visible, onClose, balance, minAmount, eligible }: WithdrawModalProps) {
+function WithdrawModal({ visible, onClose, balance, minAmount, eligible, onSuccess }: WithdrawModalProps) {
   const { colors } = useTheme();
   const [amount, setAmount]   = useState("");
   const [loading, setLoading] = useState(false);
+  // Hard synchronous guard against double-tap — `loading` state alone isn't
+  // enough because a very fast second press can fire before the re-render
+  // that disables the button has actually happened.
+  const submittingRef = React.useRef(false);
 
   const formatted     = `₦${balance.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
   const numericAmount = parseFloat(amount.replace(/,/g, ""));
 
   const handleWithdraw = async () => {
+    if (submittingRef.current) return;
+
     if (!eligible) {
       Alert.alert("Not Eligible", "Your account is not currently eligible for withdrawal.");
       return;
@@ -51,13 +64,45 @@ function WithdrawModal({ visible, onClose, balance, minAmount, eligible }: Withd
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
-    // TODO: call withdrawal API here
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setAmount("");
-    onClose();
-    Alert.alert("Withdrawal Requested", `₦${numericAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })} will be processed shortly.`);
+   try {
+      const token = await AsyncStorage.getItem("accessToken");
+      if (!token) {
+        Alert.alert("Session Expired", "Please sign in again to continue.");
+        return;
+      }
+
+      // Reuses the same key on a retry of this exact amount; only
+      // rotates to a new key once the amount changes or the previous
+ // attempt succeeded.
+      const idempotencyKey = await getOrCreateWithdrawalIdempotencyKey(numericAmount);
+
+      const response = await submitWithdrawal(numericAmount, idempotencyKey, token);
+
+      // Success is the ONLY point the key gets cleared — this guarantees
+      // a failed or ambiguous (e.g. network drop mid-request) attempt
+      // still has its key available for a safe retry.
+      await clearWithdrawalIdempotencyKey();
+
+      setAmount("");
+      onClose();
+      onSuccess?.();
+
+      const confirmedAmount = response?.data?.amount ?? numericAmount;
+      Alert.alert(
+        "Withdrawal Requested",
+        `₦${Number(confirmedAmount).toLocaleString("en-NG", { minimumFractionDigits: 2 })} will be processed shortly.`
+      );
+    } catch (err: any) {
+      console.warn("[Withdraw] Failed:", err);
+     // Modal stays open, key stays persisted — user can tap Confirm
+     // again and the retry will carry the same idempotency key.
+     Alert.alert("Withdrawal Failed", err?.message || "Please try again.");
+    } finally {
+      setLoading(false);
+     submittingRef.current = false;
+   }
   };
 
   // Quick-fill amounts based on balance
@@ -146,8 +191,8 @@ function WithdrawModal({ visible, onClose, balance, minAmount, eligible }: Withd
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 const OvenaBankScreen: React.FC<OvenaBankScreenProps> = ({ onBack }) => {
-  const { colors }            = useTheme();
-  const { data, loading }     = useAppData();
+  const { colors } = useTheme();
+  const { data, loading, refresh } = useAppData();
   const [withdrawVisible, setWithdrawVisible] = useState(false);
 
   // ── Derived values from context ────────────────────────────────────────────
@@ -256,6 +301,7 @@ const OvenaBankScreen: React.FC<OvenaBankScreenProps> = ({ onBack }) => {
         balance={balance}
         minAmount={minAmount}
         eligible={eligible}
+        onSuccess={refresh}
       />
        </ScreenWrapper>
     </SafeAreaView>

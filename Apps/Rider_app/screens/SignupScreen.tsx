@@ -3,6 +3,7 @@ import {
   View, StyleSheet, Text, TouchableOpacity,
   Animated, Dimensions, Alert, ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { IconSymbol } from "../components/ui/icon-symbol";
 import PersonalStep, { PersonalStepRef } from "../components/signup/PersonalInformation";
 import DocumentStep, { DocumentStepRef } from "../components/signup/IdentificationDocumentation";
@@ -23,8 +24,10 @@ import {
   submitDocInfo,
   submitWorkAndSafety,
   submitBankAndSelfie,
+  getOnboardingStatus,
 } from "../services/signupApi";
 import { useAppData } from "../context/appDataContext";
+import { useTheme } from "../context/ThemeContext";
 
 type RootStackParamList = {
   Login_SignUp: undefined;
@@ -57,13 +60,44 @@ const STEP_TO_SEGMENT: Record<number, number> = {
   6: 3,
 };
 
+// ── Resume support ────────────────────────────────────────────────────────────
+// The backend tracks onboarding progress in terms of its own submission
+// phases (1 = personal info, 2 = identification/docs, 3 = work+safety,
+// 4 = bank+selfie). GET /api/accounts/onboard/driver/status/ returns
+// `current_phase`, i.e. how many of those phases have been submitted so far.
+// We map that onto the internal 6-step wizard so a returning applicant is
+// dropped back at the first *unsubmitted* step instead of restarting at 1.
+//
+//   current_phase 0 → nothing submitted yet   → step 1 (Personal Info)
+//   current_phase 1 → phase/1/ done           → step 2 (Identification & Docs)
+//   current_phase 2 → phase/2/ done           → step 3 (Work Availability)
+//   current_phase 3 → phase/3/ done           → step 5 (Bank Details)
+//   current_phase 4 → phase/4/ done           → all_phases_complete, handled separately
+const PHASE_TO_RESUME_STEP: Record<number, number> = {
+  0: 1,
+  1: 2,
+  2: 3,
+  3: 5,
+};
+
+// Keys used to persist the in-progress applicant's auth token locally so the
+// app can resume their status check on relaunch — separate from the main
+// driver-session token so an in-progress signup never clobbers a logged-in
+// driver's session.
+const ONBOARDING_TOKEN_KEY = "@ovena_onboarding_access_token";
+const ONBOARDING_REFRESH_KEY = "@ovena_onboarding_refresh_token";
+
 export default function Signup() {
   const navigation = useNavigation<SignupNavProp>();
+  const { colors } = useTheme();
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authToken, setAuthToken] = useState("");
   const [refreshToken, setRefreshToken] = useState("");
+  // True while we check for a saved in-progress application on mount —
+  // keeps the wizard from flashing step 1 before we know where to resume.
+  const [checkingStatus, setCheckingStatus] = useState(true);
   const { refresh } = useAppData();
 
   // ── Step refs (for child-driven validation) ───────────────────────────────
@@ -99,6 +133,59 @@ export default function Signup() {
 
   // ── Step 6 state — Selfie ─────────────────────────────────────────────────
   const [faceImage, setFaceImage] = useState("");
+
+  // ── Resume-in-progress-application check ─────────────────────────────────
+  // On mount: look for a saved token from a previous, incomplete signup
+  // attempt. If one exists, ask the backend where the applicant left off and
+  // jump straight there. If there's no saved token, this is a fresh signup
+  // and we just fall through to step 1 as before.
+  useEffect(() => {
+    (async () => {
+      try {
+        const savedToken = await AsyncStorage.getItem(ONBOARDING_TOKEN_KEY);
+        if (!savedToken) {
+          console.log("🆕 No saved onboarding token — starting fresh at step 1.");
+          return;
+        }
+
+        console.log("🔄 Saved onboarding token found — checking application status…");
+        const status = await getOnboardingStatus(savedToken);
+        console.log("📋 Onboarding status:", JSON.stringify(status, null, 2));
+
+        setAuthToken(savedToken);
+        const savedRefresh = await AsyncStorage.getItem(ONBOARDING_REFRESH_KEY);
+        if (savedRefresh) setRefreshToken(savedRefresh);
+
+        if (status.all_phases_complete) {
+          // Nothing left to fill in — the application has already been
+          // submitted in full and is presumably awaiting review.
+          Alert.alert(
+            "Application Already Submitted",
+            status.reviewer_note ||
+              `Your application is ${status.submission_status || "under review"}. We'll notify you once it's been reviewed.`
+          );
+          await AsyncStorage.multiRemove([ONBOARDING_TOKEN_KEY, ONBOARDING_REFRESH_KEY]);
+          navigation.goBack();
+          return;
+        }
+
+        const resumeStep = PHASE_TO_RESUME_STEP[status.current_phase] ?? 1;
+        console.log(`↪️ Resuming at internal step ${resumeStep} (backend phase ${status.current_phase})`);
+        setStep(resumeStep);
+
+        // NOTE: `phase_data` from the status response isn't hydrated into
+        // personalInfo/docInfo/etc. here — its exact shape per phase isn't
+        // pinned down yet. Once confirmed, prefill the relevant step state
+        // from status.phase_data here so returning applicants see their
+        // previously-entered values instead of blank fields.
+      } catch (err) {
+        // Don't block signup on a failed status check — just start fresh.
+        console.error("⚠️ Could not fetch onboarding status, starting fresh:", err);
+      } finally {
+        setCheckingStatus(false);
+      }
+    })();
+  }, []);
 
   // ── Progress bar animation ────────────────────────────────────────────────
   const animatedValue = useRef(new Animated.Value(0)).current;
@@ -150,6 +237,10 @@ export default function Signup() {
           const res = await submitPersonalInfo(payload);
           setAuthToken(res.access);
           setRefreshToken(res.refresh);
+          // Persist so the app can resume this application if the user
+          // backgrounds/kills the app before finishing the remaining steps.
+          await AsyncStorage.setItem(ONBOARDING_TOKEN_KEY, res.access);
+          await AsyncStorage.setItem(ONBOARDING_REFRESH_KEY, res.refresh);
           break;
         }
 
@@ -195,6 +286,20 @@ export default function Signup() {
           console.log("  Bank:", JSON.stringify(bankDetails, null, 2));
           console.log("  Selfie URI:", faceImage);
           await submitBankAndSelfie(bankDetails, faceImage, authToken);
+
+          // Onboarding is complete — promote the onboarding token into the
+          // app's real session keys ("accessToken"/"refreshToken"). These are
+          // what AppDataContext and AccountScreen's sign-out actually read;
+          // without this the user lands on HomeScreen holding no recognized
+          // session, so the app never fetches their data and they appear
+          // signed out even though signup just succeeded.
+          await AsyncStorage.setItem("accessToken", authToken);
+          await AsyncStorage.setItem("refreshToken", refreshToken);
+
+          // The onboarding-specific resume token is no longer needed now
+          // that the real session is established.
+          await AsyncStorage.multiRemove([ONBOARDING_TOKEN_KEY, ONBOARDING_REFRESH_KEY]);
+
           // Navigate immediately — do NOT put navigation.reset inside an Alert
           // callback. The component may unmount before the user taps OK, which
           // causes "Cannot read property isready of undefined".
@@ -281,18 +386,29 @@ export default function Signup() {
   // Steps 4 and 6 manage their own Continue buttons internally
   const showOuterContinue = step !== 4 && step !== 6;
 
+  // While we're checking for a resumable application, show a blocking
+  // spinner instead of the wizard so the user never sees step 1 flash
+  // before we jump them to their actual saved step.
+  if (checkingStatus) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.accentOrange} />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Progress bar */}
       <View style={styles.progressHeader}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <IconSymbol name="ArrowLeft" size={24} color="#000" />
+          <IconSymbol name="ArrowLeft" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <View style={styles.progressContainer}>
+        <View style={[styles.progressContainer, { backgroundColor: colors.inputBg }]}>
           <Animated.View
             style={[
               styles.progressIndicator,
-              { width: indicatorWidth, transform: [{ translateX: animatedValue }] },
+              { width: indicatorWidth, backgroundColor: colors.accentOrange, transform: [{ translateX: animatedValue }] },
             ]}
           />
         </View>
@@ -303,7 +419,11 @@ export default function Signup() {
       {/* Outer Continue — hidden on steps that own their own button */}
       {showOuterContinue && (
         <TouchableOpacity
-          style={[styles.continueButton, isSubmitting && { opacity: 0.6 }]}
+          style={[
+            styles.continueButton,
+            { backgroundColor: colors.accentOrange },
+            isSubmitting && { opacity: 0.6 },
+          ]}
           onPress={handleContinue}
           disabled={isSubmitting}
         >
@@ -318,22 +438,23 @@ export default function Signup() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50, backgroundColor: "#fff" },
+  container: { flex: 1, paddingTop: 50 },
+  centered: { justifyContent: "center", alignItems: "center" },
   progressHeader: {
     flexDirection: "row", alignItems: "center",
     marginHorizontal: 20, marginBottom: 10,
   },
   backButton: { marginRight: 35 },
   progressContainer: {
-    flex: 1, height: 15, backgroundColor: "#F5F5F5",
+    flex: 1, height: 15,
     borderRadius: 20, overflow: "hidden",
   },
   progressIndicator: {
-    height: "100%", backgroundColor: "#D44C0C",
+    height: "100%",
     borderRadius: 20, position: "absolute", left: 0,
   },
   continueButton: {
-    margin: 20, backgroundColor: "#D44C0C", padding: 15, borderRadius: 50,
+    margin: 20, padding: 15, borderRadius: 50,
   },
   continueText: {
     color: "#fff", textAlign: "center", fontSize: 18, fontWeight: "bold",

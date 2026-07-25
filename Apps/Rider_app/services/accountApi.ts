@@ -13,7 +13,10 @@ async function patchJSON(endpoint: string, body: object, token: string) {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
     },
+    cache: "no-store",
     body: JSON.stringify(body),
   });
   const raw = await res.text();
@@ -26,7 +29,12 @@ async function patchJSON(endpoint: string, body: object, token: string) {
 async function patchFormData(endpoint: string, formData: FormData, token: string) {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: "PATCH",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+    },
+    cache: "no-store",
     body: formData,
   });
   const raw = await res.text();

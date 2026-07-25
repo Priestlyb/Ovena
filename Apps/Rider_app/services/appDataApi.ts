@@ -2,11 +2,33 @@
 
 const BASE = "https://ovena-backend-production.up.railway.app";
 
+// Some caches — device-level HTTP caches, CDNs/edge proxies in front of
+// Railway, etc. — key their cache entries by URL alone and don't vary the
+// cached response by the Authorization header. If that's happening here,
+// two different accounts hitting the exact same GET endpoint URL (e.g. right
+// after signing up, when Signup.tsx calls refresh()) can end up being served
+// the same cached response instead of a fresh one for their own token.
+//
+// To make sure every request actually reaches the backend and is answered
+// for the token that's attached to it:
+//   • a unique cache-busting query param is appended to every GET URL, so
+//     no two requests — even for the same endpoint — ever share a cache key
+//   • explicit no-cache headers + `cache: "no-store"` ask any cache that
+//     *does* respect them (and the RN fetch layer itself) not to store or
+//     reuse this response at all
 async function authGet(endpoint: string, token: string) {
-  const res = await fetch(`${BASE}${endpoint}`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const bustedUrl =
+    `${BASE}${endpoint}${endpoint.includes("?") ? "&" : "?"}_ts=${Date.now()}`;
+
+  const res = await fetch(bustedUrl, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+    },
+    cache: "no-store",
   });
-  console.log(`[API] Fetching ${endpoint} with token: ${token}`);
+  console.log(`[API] Fetching ${endpoint} for token ending in …${token.slice(-6)}`);
   if (!res.ok) throw new Error(`${endpoint} failed: ${res.status}`);
   return res.json();
 }
@@ -182,4 +204,51 @@ export async function fetchAllAppData(token: string): Promise<AllAppData> {
     withdrawals,
     withdrawalEligibility,
   };
+}
+
+
+
+// ── Submit Withdrawal ─────────────────────────────────────────────────────────
+// POST /api/driver/withdrawals/ — the Idempotency-Key header lets the backend
+// dedupe retries of the same logical request (network timeout, app killed
+// mid-request, accidental double-tap that slipped past the client guard).
+
+export interface SubmitWithdrawalResponse {
+  detail: string;
+  data: WithdrawalEntry;
+}
+
+export async function submitWithdrawal(
+  amount: number,
+  idempotencyKey: string,
+  token: string
+): Promise<SubmitWithdrawalResponse> {
+  console.log(`[API] POST /api/driver/withdrawals/ — amount: ${amount}, key: ${idempotencyKey}`);
+
+  const res = await fetch(`${BASE}/api/driver/withdrawals/`, {
+    method: "POST",
+    headers: {
+      "Content-Type":    "application/json",
+      Authorization:     `Bearer ${token}`,
+      "Idempotency-Key": idempotencyKey,
+    },
+    body: JSON.stringify({ amount }),
+  });
+
+  const rawText = await res.text();
+  let data: any;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    console.error("❌ Non-JSON withdrawal response:", rawText);
+    throw new Error(`Server returned a non-JSON response (HTTP ${res.status}).`);
+  }
+
+  if (!res.ok) {
+    console.error("❌ Withdrawal failed:", JSON.stringify(data, null, 2));
+    throw new Error(data?.message || data?.detail || `Withdrawal failed: ${res.status}`);
+  }
+
+  console.log("✅ Withdrawal submitted:", JSON.stringify(data, null, 2));
+  return data;
 }

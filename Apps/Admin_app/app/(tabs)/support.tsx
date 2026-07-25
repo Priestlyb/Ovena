@@ -1,27 +1,26 @@
 /**
- * app/(tabs)/staff.tsx
+ * app/(tabs)/support.tsx
  *
- * Support Hub inbox — mirrors HTML exactly:
+ * Support Hub inbox — now backed by GET /api/admin/support/tickets/
+ * (via useSupportTickets) instead of static mock data.
  *
  *  TopBar: "Support Hub" + stats
- *  Search bar (rounded-2xl, icon left)
- *  Filter tabs: All | Drivers | Restaurants | Customers
- *    - All: chronological order (urgent first)
- *    - Others: filtered by category
- *    - Tab switching animates opacity like HTML fade
- *  Inbox list: InboxTile rows (swipeable)
+ *  Search bar
+ *  Filter tabs: All | Customer | Driver | Business Admin | Business Staff
+ *    - filters ticket.owner_role client-side (backend has no role param)
+ *  Inbox list: FlatList of InboxTile rows, onEndReached → loadMore()
+ *    (automatic pagination as the user scrolls)
  *  Stats bento: Unresolved | Avg Response
- *  Toast: shown after confirm resolve
- *  ResolveConfirmModal: shown on swipe-right
+ *  Toast + ResolveConfirmModal unchanged
  */
 
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
-  ScrollView,
-  Animated,
+  FlatList,
+  ActivityIndicator,
   StyleSheet,
   TouchableWithoutFeedback,
 } from 'react-native';
@@ -30,91 +29,84 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import ScreenWrapper               from '@/components/ScreenWrapper';
-import { InboxTile }               from '@/components/support/InboxTile';
-import { ResolveConfirmModal }     from '@/components/support/ResolveConfirmModal';
-import { Toast }                   from '@/components/support/Toast';
-import { useTheme }                from '@/context/ThemeContext';
+import ScreenWrapper           from '@/components/ScreenWrapper';
+import { InboxTile }           from '@/components/support/InboxTile';
+import { ResolveConfirmModal } from '@/components/support/ResolveConfirmModal';
+import { Toast }               from '@/components/support/Toast';
+import { useTheme }            from '@/context/ThemeContext';
 import { Spacing, Radius, FontFamily } from '@/constants/theme';
-import {
-  ALL_THREADS,
-  THREADS_BY_CATEGORY,
-  SUPPORT_STATS,
-  SupportThread,
-  SupportCategory,
-} from '@/data/supportData';
+import { useSupportTickets, OwnerRoleFilter } from '@/hooks/useSupportTickets';
+import { SupportTicket } from '@/types/appData';
 
-type FilterTab = 'all' | SupportCategory;
-
-const FILTER_TABS: { key: FilterTab; label: string }[] = [
-  { key: 'all',         label: 'All' },
-  { key: 'drivers',     label: 'Drivers' },
-  { key: 'restaurants', label: 'Restaurants' },
-  { key: 'customers',   label: 'Customers' },
+const FILTER_TABS: { key: OwnerRoleFilter; label: string }[] = [
+  { key: 'all',            label: 'All' },
+  { key: 'customer',       label: 'Customer' },
+  { key: 'driver',         label: 'Driver' },
+  { key: 'business_admin', label: 'Business Admin' },
+  { key: 'business_staff', label: 'Business Staff' },
 ];
 
 export default function SupportScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const [activeTab,    setActiveTab]    = useState<FilterTab>('all');
-  const [searchQuery,  setSearchQuery]  = useState('');
-  const [resolvedIds,  setResolvedIds]  = useState<Set<string>>(new Set());
-  const [pendingThread, setPendingThread] = useState<SupportThread | null>(null);
-  const [showToast,    setShowToast]    = useState(false);
-  const [toastMsg,     setToastMsg]     = useState('');
+  const {
+    tickets, totalCount, ownerRoleFilter, setOwnerRoleFilter,
+    loading, loadingMore, error, hasMore, loadMore, refresh,
+  } = useSupportTickets();
 
-  // List fade animation — mirrors HTML setTimeout opacity toggle
-  const listOpacity = useRef(new Animated.Value(1)).current;
+  const [searchQuery, setSearchQuery]     = useState('');
+  const [resolvedIds, setResolvedIds]     = useState<Set<string>>(new Set());
+  const [pendingTicket, setPendingTicket] = useState<SupportTicket | null>(null);
+  const [showToast, setShowToast]         = useState(false);
+  const [toastMsg, setToastMsg]           = useState('');
 
-  const switchTab = (tab: FilterTab) => {
-    Animated.timing(listOpacity, { toValue: 0, duration: 100, useNativeDriver: true }).start(() => {
-      setActiveTab(tab);
-      Animated.timing(listOpacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
-    });
-  };
-
-  // Filtered thread list
-  const threads = useMemo(() => {
-    const base = activeTab === 'all'
-      ? ALL_THREADS
-      : THREADS_BY_CATEGORY[activeTab];
-
-    if (!searchQuery.trim()) return base;
+  const visibleTickets = useMemo(() => {
+    if (!searchQuery.trim()) return tickets;
     const q = searchQuery.toLowerCase();
-    return base.filter(t =>
-      t.name.toLowerCase().includes(q)      ||
-      t.refCode.toLowerCase().includes(q)   ||
-      t.preview.toLowerCase().includes(q)
+    return tickets.filter(t =>
+      t.owner_id.toLowerCase().includes(q)          ||
+      (t.owner_email ?? '').toLowerCase().includes(q) ||
+      t.category.toLowerCase().includes(q)          ||
+      t.id.toLowerCase().includes(q)
     );
-  }, [activeTab, searchQuery]);
+  }, [tickets, searchQuery]);
 
-  // Swipe right → show confirm modal
-  const handleSwipeResolve = (thread: SupportThread) => {
-    if (resolvedIds.has(thread.id)) return; // already resolved
-    setPendingThread(thread);
+  const handleSwipeResolve = (ticket: SupportTicket) => {
+    if (resolvedIds.has(ticket.id) || ticket.status === 'closed') return;
+    setPendingTicket(ticket);
   };
 
-  // Confirm → mark resolved + show toast
   const handleConfirmResolve = () => {
-    if (!pendingThread) return;
-    setResolvedIds(prev => new Set([...prev, pendingThread.id]));
-    setToastMsg(`${pendingThread.name}'s request marked as completed`);
+    if (!pendingTicket) return;
+    setResolvedIds(prev => new Set([...prev, pendingTicket.id]));
+    setToastMsg(`Ticket ${pendingTicket.id.slice(-6)} marked as resolved`);
     setShowToast(true);
-    setPendingThread(null);
+    setPendingTicket(null);
   };
 
-  // Computed unresolved count (subtracts locally resolved)
-  const unresolvedCount = SUPPORT_STATS.unresolved - resolvedIds.size;
+  // Unresolved count is based on what's currently loaded, since the
+  // tickets endpoint doesn't return a status breakdown of its own.
+  const unresolvedCount = tickets.filter(
+    t => t.status !== 'closed' && !resolvedIds.has(t.id)
+  ).length;
 
   const cardBg     = isDark ? '#1c1b20' : colors.surfaceContainerLow;
   const cardBorder = isDark ? 'rgba(255,255,255,0.07)' : colors.border;
   const inputBg    = isDark ? '#1c1b20' : colors.surfaceContainerLow;
 
+  const renderFooter = useCallback(() => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator color={colors.primaryContainer} />
+      </View>
+    );
+  }, [loadingMore, colors.primaryContainer]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ScreenWrapper noPadding>
-        {/* ── Top app bar ── */}
         <View
           style={[
             styles.topBar,
@@ -130,134 +122,140 @@ export default function SupportScreen() {
           </Text>
         </View>
 
-        <ScrollView
+        <FlatList
+          data={visibleTickets}
+          keyExtractor={(item) => item.id}
           style={styles.scroll}
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + 88 },
-          ]}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 88 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-        >
-          {/* ── Search ── */}
-          <View
-            style={[
-              styles.searchWrap,
-              { backgroundColor: inputBg, borderColor: cardBorder },
-            ]}
-          >
-            <Ionicons name="search-outline" size={20} color={colors.onSurfaceVariant} style={styles.searchIcon} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.onSurface }]}
-              placeholder="Search conversations, IDs, or users..."
-              placeholderTextColor={colors.onSurfaceVariant + '80'}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              selectionColor={colors.primaryContainer}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableWithoutFeedback onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color={colors.onSurfaceVariant} style={styles.clearIcon} />
-              </TouchableWithoutFeedback>
-            )}
-          </View>
+          onEndReachedThreshold={0.4}
+          onEndReached={() => {
+            // Automatic pagination — only fires when a filter isn't already
+            // triggering background loads and the backend has more pages.
+            if (hasMore && !loadingMore) loadMore();
+          }}
+          ListHeaderComponent={
+            <>
+              {/* Search */}
+              <View style={[styles.searchWrap, { backgroundColor: inputBg, borderColor: cardBorder }]}>
+                <Ionicons name="search-outline" size={20} color={colors.onSurfaceVariant} style={styles.searchIcon} />
+                <TextInput
+                  style={[styles.searchInput, { color: colors.onSurface }]}
+                  placeholder="Search by owner ID, email, or category..."
+                  placeholderTextColor={colors.onSurfaceVariant + '80'}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  selectionColor={colors.primaryContainer}
+                  returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableWithoutFeedback onPress={() => setSearchQuery('')}>
+                    <Ionicons name="close-circle" size={18} color={colors.onSurfaceVariant} style={styles.clearIcon} />
+                  </TouchableWithoutFeedback>
+                )}
+              </View>
 
-          {/* ── Filter tabs ── */}
-          <View
-            style={[
-              styles.tabBar,
-              { backgroundColor: inputBg, borderColor: cardBorder },
-            ]}
-          >
-            {FILTER_TABS.map((tab) => {
-              const active = activeTab === tab.key;
-              return (
-                <TouchableWithoutFeedback key={tab.key} onPress={() => switchTab(tab.key)}>
-                  <View
-                    style={[
-                      styles.tab,
-                      active && { backgroundColor: colors.primaryContainer },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tabText,
-                        { color: active ? colors.onPrimaryContainer : colors.onSurfaceVariant },
-                      ]}
-                    >
-                      {tab.label}
-                    </Text>
-                  </View>
-                </TouchableWithoutFeedback>
-              );
-            })}
-          </View>
+              {/* Role filter chips — horizontally scrollable, labels are longer than the old category tabs */}
+              <FlatList
+                data={FILTER_TABS}
+                keyExtractor={(t) => t.key}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabBar}
+                style={{ marginBottom: Spacing.md }}
+                renderItem={({ item: tab }) => {
+                  const active = ownerRoleFilter === tab.key;
+                  return (
+                    <TouchableWithoutFeedback onPress={() => setOwnerRoleFilter(tab.key)}>
+                      <View
+                        style={[
+                          styles.tab,
+                          { borderColor: cardBorder, backgroundColor: inputBg },
+                          active && { backgroundColor: colors.primaryContainer },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tabText,
+                            { color: active ? colors.onPrimaryContainer : colors.onSurfaceVariant },
+                          ]}
+                        >
+                          {tab.label}
+                        </Text>
+                      </View>
+                    </TouchableWithoutFeedback>
+                  );
+                }}
+              />
 
-          {/* ── Inbox list ── */}
-          <Animated.View style={{ opacity: listOpacity }}>
-            {threads.length === 0 ? (
+              {loading && tickets.length === 0 && (
+                <View style={styles.emptyState}>
+                  <ActivityIndicator color={colors.primaryContainer} />
+                </View>
+              )}
+
+              {!!error && (
+                <Text style={{ color: colors.error, marginBottom: Spacing.md }}>{error}</Text>
+              )}
+            </>
+          }
+          ListEmptyComponent={
+            !loading ? (
               <View style={styles.emptyState}>
                 <Ionicons name="chatbubbles-outline" size={48} color={colors.outlineVariant} />
                 <Text style={[styles.emptyText, { color: colors.onSurfaceVariant }]}>
                   No conversations found
                 </Text>
               </View>
-            ) : (
-              threads.map((thread) => (
-                <InboxTile
-                  key={thread.id}
-                  thread={thread}
-                  isResolved={resolvedIds.has(thread.id)}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/support/chat',
-                      params:   { threadId: thread.id },
-                    })
-                  }
-                  onSwipeResolve={handleSwipeResolve}
-                />
-              ))
-            )}
-          </Animated.View>
-
-          {/* ── Stats bento ── */}
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-              <Text style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>
-                UNRESOLVED
-              </Text>
-              <View style={styles.statValueRow}>
-                <Text style={[styles.statValue, { color: colors.primary }]}>
-                  {Math.max(0, unresolvedCount)}
-                </Text>
-                <Text style={[styles.statDelta, { color: colors.error }]}>
-                  {SUPPORT_STATS.unresolvedDelta}
-                </Text>
+            ) : null
+          }
+          renderItem={({ item: ticket }) => (
+            <InboxTile
+              ticket={ticket}
+              isResolved={resolvedIds.has(ticket.id)}
+             onPress={() =>
+                        router.push({
+                          pathname: '/support/chat',
+                          params: {
+                            threadId:   ticket.id,
+                            ownerRole:  ticket.owner_role,
+                            ownerId:    ticket.owner_id,
+                            ownerEmail: ticket.owner_email ?? '',
+                            category:   ticket.category,
+                            status:     ticket.status,
+                          },
+                        })
+                      }
+              onSwipeResolve={handleSwipeResolve}
+            />
+          )}
+          ListFooterComponent={
+            <>
+              {renderFooter()}
+              <View style={styles.statsGrid}>
+                <View style={[styles.statCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+                  <Text style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>UNRESOLVED</Text>
+                  <Text style={[styles.statValue, { color: colors.primary }]}>
+                    {Math.max(0, unresolvedCount)}
+                  </Text>
+                </View>
+                <View style={[styles.statCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+                  <Text style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>TOTAL TICKETS</Text>
+                  <Text style={[styles.statValue, { color: colors.secondary ?? colors.onSurface }]}>
+                    {totalCount}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-              <Text style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>
-                AVG RESPONSE
-              </Text>
-              <View style={styles.statValueRow}>
-                <Text style={[styles.statValue, { color: colors.secondary ?? colors.onSurface }]}>
-                  {SUPPORT_STATS.avgResponse}
-                </Text>
-                <Text style={[styles.statDelta, { color: colors.primaryContainer }]}>
-                  {SUPPORT_STATS.avgResponseDelta}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
+            </>
+          }
+        />
 
-        {/* ── Modals + Toast ── */}
         <ResolveConfirmModal
-          visible={!!pendingThread}
-          threadName={pendingThread?.name ?? ''}
+          visible={!!pendingTicket}
+          threadName={pendingTicket ? `${pendingTicket.owner_role} #${pendingTicket.owner_id}` : ''}
           onConfirm={handleConfirmResolve}
-          onCancel={() => setPendingThread(null)}
+          onCancel={() => setPendingTicket(null)}
         />
 
         <Toast
@@ -274,115 +272,30 @@ export default function SupportScreen() {
 
 const styles = StyleSheet.create({
   topBar: {
-    height:            64,
-    justifyContent:    'flex-end',
-    paddingHorizontal: Spacing.gutter,
-    paddingBottom:     Spacing.sm,
-    borderBottomWidth: 1,
-    zIndex:            10,
+    height: 64, justifyContent: 'flex-end', paddingHorizontal: Spacing.gutter,
+    paddingBottom: Spacing.sm, borderBottomWidth: 1, zIndex: 10,
   },
-  topBarTitle: {
-    fontFamily:    FontFamily.heading,
-    fontSize:      24,
-    fontWeight:    '700',
-    letterSpacing: -0.4,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    padding: Spacing.gutter,
-    gap:     Spacing.md,
-  },
-  // Search
+  topBarTitle: { fontFamily: FontFamily.heading, fontSize: 24, fontWeight: '700', letterSpacing: -0.4 },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: Spacing.gutter, paddingTop: Spacing.gutter, gap: Spacing.md },
   searchWrap: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    borderRadius:  Radius.xl,
-    borderWidth:   1,
-    paddingHorizontal: Spacing.md,
-    height:        52,
+    flexDirection: 'row', alignItems: 'center', borderRadius: Radius.xl,
+    borderWidth: 1, paddingHorizontal: Spacing.md, height: 52, marginBottom: Spacing.md,
   },
-  searchIcon: {
-    marginRight: Spacing.sm,
-  },
-  searchInput: {
-    flex:       1,
-    fontFamily: FontFamily.body,
-    fontSize:   14,
-    height:     '100%',
-  },
-  clearIcon: {
-    padding: 4,
-  },
-  // Filter tabs: pill row
-  tabBar: {
-    flexDirection: 'row',
-    borderRadius:  20,
-    borderWidth:   1,
-    padding:       6,
-    gap:           4,
-  },
+  searchIcon: { marginRight: Spacing.sm },
+  searchInput: { flex: 1, fontFamily: FontFamily.body, fontSize: 14, height: '100%' },
+  clearIcon: { padding: 4 },
+  tabBar: { gap: 8, paddingRight: Spacing.gutter },
   tab: {
-    flex:           1,
-    paddingVertical: 8,
-    borderRadius:   16,
-    alignItems:     'center',
-    justifyContent: 'center',
+    paddingVertical: 8, paddingHorizontal: 14, borderRadius: 16,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
-  tabText: {
-    fontFamily:    FontFamily.mono,
-    fontSize:      12,
-    fontWeight:    '500',
-    letterSpacing: 0.3,
-  },
-  // Empty state
-  emptyState: {
-    alignItems:      'center',
-    justifyContent:  'center',
-    paddingVertical: 48,
-    gap:             Spacing.md,
-  },
-  emptyText: {
-    fontFamily: FontFamily.body,
-    fontSize:   14,
-  },
-  // Stats bento
-  statsGrid: {
-    flexDirection: 'row',
-    gap:           Spacing.md,
-    marginTop:     Spacing.sm,
-  },
-  statCard: {
-    flex:         1,
-    borderRadius: 32,
-    borderWidth:  1,
-    padding:      Spacing.lg,
-    gap:          Spacing.xs,
-  },
-  statLabel: {
-    fontFamily:    FontFamily.mono,
-    fontSize:      10,
-    fontWeight:    '500',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  statValueRow: {
-    flexDirection: 'row',
-    alignItems:    'flex-end',
-    gap:           Spacing.xs,
-  },
-  statValue: {
-    fontFamily:    FontFamily.heading,
-    fontSize:      32,
-    fontWeight:    '700',
-    lineHeight:    40,
-    letterSpacing: -1.5,
-  },
-  statDelta: {
-    fontFamily:  FontFamily.mono,
-    fontSize:    10,
-    fontWeight:  '500',
-    marginBottom: 5,
-  },
+  tabText: { fontFamily: FontFamily.mono, fontSize: 12, fontWeight: '500', letterSpacing: 0.3 },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, gap: Spacing.md },
+  emptyText: { fontFamily: FontFamily.body, fontSize: 14 },
+  footerLoader: { paddingVertical: Spacing.md },
+  statsGrid: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm },
+  statCard: { flex: 1, borderRadius: 32, borderWidth: 1, padding: Spacing.lg, gap: Spacing.xs },
+  statLabel: { fontFamily: FontFamily.mono, fontSize: 10, fontWeight: '500', letterSpacing: 1, textTransform: 'uppercase' },
+  statValue: { fontFamily: FontFamily.heading, fontSize: 32, fontWeight: '700', lineHeight: 40, letterSpacing: -1.5 },
 });

@@ -75,8 +75,8 @@ const HomeScreen = () => {
   const {
     messages: inboxMessages, unreadCount: inboxUnreadCount,
     addMessage: addInboxMessage, markAllRead: markInboxAllRead,
-    markRead: markInboxRead, deleteAll: deleteInboxAll,
-  } = useInboxStore();
+    markRead: markInboxRead, deleteAll: deleteInboxAll, syncing: inboxSyncing,
+  } = useInboxStore(accessToken);
 
   const {
     orders: orderHistory, activeOrder: historyActiveOrder,
@@ -374,6 +374,7 @@ const HomeScreen = () => {
           <InboxScreen
             onBack={closeScreen} messages={inboxMessages}
             onMarkAllRead={markInboxAllRead} onMarkRead={markInboxRead} onDeleteAll={deleteInboxAll}
+             syncing={inboxSyncing}
           />
         );
       case "Earnings":      return <EarningsScreen      onBack={closeScreen} onOpenBank={() => setActiveScreen("OvenaBank")} />;

@@ -1,28 +1,28 @@
 /**
  * context/AppDataContext.tsx
  *
- * Provides the aggregated dashboard payload (stats, logistics, support,
- * coupons) to every screen, backed by a stale-while-revalidate cache.
+ * Provides the aggregated dashboard payload (stats, coupons, businesses,
+ * users, support tickets) to every screen, backed by a stale-while-revalidate
+ * cache.
  *
  * Behaviour:
  *  - On mount, immediately serves whatever was cached from the last
  *    successful fetch so screens are never blank on a cold start.
- *  - If an access token is available (from AuthContext / AsyncStorage),
- *    fetches fresh data in the background and overwrites both state and
- *    cache once it lands.
- *  - If no token is available yet, the loader exits early and waits —
- *    `refresh()` can be called again once auth completes.
+ *  - Fresh data is only ever fetched when the admin is authenticated
+ *    (isAuthenticated === true AND a valid access token exists). This is
+ *    an explicit gate, not inferred from token presence alone, so a stray
+ *    AsyncStorage value can never trigger a fetch for a signed-out admin.
  *  - Automatically reloads when the authenticated user changes, and clears
  *    all cached data on logout so the next admin's session never sees a
  *    previous admin's data.
  *
- * Every step of this flow is logged to the console (cache hit/miss, token
- * presence, fetch start/success/failure, cache writes, logout clears) so
- * a stuck loading state or stale-data bug can be diagnosed just by reading
- * the Metro log in order — no need to add temporary console.logs to debug.
+ * Every step of this flow is logged to the console (cache hit/miss, auth
+ * gate outcome, fetch start/success/failure, cache writes, logout clears)
+ * so a stuck loading state or stale-data bug can be diagnosed just by
+ * reading the Metro log in order.
  *
  * Usage:
- *   // Wrap inside AuthProvider, since it depends on the access token:
+ *   // Wrap inside AuthProvider, since it depends on auth state:
  *   <AuthProvider>
  *     <AppDataProvider>
  *       ...
@@ -52,7 +52,7 @@ const AppDataContext = createContext<AppDataContextValue>({
   data: null, loading: true, error: null, refresh: async () => {},
 });
 
-const CACHE_KEY = 'ovena_appdata_cache_v2'; // bumped so old shape doesn't cause crashes
+const CACHE_KEY = 'ovena_appdata_cache_v4'; // bumped — composite shape now includes supportTickets
 const LOG_TAG   = '[AppDataContext]';
 
 export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -84,18 +84,19 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.log(`${LOG_TAG} ℹ️ Cache miss — no stale data to show`);
       }
 
-      // 2. Fetch fresh data if a token is available
-      const token = tokens?.accessToken ?? (await AsyncStorage.getItem('accessToken'));
-
-      if (!token) {
-        console.log(`${LOG_TAG} ⏸️ No access token available yet — skipping fresh fetch. ` +
+      // 2. Only fetch fresh data if the admin is actually authenticated.
+      // Explicit isAuthenticated gate — not inferred from token presence
+      // alone — so a stray/stale token can never trigger a fetch for a
+      // signed-out admin.
+      if (!isAuthenticated || !tokens?.accessToken) {
+        console.log(`${LOG_TAG} ⏸️ Not authenticated — skipping fresh fetch. ` +
           `Call refresh() again once auth completes.`);
         setLoading(false);
         return;
       }
 
-      console.log(`${LOG_TAG} 🌐 Fetching fresh dashboard data (token present)`);
-      const fresh = await fetchAllAppData(token);
+      console.log(`${LOG_TAG} 🌐 Fetching fresh dashboard data (authenticated)`);
+      const fresh = await fetchAllAppData(tokens.accessToken);
 
       console.log(`${LOG_TAG} ✅ Fresh data received — updating state + cache`);
       setData(fresh);
@@ -109,7 +110,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(false);
       console.log(`${LOG_TAG} 🏁 load() finished`);
     }
-  }, [tokens]);
+  }, [tokens, isAuthenticated]);
 
   // Initial load + reload whenever the authenticated session changes
   useEffect(() => {

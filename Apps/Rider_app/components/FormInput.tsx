@@ -284,8 +284,10 @@ export function PhoneInput({
   };
 
   const handleDigitsChange = (text: string) => {
-    setLocalDigits(text);
-    onChange(`${country.code} ${text}`);
+    // Cap local digits at 10 (country code is separate, shown in the pill)
+    const capped = text.slice(0, 10);
+    setLocalDigits(capped);
+    onChange(`${country.code} ${capped}`);
   };
 
   const borderColor = error ? "#e53935" : colors.separatorColor;
@@ -332,8 +334,15 @@ export function PhoneInput({
             keyboardType="phone-pad"
             autoCapitalize="none"
             autoCorrect={false}
-            maxLength={15}
+            maxLength={10}
           />
+          <Text style={[
+            phoneStyles.counter,
+            { color: colors.textMuted },
+            localDigits.length === 10 && { color: "#e53935" },
+          ]}>
+            {localDigits.length}/10
+          </Text>
         </View>
       </View>
 
@@ -376,14 +385,17 @@ const phoneStyles = StyleSheet.create({
     flex: 1,
     height: "100%",
     borderRadius: 15,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
     shadowRadius: 4,
     elevation: 2,
   },
-  input: { paddingHorizontal: 14, fontSize: 15, height: "100%" },
+  input: { flex: 1, paddingHorizontal: 14, fontSize: 15, height: "100%" },
+  counter: { fontSize: 11, marginLeft: 4 },
 });
 
 // ── Main FormInput component ───────────────────────────────────────────────────

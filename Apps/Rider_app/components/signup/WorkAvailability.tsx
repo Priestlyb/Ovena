@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   ScrollView, StyleSheet, View, Text, TextInput,
   KeyboardAvoidingView, TouchableWithoutFeedback,
   Keyboard, Platform, LayoutAnimation, UIManager,
 } from "react-native";
 import FormInput from "../FormInput";
+import { useTheme } from "../../context/ThemeContext";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -48,23 +49,6 @@ export interface WorkAvailabilityState {
   how_long_worked_as_rider: string;           // free text
   familiarity_with_local_routes: string;
   have_used_gps_for_deliveries: string;       // "yes" | "no"
-  can_handle_cash_on_delivery: string;        // "yes" | "no"
-}
-
-export const DEFAULT_WORK_AVAILABILITY: WorkAvailabilityState = {
-  selectedDays: [],
-  selectedTimes: [],
-  schedule: [],
-  have_you_worked_as_delivery_rider: "",
-  how_long_worked_as_rider: "",
-  familiarity_with_local_routes: "",
-  have_used_gps_for_deliveries: "",
-  can_handle_cash_on_delivery: "",
-};
-
-interface WorkStepProps {
-  workAvailability: WorkAvailabilityState;
-  setWorkAvailability: React.Dispatch<React.SetStateAction<WorkAvailabilityState>>;
 }
 
 // ── Schedule builder ──────────────────────────────────────────────────────────
@@ -76,9 +60,52 @@ function buildSchedule(days: string[], times: string[]): DaySchedule[] {
   return days.map((d) => ({ weekday: DAY_VALUES[d] ?? 0, time_mask }));
 }
 
+// ── Defaults ──────────────────────────────────────────────────────────────────
+const DEFAULT_DAYS  = ["mon", "tue", "wed", "thu", "fri", "sat"];
+const DEFAULT_TIMES = ["morning", "afternoon", "evening"];
+
+export const DEFAULT_WORK_AVAILABILITY: WorkAvailabilityState = {
+  selectedDays: DEFAULT_DAYS,
+  selectedTimes: DEFAULT_TIMES,
+  schedule: buildSchedule(DEFAULT_DAYS, DEFAULT_TIMES),
+  have_you_worked_as_delivery_rider: "no",
+  how_long_worked_as_rider: "",
+  familiarity_with_local_routes: "very_familiar",
+  have_used_gps_for_deliveries: "yes",
+};
+
+interface WorkStepProps {
+  workAvailability: WorkAvailabilityState;
+  setWorkAvailability: React.Dispatch<React.SetStateAction<WorkAvailabilityState>>;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function WorkStep({ workAvailability, setWorkAvailability }: WorkStepProps) {
+  const { colors } = useTheme();
+
+  // If the parent hands us a blank/untouched state (e.g. it initialised with
+  // {} or its own empty shape instead of importing DEFAULT_WORK_AVAILABILITY),
+  // apply the defaults once on mount so they actually show as selected on
+  // the FormInput buttons — otherwise `selected` stays empty and nothing
+  // renders as pre-picked even though DEFAULT_WORK_AVAILABILITY exists.
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+
+    const isBlank =
+      workAvailability.selectedDays.length === 0 &&
+      workAvailability.selectedTimes.length === 0 &&
+      !workAvailability.have_you_worked_as_delivery_rider &&
+      !workAvailability.familiarity_with_local_routes &&
+      !workAvailability.have_used_gps_for_deliveries;
+
+    if (isBlank) {
+      setWorkAvailability(DEFAULT_WORK_AVAILABILITY);
+    }
+  }, []);
+
   const set = (patch: Partial<WorkAvailabilityState>) => {
     LayoutAnimation.easeInEaseOut();
     setWorkAvailability((prev) => ({ ...prev, ...patch }));
@@ -104,14 +131,14 @@ export default function WorkStep({ workAvailability, setWorkAvailability }: Work
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1 }}>
           <View style={styles.header}>
-            <Text style={styles.headerText}>Work Availability</Text>
+            <Text style={[styles.headerText, { color: colors.textPrimary }]}>Work Availability</Text>
           </View>
 
           <ScrollView
@@ -185,11 +212,14 @@ export default function WorkStep({ workAvailability, setWorkAvailability }: Work
             {/* How long? — only visible when "yes" ──────────────────────────── */}
             {workedBefore && (
               <View style={styles.followUp}>
-                <Text style={styles.followUpLabel}>If yes, for how long?</Text>
+                <Text style={[styles.followUpLabel, { color: colors.textPrimary }]}>If yes, for how long?</Text>
                 <TextInput
-                  style={styles.followUpInput}
+                  style={[
+                    styles.followUpInput,
+                    { backgroundColor: colors.card, color: colors.textPrimary, borderColor: colors.separatorColor },
+                  ]}
                   placeholder="e.g. 2 years, 6 months…"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.textMuted}
                   value={workAvailability.how_long_worked_as_rider}
                   onChangeText={(t) => set({ how_long_worked_as_rider: t })}
                 />
@@ -233,24 +263,6 @@ export default function WorkStep({ workAvailability, setWorkAvailability }: Work
               buttonsPerRow={2}
             />
 
-            {/* ── Cash on delivery ─────────────────────────────────────────── */}
-            <FormInput
-              variant="buttons"
-              label="Can you handle cash on delivery?"
-              options={[
-                { value: "yes", label: "Yes" },
-                { value: "no",  label: "No"  },
-              ]}
-              selected={
-                workAvailability.can_handle_cash_on_delivery
-                  ? [workAvailability.can_handle_cash_on_delivery]
-                  : []
-              }
-              onSelect={(vals) => set({ can_handle_cash_on_delivery: vals[0] ?? "" })}
-              multiple={false}
-              buttonsPerRow={2}
-            />
-
           </ScrollView>
         </View>
       </TouchableWithoutFeedback>
@@ -263,14 +275,14 @@ export default function WorkStep({ workAvailability, setWorkAvailability }: Work
 const styles = StyleSheet.create({
   form: { flex: 1, paddingHorizontal: 20 },
   header: { alignItems: "center", marginBottom: 10, marginTop: 10 },
-  headerText: { fontSize: 20, fontWeight: "bold", color: "#333" },
+  headerText: { fontSize: 20, fontWeight: "bold" },
 
   followUp: { marginTop: 4, marginBottom: 8 },
-  followUpLabel: { fontWeight: "600", fontSize: 14, color: "#333", marginBottom: 6 },
+  followUpLabel: { fontWeight: "600", fontSize: 14, marginBottom: 6 },
   followUpInput: {
-    borderWidth: 1, borderColor: "#ccc", borderRadius: 12,
+    borderWidth: 1, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 14, color: "#111", backgroundColor: "#fff",
+    fontSize: 14,
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 3, elevation: 2,
   },

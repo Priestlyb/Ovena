@@ -167,13 +167,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
               </View>
             )}
 
-            {/* Why I deliver */}
+            {/* Why I deliver
             <Text style={[styles.whyTitle, { color: colors.textPrimary }]}>Why I Deliver</Text>
             <View style={[styles.quoteBox, { backgroundColor: colors.accentYellow }]}>
               <Text style={[styles.quoteText, { color: "#1a1a1a" }]}>
                 {`"People Are Always\nHappy To See Me\nAnd Their Food 😁"`}
               </Text>
-            </View>
+            </View> */}
           </>
         )}
       </ScrollView>

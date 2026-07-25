@@ -19,9 +19,11 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 interface InboxScreenProps {
   onBack:         () => void;
   messages?:      InboxMessage[];
-  onMarkAllRead?: () => void;
-  onMarkRead?:    (id: string) => void;
+  onMarkAllRead?: () => void | Promise<void>;
+  onMarkRead?:    (id: string) => void | Promise<void>;
   onDeleteAll?:   () => void;
+   /** True while a mark-all-read sync to the backend is in flight — disables the header action */
+  syncing?:       boolean;
 }
 
 // ── MessageDetailPopup ────────────────────────────────────────────────────────
@@ -277,6 +279,7 @@ const InboxScreen: React.FC<InboxScreenProps> = ({
   onMarkAllRead,
   onMarkRead,
   onDeleteAll,
+  syncing = false,
 }) => {
   const { colors } = useTheme();
   const [selectedMessage, setSelectedMessage] = useState<InboxMessage | null>(null);
@@ -325,15 +328,15 @@ const InboxScreen: React.FC<InboxScreenProps> = ({
           </Text>
 
           <TouchableOpacity
-            onPress={() => unreadCount > 0 && onMarkAllRead?.()}
+            onPress={() => unreadCount > 0 && !syncing && onMarkAllRead?.()}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             disabled={unreadCount === 0}
           >
             <Text style={[
               styles.markAll,
-              { color: unreadCount > 0 ? colors.accentOrange : colors.textMuted },
-            ]}>
-              mark all as read
+              { color: (unreadCount > 0 && !syncing) ? colors.accentOrange : colors.textMuted },     
+             ]}>
+              {syncing ? "syncing…" : "mark all as read"}
             </Text>
           </TouchableOpacity>
         </View>

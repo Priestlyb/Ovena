@@ -162,10 +162,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (isExpired) {
         console.log(`${LOG_TAG} ✅ Token refreshed successfully`);
-        console.log(`${LOG_TAG} 🔑 New access token: `, validTokens.accessToken);
-        console.log(`${LOG_TAG} 🔑 New refresh token:`, validTokens.refreshToken);
         setTokens(validTokens);
       }
+
+      // Logged unconditionally on every app reload — whether the token was
+      // just refreshed above or the cached one was still valid — so the
+      // current session's tokens are always visible in the Metro log after
+      // rehydrate() runs, not just on a refresh event.
+      console.log(`${LOG_TAG} 🔑🔑🔑 TOKENS ON RELOAD (rehydrate) 🔑🔑🔑`);
+      console.log(`${LOG_TAG}   ACCESS TOKEN: `, validTokens.accessToken);
+      console.log(`${LOG_TAG}   REFRESH TOKEN:`, validTokens.refreshToken);
+      console.log(`${LOG_TAG}   Source:       `, isExpired ? 'refreshed just now via /api/admin/refresh/' : 'cached token, still valid');
+      console.log(`${LOG_TAG} 🔑🔑🔑──────────────────────────────🔑🔑🔑`);
 
       console.log(`${LOG_TAG} 🌐 Fetching current user to confirm session is still valid server-side`);
       const freshUser = await fetchCurrentUser(validTokens.accessToken);
@@ -174,12 +182,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(freshUser);
       await persistSession(freshUser, validTokens);
     } catch (err) {
-      // Session could not be validated (expired refresh token, network down
-      // on a hard-expired session, etc.) — fall back to logged-out state.
-      console.error(`${LOG_TAG} ❌ rehydrate() failed — falling back to logged out:`, (err as Error).message);
-      await clearSession();
-      setInitializing(false);
+      const status = err instanceof AuthApiError ? err.status : undefined;
+      const isAuthFailure = status === 401 || status === 403;
+
+      if (isAuthFailure) {
+        console.error(
+          `${LOG_TAG} ❌ rehydrate() failed — session rejected by server (HTTP ${status}), logging out:`,
+          (err as Error).message,
+        );
+        await clearSession();
+      } else {
+        console.warn(
+          `${LOG_TAG} ⚠️ rehydrate() background validation failed (non-auth error) — ` +
+          `keeping the optimistically-applied stale session instead of logging out:`,
+          (err as Error).message,
+        );
+      }
     } finally {
+      setInitializing(false);
       console.log(`${LOG_TAG} 🏁 rehydrate() finished`);
     }
   }, [persistSession, clearSession]);

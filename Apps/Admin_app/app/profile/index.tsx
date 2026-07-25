@@ -86,45 +86,44 @@ function SettingsRow({ icon, label, value, badge, onPress, isLast }: SettingsRow
         onPressOut={() => { onOut(); onHoverOut(); }}
         onPress={onPress}
       >
-        <Animated.View
-          style={[
-            styles.row,
-            { backgroundColor: bgColor, transform: [{ scale }] },
-          ]}
-        >
-          {/* Left: icon + label */}
-          <View style={styles.rowLeft}>
-            <Ionicons
-              name={icon as any}
-              size={22}
-              color={colors.onSecondaryContainer ?? colors.onSurfaceVariant}
-            />
-            <Text style={[styles.rowLabel, { color: colors.onSurface }]}>{label}</Text>
-          </View>
-
-          {/* Right: value / badge + chevron */}
-          <View style={styles.rowRight}>
-            {badge && (
-              <View style={[styles.badge, { backgroundColor: `${colors.primary}1A` }]}>
-                <Text style={[styles.badgeText, { color: colors.primary }]}>{badge}</Text>
-              </View>
-            )}
-            {value && (
-              <Text
-                style={[styles.rowValue, { color: colors.onSecondaryContainer ?? colors.onSurfaceVariant }]}
-                numberOfLines={1}
-              >
-                {value}
-              </Text>
-            )}
-            <Animated.View style={{ transform: [{ translateX: hoverBg.interpolate({ inputRange: [0,1], outputRange: [0, 3] }) }] }}>
+        {/* Outer node: JS-driven backgroundColor only — never touched by the native driver */}
+        <Animated.View style={{ backgroundColor: bgColor, borderRadius: Radius.full }}>
+          {/* Inner node: native-driven scale transform only */}
+          <Animated.View style={[styles.row, { transform: [{ scale }] }]}>
+            {/* Left: icon + label */}
+            <View style={styles.rowLeft}>
               <Ionicons
-                name="chevron-forward"
-                size={18}
+                name={icon as any}
+                size={22}
                 color={colors.onSecondaryContainer ?? colors.onSurfaceVariant}
               />
-            </Animated.View>
-          </View>
+              <Text style={[styles.rowLabel, { color: colors.onSurface }]}>{label}</Text>
+            </View>
+
+            {/* Right: value / badge + chevron */}
+            <View style={styles.rowRight}>
+              {badge && (
+                <View style={[styles.badge, { backgroundColor: `${colors.primary}1A` }]}>
+                  <Text style={[styles.badgeText, { color: colors.primary }]}>{badge}</Text>
+                </View>
+              )}
+              {value && (
+                <Text
+                  style={[styles.rowValue, { color: colors.onSecondaryContainer ?? colors.onSurfaceVariant }]}
+                  numberOfLines={1}
+                >
+                  {value}
+                </Text>
+              )}
+              <Animated.View style={{ transform: [{ translateX: hoverBg.interpolate({ inputRange: [0, 1], outputRange: [0, 3] }) }] }}>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={colors.onSecondaryContainer ?? colors.onSurfaceVariant}
+                />
+              </Animated.View>
+            </View>
+          </Animated.View>
         </Animated.View>
       </TouchableWithoutFeedback>
 
