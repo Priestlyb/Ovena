@@ -1,33 +1,48 @@
 /**
  * app/coupons/create.tsx
  *
- * Create / Edit Coupon — mirrors HTML doc 12.
- * Sections: Basic Info → Discount Config → Usage Constraints → Validity Period
- * Sticky "Generate Coupon" button at bottom.
- * editId param → pre-fills existing coupon data.
+ * Create / Edit Coupon — POST /api/admin/coupons/create/ and
+ * PUT /api/admin/coupons/update/{id}/ via services/actionsApi.ts.
+ *
+ * Fields intentionally NOT present here (removed after confirming against
+ * a real coupon object): category, business id, is_active, "unlimited
+ * uses" toggle. None of those exist on a real Coupon — they were only ever
+ * present in an earlier swagger/OpenAPI stub example.
+ *
+ * `item` IS present and required when coupon_type is "itemdiscount" —
+ * confirmed via a live 400 response: {"item": ["Item is required for
+ * itemdiscount."]}. It never appears on the GET Coupon shape (likely
+ * write-only / resolved away on read), which also means there's currently
+ * no way to show which item an existing itemdiscount coupon is tied to —
+ * itemId starts blank on edit and has to be re-entered.
+ *
+ * buy_amount/get_amount/buy_item/get_item are real fields (buy_item/
+ * get_item confirmed null in every real sample seen), kept behind an
+ * optional "Buy/Get Rules" toggle since their write behavior with a
+ * non-null value is still unconfirmed.
  */
 
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, Alert, Switch,
+  ScrollView, StyleSheet, Alert, Switch, ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ScreenWrapper from '@/components/ScreenWrapper';
-import { useTheme }  from '@/context/ThemeContext';
+import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
+import { useAppData } from '@/context/AppDataContext';
 import { Spacing, Radius, FontFamily } from '@/constants/theme';
-import { INITIAL_COUPONS, DiscountType } from '@/data/couponData';
+import { createCoupon, updateCoupon, CouponsActionsApiError } from '@/services/actionsApi';
+import { CouponType, CouponScope, CouponDiscountType } from '@/types/appData';
 
 function SectionCard({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
   const { colors, isDark } = useTheme();
   return (
-    <View style={[
-      styles.sectionCard,
-      { backgroundColor: isDark ? '#1b1b1e' : colors.surfaceContainer, borderColor: isDark ? 'rgba(255,255,255,0.10)' : colors.border },
-    ]}>
+    <View style={[styles.sectionCard, { backgroundColor: isDark ? '#1b1b1e' : colors.surfaceContainer, borderColor: isDark ? 'rgba(255,255,255,0.10)' : colors.border }]}>
       <View style={styles.sectionHeader}>
         <Ionicons name={icon as any} size={16} color={colors.primary} />
         <Text style={[styles.sectionTitle, { color: colors.secondary ?? colors.onSurfaceVariant }]}>{title}</Text>
@@ -61,37 +76,108 @@ function FormInput({ label, value, onChangeText, placeholder, keyboardType, mult
   );
 }
 
+function ToggleRow({ label, sub, value, onValueChange }: { label: string; sub?: string; value: boolean; onValueChange: (v: boolean) => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.toggleRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant, marginLeft: 0 }]}>{label}</Text>
+        {!!sub && <Text style={[styles.toggleSub, { color: colors.onSurfaceVariant }]}>{sub}</Text>}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: colors.surfaceContainerHighest, true: colors.primaryContainer }}
+        thumbColor={colors.onSurface}
+      />
+    </View>
+  );
+}
+
 export default function CreateCouponScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { tokens } = useAuth();
+  const { data, refresh } = useAppData();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const isEditing = !!editId;
 
-  const existing = editId ? INITIAL_COUPONS.find(c => c.id === editId) : null;
+  const existing = editId ? data?.coupons.find(c => String(c.id) === editId) : null;
 
-  const [code,           setCode]           = useState(existing?.code         ?? '');
-  const [description,    setDescription]    = useState(existing?.description  ?? '');
-  const [discountType,   setDiscountType]   = useState<DiscountType>(existing?.discountType ?? 'percentage');
-  const [discountValue,  setDiscountValue]  = useState(String(existing?.discountValue ?? ''));
-  const [totalUses,      setTotalUses]      = useState(String(existing?.totalUses     ?? ''));
-  const [limitPerUser,   setLimitPerUser]   = useState(String(existing?.limitPerUser  ?? '1'));
-  const [startDate,      setStartDate]      = useState(existing?.startDate ?? '');
-  const [endDate,        setEndDate]        = useState(existing?.endDate   ?? '');
+  const [code,          setCode]          = useState(existing?.code ?? '');
+  const [description,   setDescription]   = useState(existing?.description ?? '');
+  const [couponType,    setCouponType]    = useState<CouponType>(existing?.coupon_type ?? 'itemdiscount');
+  const [scope,         setScope]         = useState<CouponScope>(existing?.scope ?? 'global');
+  const [itemId,        setItemId]        = useState(''); // required for itemdiscount — not in GET shape, so never prefilled
+  const [discountType,  setDiscountType]  = useState<CouponDiscountType>(existing?.discount_type ?? 'percent');
+  const [discountValue, setDiscountValue] = useState(existing?.discount_value ?? '');
+  const [maxUses,       setMaxUses]       = useState(existing ? String(existing.max_uses) : '2000');
+  const [validFrom,     setValidFrom]     = useState(existing?.valid_from?.slice(0, 10) ?? '');
+  const [validUntil,    setValidUntil]    = useState(existing?.valid_until?.slice(0, 10) ?? '');
+  const [isReward,      setIsReward]      = useState(existing?.is_reward ?? false);
+  const [showBuyGet,    setShowBuyGet]    = useState(!!(existing?.buy_amount || existing?.get_amount));
+  const [buyAmount,     setBuyAmount]     = useState(existing?.buy_amount ? String(existing.buy_amount) : '');
+  const [getAmount,     setGetAmount]     = useState(existing?.get_amount ? String(existing.get_amount) : '');
+  const [buyItemId,     setBuyItemId]     = useState(existing?.buy_item != null ? String(existing.buy_item) : '');
+  const [getItemId,     setGetItemId]     = useState(existing?.get_item != null ? String(existing.get_item) : '');
+  const [submitting,    setSubmitting]    = useState(false);
 
   const inputBg  = isDark ? '#262626' : colors.surfaceContainerLow;
   const inputBor = isDark ? 'rgba(255,255,255,0.10)' : colors.border;
 
-  const handleGenerate = () => {
-    if (!code.trim()) {
-      Alert.alert('Missing Code', 'Please enter a coupon code.'); return;
+  const toISO = (dateStr: string, endOfDay: boolean) => {
+    const d = new Date(`${dateStr}T${endOfDay ? '23:59:59' : '00:00:00'}`);
+    return d.toISOString();
+  };
+
+  const handleGenerate = async () => {
+    if (!code.trim()) return Alert.alert('Missing Code', 'Please enter a coupon code.');
+    if (!discountValue) return Alert.alert('Missing Value', 'Please enter a discount value.');
+    if (!maxUses || isNaN(Number(maxUses))) return Alert.alert('Missing Uses', 'Please enter a max uses number.');
+    if (!validFrom || !validUntil) return Alert.alert('Missing Dates', 'Please enter both a start and end date (YYYY-MM-DD).');
+    if (couponType === 'itemdiscount' && !itemId.trim()) {
+      return Alert.alert('Missing Item', 'Item ID is required for item-discount coupons.');
     }
-    if (!discountValue) {
-      Alert.alert('Missing Value', 'Please enter a discount value.'); return;
+    if (!tokens?.accessToken) return Alert.alert('Not signed in', 'Please sign in again and retry.');
+
+    const payload = {
+      code: code.trim(),
+      description: description.trim(),
+      coupon_type: couponType,
+      scope,
+      discount_type: discountType,
+      discount_value: discountValue,
+      max_uses: Number(maxUses),
+      valid_from: toISO(validFrom, false),
+      valid_until: toISO(validUntil, true),
+      is_reward: isReward,
+      item: couponType === 'itemdiscount' && itemId ? Number(itemId) : undefined,
+      buy_amount: showBuyGet && buyAmount ? Number(buyAmount) : undefined,
+      get_amount: showBuyGet && getAmount ? Number(getAmount) : undefined,
+      buy_item: showBuyGet && buyItemId ? Number(buyItemId) : undefined,
+      get_item: showBuyGet && getItemId ? Number(getItemId) : undefined,
+    };
+
+    setSubmitting(true);
+    try {
+      if (isEditing) {
+        await updateCoupon(editId!, payload, tokens.accessToken);
+      } else {
+        await createCoupon(payload, tokens.accessToken);
+      }
+
+      await refresh();
+      Alert.alert(
+        isEditing ? 'Coupon Updated' : 'Coupon Created',
+        `Coupon "${code.toUpperCase()}" has been ${isEditing ? 'updated' : 'created'} successfully.`,
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
+    } catch (err) {
+      const message = err instanceof CouponsActionsApiError ? err.message : `Something went wrong ${isEditing ? 'updating' : 'creating'} the coupon.`;
+      Alert.alert(isEditing ? "Couldn't update coupon" : "Couldn't create coupon", message);
+    } finally {
+      setSubmitting(false);
     }
-    Alert.alert(
-      editId ? 'Coupon Updated' : 'Coupon Created',
-      `Coupon "${code.toUpperCase()}" has been ${editId ? 'updated' : 'created'} successfully.`,
-      [{ text: 'OK', onPress: () => router.back() }],
-    );
   };
 
   return (
@@ -105,7 +191,7 @@ export default function CreateCouponScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.primaryContainer} />
         </TouchableOpacity>
         <Text style={[styles.topBarTitle, { color: colors.onSurface }]}>
-          {editId ? 'Edit Coupon' : 'Create Coupon'}
+          {isEditing ? 'Edit Coupon' : 'Create Coupon'}
         </Text>
         <View style={styles.iconBtn} />
       </View>
@@ -121,7 +207,9 @@ export default function CreateCouponScreen() {
           <View style={[styles.heroIcon, { backgroundColor: colors.primaryContainer }]}>
             <Ionicons name="ticket" size={28} color={colors.onPrimaryContainer} />
           </View>
-          <Text style={[styles.heroTitle, { color: colors.onSurface }]}>New Promotion</Text>
+          <Text style={[styles.heroTitle, { color: colors.onSurface }]}>
+            {isEditing ? 'Edit Promotion' : 'New Promotion'}
+          </Text>
           <Text style={[styles.heroSub, { color: colors.onSurfaceVariant }]}>
             Define your campaign rules and limits below.
           </Text>
@@ -129,19 +217,73 @@ export default function CreateCouponScreen() {
 
         {/* Basic Info */}
         <SectionCard icon="information-circle-outline" title="BASIC INFORMATION">
-          <FormInput label="COUPON CODE" value={code} onChangeText={setCode} placeholder="e.g., LAVA25"
+          <FormInput label="COUPON CODE" value={code} onChangeText={setCode} placeholder="e.g., new chicken 4"
             style={{ fontFamily: FontFamily.heading, fontSize: 18, letterSpacing: 2, color: colors.primary }}
           />
           <FormInput label="INTERNAL DESCRIPTION" value={description} onChangeText={setDescription}
-            placeholder="Summer 2024 campaign for premium users..." multiline
+            placeholder="New burgers are 20% off for the next 20 days" multiline
           />
+        </SectionCard>
+
+        {/* Coupon Type & Scope */}
+        <SectionCard icon="pricetag-outline" title="COUPON TYPE & SCOPE">
+          <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>COUPON TYPE</Text>
+          <View style={styles.typeRow}>
+            {(['itemdiscount', 'delivery'] as CouponType[]).map(t => (
+              <TouchableOpacity
+                key={t}
+                style={[
+                  styles.typeBtn,
+                  {
+                    backgroundColor: couponType === t ? `${colors.primaryContainer}20` : inputBg,
+                    borderColor:     couponType === t ? colors.primaryContainer : inputBor,
+                  },
+                ]}
+                onPress={() => setCouponType(t)}
+              >
+                <Text style={[styles.typeBtnText, { color: couponType === t ? colors.primaryContainer : colors.onSurface }]}>
+                  {t === 'itemdiscount' ? 'Item Discount' : 'Delivery'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {couponType === 'itemdiscount' && (
+            <FormInput
+              label="ITEM ID (REQUIRED)"
+              value={itemId}
+              onChangeText={setItemId}
+              placeholder="Numeric item id"
+              keyboardType="number-pad"
+            />
+          )}
+
+          <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant, marginTop: Spacing.sm }]}>SCOPE</Text>
+          <View style={styles.typeRow}>
+            {(['global', 'business'] as CouponScope[]).map(s => (
+              <TouchableOpacity
+                key={s}
+                style={[
+                  styles.typeBtn,
+                  {
+                    backgroundColor: scope === s ? `${colors.primaryContainer}20` : inputBg,
+                    borderColor:     scope === s ? colors.primaryContainer : inputBor,
+                  },
+                ]}
+                onPress={() => setScope(s)}
+              >
+                <Text style={[styles.typeBtnText, { color: scope === s ? colors.primaryContainer : colors.onSurface }]}>
+                  {s === 'global' ? 'Global' : 'Business'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </SectionCard>
 
         {/* Discount Config */}
         <SectionCard icon="cash-outline" title="DISCOUNT CONFIGURATION">
-          {/* Type selector */}
           <View style={styles.typeRow}>
-            {(['percentage', 'fixed'] as DiscountType[]).map(t => (
+            {(['percent', 'fixed'] as CouponDiscountType[]).map(t => (
               <TouchableOpacity
                 key={t}
                 style={[
@@ -154,12 +296,12 @@ export default function CreateCouponScreen() {
                 onPress={() => setDiscountType(t)}
               >
                 <Ionicons
-                  name={t === 'percentage' ? 'logo-usd' : 'cash-outline'}
+                  name={t === 'percent' ? 'logo-usd' : 'cash-outline'}
                   size={20}
                   color={discountType === t ? colors.primaryContainer : colors.onSurfaceVariant}
                 />
                 <Text style={[styles.typeBtnText, { color: discountType === t ? colors.primaryContainer : colors.onSurface }]}>
-                  {t === 'percentage' ? 'Percentage' : 'Fixed Amount'}
+                  {t === 'percent' ? 'Percentage' : 'Fixed Amount'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -171,38 +313,58 @@ export default function CreateCouponScreen() {
                 style={[styles.input, styles.valueInput, { backgroundColor: inputBg, borderColor: inputBor, color: colors.onSurface }]}
                 value={discountValue}
                 onChangeText={setDiscountValue}
-                placeholder="0.00"
+                placeholder="20.00"
                 placeholderTextColor={colors.onSurfaceVariant + '60'}
                 keyboardType="decimal-pad"
                 selectionColor={colors.primaryContainer}
               />
               <Text style={[styles.valueSymbol, { color: colors.onSurfaceVariant }]}>
-                {discountType === 'percentage' ? '%' : '$'}
+                {discountType === 'percent' ? '%' : '₦'}
               </Text>
             </View>
           </View>
         </SectionCard>
 
+        {/* Buy/Get Rules */}
+        <SectionCard icon="git-compare-outline" title="BUY/GET RULES (OPTIONAL)">
+          <ToggleRow
+            label="Enable buy/get rules"
+            sub="buy_amount/get_amount/buy_item/get_item — leave off unless this coupon needs them"
+            value={showBuyGet}
+            onValueChange={setShowBuyGet}
+          />
+          {showBuyGet && (
+            <>
+              <View style={styles.twoCol}>
+                <FormInput label="BUY AMOUNT" value={buyAmount} onChangeText={setBuyAmount} placeholder="0" keyboardType="number-pad" style={{ flex: 1 }} />
+                <FormInput label="GET AMOUNT" value={getAmount} onChangeText={setGetAmount} placeholder="0" keyboardType="number-pad" style={{ flex: 1 }} />
+              </View>
+              <View style={styles.twoCol}>
+                <FormInput label="BUY ITEM ID" value={buyItemId} onChangeText={setBuyItemId} placeholder="Item id" keyboardType="number-pad" style={{ flex: 1 }} />
+                <FormInput label="GET ITEM ID" value={getItemId} onChangeText={setGetItemId} placeholder="Item id" keyboardType="number-pad" style={{ flex: 1 }} />
+              </View>
+            </>
+          )}
+        </SectionCard>
+
         {/* Usage Constraints */}
         <SectionCard icon="lock-closed-outline" title="USAGE CONSTRAINTS">
-          <View style={styles.twoCol}>
-            <FormInput label="TOTAL INVENTORY" value={totalUses} onChangeText={setTotalUses}
-              placeholder="∞" keyboardType="number-pad" style={{ flex: 1 }}
-            />
-            <FormInput label="LIMIT PER USER" value={limitPerUser} onChangeText={setLimitPerUser}
-              placeholder="1" keyboardType="number-pad" style={{ flex: 1 }}
-            />
-          </View>
+          <FormInput label="TOTAL INVENTORY" value={maxUses} onChangeText={setMaxUses} placeholder="2000" keyboardType="number-pad" />
         </SectionCard>
 
         {/* Validity Period */}
         <SectionCard icon="calendar-outline" title="VALIDITY PERIOD">
-          <FormInput label="START DATE (YYYY-MM-DD)" value={startDate} onChangeText={setStartDate}
-            placeholder="2024-07-01" keyboardType="numbers-and-punctuation"
+          <FormInput label="START DATE (YYYY-MM-DD)" value={validFrom} onChangeText={setValidFrom}
+            placeholder="2026-08-01" keyboardType="numbers-and-punctuation"
           />
-          <FormInput label="END DATE (YYYY-MM-DD)" value={endDate} onChangeText={setEndDate}
-            placeholder="2024-12-31" keyboardType="numbers-and-punctuation"
+          <FormInput label="END DATE (YYYY-MM-DD)" value={validUntil} onChangeText={setValidUntil}
+            placeholder="2026-08-31" keyboardType="numbers-and-punctuation"
           />
+        </SectionCard>
+
+        {/* Flags */}
+        <SectionCard icon="flag-outline" title="FLAGS">
+          <ToggleRow label="Reward" sub="Marks this as a reward-type coupon (is_reward)" value={isReward} onValueChange={setIsReward} />
         </SectionCard>
 
         {/* Divider decoration */}
@@ -216,14 +378,21 @@ export default function CreateCouponScreen() {
       {/* Sticky CTA */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.md, backgroundColor: `${colors.background}E6` }]}>
         <TouchableOpacity
-          style={[styles.generateBtn, { backgroundColor: colors.primaryContainer, shadowColor: '#f56e0f' }]}
+          style={[styles.generateBtn, { backgroundColor: colors.primaryContainer, shadowColor: '#f56e0f', opacity: submitting ? 0.7 : 1 }]}
           onPress={handleGenerate}
           activeOpacity={0.88}
+          disabled={submitting}
         >
-          <Ionicons name="sparkles-outline" size={20} color={colors.onPrimaryContainer} />
-          <Text style={[styles.generateText, { color: colors.onPrimaryContainer }]}>
-            {editId ? 'Update Coupon' : 'Generate Coupon'}
-          </Text>
+          {submitting ? (
+            <ActivityIndicator color={colors.onPrimaryContainer} />
+          ) : (
+            <>
+              <Ionicons name="sparkles-outline" size={20} color={colors.onPrimaryContainer} />
+              <Text style={[styles.generateText, { color: colors.onPrimaryContainer }]}>
+                {isEditing ? 'Update Coupon' : 'Generate Coupon'}
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </ScreenWrapper>
@@ -260,6 +429,8 @@ const styles = StyleSheet.create({
   valueInput: { flex: 1 },
   valueSymbol: { fontFamily: FontFamily.heading, fontSize: 20, fontWeight: '600', marginRight: 4 },
   twoCol: { flexDirection: 'row', gap: Spacing.sm },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 2 },
+  toggleSub: { fontFamily: FontFamily.body, fontSize: 11, marginTop: 2, opacity: 0.8 },
   divider: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.md, paddingVertical: Spacing.md },
   dividerLine: { height: 1, width: 48 },
   dividerDot: { width: 8, height: 8, borderRadius: 4 },

@@ -25,6 +25,18 @@ import {
   TicketMessage,
   TicketMessagesResponse,
   SendTicketMessagePayload,
+  Coupon,
+  CreateCouponPayload,
+  UpdateCouponPayload,
+  CreateSpinWheelPayload,
+  SpinWheel,
+  SpinWheelDetail,
+} from '../types/appData';
+
+import {
+  TicketStatus,
+  TicketPriority,
+  OwnerRole,
 } from '../types/appData';
 
 const BASE_URL = 'https://ovena-backend-production.up.railway.app';
@@ -186,3 +198,249 @@ export async function sendTicketMessage(
 }
 
 export { SupportActionsApiError };
+
+class CouponsActionsApiError extends Error {
+  status:   number;
+  endpoint: string;
+  constructor(message: string, status: number, endpoint: string) {
+    super(message);
+    this.status = status;
+    this.endpoint = endpoint;
+    this.name = 'CouponsActionsApiError';
+  }
+}
+
+function buildCouponBody(payload: CreateCouponPayload): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    code:           payload.code,
+    description:    payload.description,
+    coupon_type:    payload.coupon_type,
+    scope:          payload.scope,
+    discount_type:  payload.discount_type,
+    discount_value: payload.discount_value,
+    max_uses:       payload.max_uses,
+    valid_from:     payload.valid_from,
+    valid_until:    payload.valid_until,
+    is_reward:      payload.is_reward ?? false,
+  };
+
+  (['item', 'buy_amount', 'get_amount', 'buy_item', 'get_item'] as const).forEach((key) => {
+    const value = payload[key];
+    if (value !== undefined && value !== null && (value as any) !== '') {
+      body[key] = value;
+    }
+  });
+
+  return body;
+}
+
+async function postOrPutJSON(
+  method: 'POST' | 'PUT',
+  endpoint: string,
+  body: Record<string, unknown>,
+  accessToken: string,
+): Promise<any> {
+  console.log(`${LOG_TAG} 🌐 ${method} →`, endpoint, JSON.stringify(body, null, 2));
+
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const rawText = await res.text();
+  let data: any;
+  try {
+    data = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    console.error(`${LOG_TAG} ❌ Non-JSON response body [${method} ${endpoint}]:`, rawText.slice(0, 300));
+    throw new CouponsActionsApiError(
+      `Server returned a non-JSON response (HTTP ${res.status}) for ${endpoint}.`,
+      res.status,
+      endpoint,
+    );
+  }
+
+  if (!res.ok) {
+    console.error(`${LOG_TAG} ❌ Failed [${method} ${endpoint}]:`, JSON.stringify(data, null, 2));
+    const message = data?.message ?? data?.detail ?? `Request failed (${res.status}) for ${endpoint}`;
+    throw new CouponsActionsApiError(message, res.status, endpoint);
+  }
+
+  return data;
+}
+
+export async function createCoupon(
+  payload: CreateCouponPayload,
+  accessToken: string,
+): Promise<Coupon> {
+  const data = await postOrPutJSON('POST', '/api/admin/coupons/create/', buildCouponBody(payload), accessToken);
+  console.log(`${LOG_TAG} ✅ Coupon created:`, data);
+  return data as Coupon;
+}
+
+export async function updateCoupon(
+  id: number | string,
+  payload: UpdateCouponPayload,
+  accessToken: string,
+): Promise<Coupon> {
+  const data = await postOrPutJSON('PUT', `/api/admin/coupons/update/${id}/`, buildCouponBody(payload), accessToken);
+  console.log(`${LOG_TAG} ✅ Coupon updated [id ${id}]:`, data);
+  return data as Coupon;
+}
+
+export { CouponsActionsApiError };
+
+
+
+
+
+
+// ... existing SupportActionsApiError, getJSON, fetchSupportTickets,
+// fetchTicketMessages, sendTicketMessage, CouponsActionsApiError,
+// buildCouponBody, postOrPutJSON, createCoupon, updateCoupon unchanged ...
+
+// ── GET /api/admin/coupons/wheel/all/ ───────────────────────────────────────
+export async function fetchAllSpinWheels(
+  accessToken: string,
+): Promise<PaginatedResponse<SpinWheel>> {
+  const endpoint = '/api/admin/coupons/wheel/all/';
+  console.log(`${LOG_TAG} 🌐 GET →`, endpoint);
+  const data = await getJSON<PaginatedResponse<SpinWheel>>(endpoint, accessToken);
+  console.log(`${LOG_TAG} 🎡 wheels (${data.count} total, ${data.results.length} on this page):`, data);
+  return data;
+}
+
+// ── GET /api/admin/coupons/wheel/{id}/ ──────────────────────────────────────
+export async function fetchSpinWheelDetail(
+  id: number | string,
+  accessToken: string,
+): Promise<SpinWheelDetail> {
+  const endpoint = `/api/admin/coupons/wheel/${id}/`;
+  console.log(`${LOG_TAG} 🌐 GET →`, endpoint);
+  const data = await getJSON<SpinWheelDetail>(endpoint, accessToken);
+  console.log(`${LOG_TAG} 🎡 wheel detail [id ${id}] (${data.coupons?.length ?? 0} coupons):`, data);
+  return data;
+}
+
+// ── POST /api/admin/coupons/wheel/create/ ───────────────────────────────────
+export async function createSpinWheel(
+  payload: CreateSpinWheelPayload,
+  accessToken: string,
+): Promise<SpinWheel> {
+  const body: Record<string, unknown> = {
+    max_entries_amount: payload.max_entries_amount,
+    is_active: payload.is_active,
+    coupon_ids: payload.coupon_ids,
+  };
+
+  const data = await postOrPutJSON('POST', '/api/admin/coupons/wheel/create/', body, accessToken);
+  console.log(`${LOG_TAG} ✅ Spinwheel created:`, data);
+  return data as SpinWheel;
+}
+
+// ── POST /api/admin/support/tickets/{id}/close/ ────────────────────────────
+// ── POST /api/admin/support/tickets/{id}/reopen/ ───────────────────────────
+
+/**
+ * Confirmed request shape (both endpoints — same body schema, only
+ * status/closed_at differ in intent):
+ *   { id, category, subject, description, status, priority, is_blocking, closed_at, owner_role }
+ *
+ * ⚠️ UNVERIFIED — sending the full resource to what's conceptually a
+ * status-toggle action is unusual, and two fields are unconfirmed:
+ *
+ *  1. `description` — not present anywhere on SupportTicket from the list
+ *     endpoint (only category/subject exist there, no description). Sent
+ *     as '' below since there's no real source for a value. If the
+ *     backend rejects an empty description, the error log below will
+ *     show it immediately.
+ *  2. `closed_at` on REOPEN — the sample payload for reopen still shows a
+ *     populated closed_at, which may just be a copy of the close example
+ *     rather than real reopen semantics. Sent as `null` here (a reopened
+ *     ticket logically shouldn't carry a close timestamp) — flip to a
+ *     real timestamp if the backend rejects null.
+ */
+export interface TicketActionPayload {
+  id: string;
+  category: string;
+  subject: string;
+  description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  is_blocking: boolean;
+  closed_at: string | null;
+  owner_role: OwnerRole;
+}
+
+function buildTicketActionBody(
+  ticket: SupportTicket,
+  status: TicketStatus,
+  closedAt: string | null,
+): TicketActionPayload {
+  return {
+    id: ticket.id,
+    category: ticket.category,
+    subject: ticket.subject,
+    description: '', // ⚠️ see header note — not available from the list endpoint
+    status,
+    priority: ticket.priority,
+    is_blocking: ticket.is_blocking,
+    closed_at: closedAt,
+    owner_role: ticket.owner_role,
+  };
+}
+
+export async function closeTicket(
+  ticket: SupportTicket,
+  accessToken: string,
+): Promise<SupportTicket> {
+  const endpoint = `/api/admin/support/tickets/${ticket.id}/close/`;
+  const body = buildTicketActionBody(ticket, 'closed', new Date().toISOString());
+  const data = await postOrPutJSON('POST', endpoint, body as unknown as Record<string, unknown>, accessToken);
+  console.log(`${LOG_TAG} ✅ Ticket closed [id ${ticket.id}]:`, data);
+  return (data?.data ?? data) as SupportTicket;
+}
+
+export async function reopenTicket(
+  ticket: SupportTicket,
+  accessToken: string,
+): Promise<SupportTicket> {
+  const endpoint = `/api/admin/support/tickets/${ticket.id}/reopen/`;
+  const body = buildTicketActionBody(ticket, 'open', null);
+  const data = await postOrPutJSON('POST', endpoint, body as unknown as Record<string, unknown>, accessToken);
+  console.log(`${LOG_TAG} ✅ Ticket reopened [id ${ticket.id}]:`, data);
+  return (data?.data ?? data) as SupportTicket;
+}
+
+
+// ── POST /api/admin/change-password/ ────────────────────────────────────────
+export interface ChangePasswordPayload {
+  password:     string; // current password
+  new_password: string;
+}
+
+export async function changeAdminPassword(
+  payload: ChangePasswordPayload,
+  accessToken: string,
+): Promise<void> {
+  const endpoint = '/api/admin/change-password/';
+  await postOrPutJSON('POST', endpoint, payload as unknown as Record<string, unknown>, accessToken);
+  console.log(`${LOG_TAG} ✅ Password changed`);
+}
+
+// ── POST /api/admin/logout/ ─────────────────────────────────────────────────
+export async function adminLogoutRequest(accessToken: string): Promise<void> {
+  const endpoint = '/api/admin/logout/';
+  try {
+    await postOrPutJSON('POST', endpoint, {}, accessToken);
+    console.log(`${LOG_TAG} ✅ Server-side logout confirmed`);
+  } catch (err) {
+    // Don't let a failed network call trap the admin in a signed-in state —
+    // local cleanup proceeds regardless.
+    console.warn(`${LOG_TAG} ⚠️ Server logout failed, proceeding with local cleanup anyway:`, err);
+  }
+}

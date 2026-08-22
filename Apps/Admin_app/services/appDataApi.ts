@@ -98,22 +98,18 @@ async function getJSON<T>(endpoint: string, accessToken: string): Promise<T> {
 }
 
 export async function fetchAllAppData(accessToken: string): Promise<AllAppData> {
-  // console.log(`${LOG_TAG} 🚀 fetchAllAppData() starting — firing 10 requests in parallel`);
-  // Prints: nothing but a marker string — confirms the composite fetch kicked off.
-
   const [
     stats, coupons, businesses, users, supportTickets,
     withdrawals, drivers, features, plans, referralPayouts,
   ] = await Promise.all([
     getJSON<DashboardStats>('/api/admin/dashboard/stats/', accessToken),
-    getJSON<Coupon[]>('/api/admin/coupons/all/', accessToken),
+    // ?reward=all — without this the backend defaults to one coupon type only
+    // (reward coupons used in spin wheels vs. marketing coupons used in
+    // promo campaigns are the same model, filtered by is_reward on the
+    // backend). This screen needs to see both, so request all explicitly.
+    getJSON<Coupon[]>('/api/admin/coupons/all/?reward=all', accessToken),
     getJSON<PaginatedResponse<Business>>('/api/admin/employees/businesses/', accessToken),
     getJSON<PaginatedResponse<AdminAppUser>>('/api/admin/users/', accessToken),
-    // NOTE: support tickets here are the FIRST PAGE ONLY, fetched passively
-    // as part of the bootstrap so the dashboard has *something* to show
-    // immediately. Any subsequent paginated loading (scroll, filters) goes
-    // through supportActionsApi.fetchSupportTickets instead — this call
-    // stays parameterless and unaware of pagination on purpose.
     getJSON<PaginatedResponse<SupportTicket>>('/api/admin/support/tickets/', accessToken),
     getJSON<PaginatedResponse<Withdrawal>>('/api/admin/withdrawals/', accessToken),
     getJSON<PaginatedResponse<Driver>>('/api/admin/employees/drivers/', accessToken),
@@ -121,6 +117,8 @@ export async function fetchAllAppData(accessToken: string): Promise<AllAppData> 
     getJSON<PaginatedResponse<Plan>>('/api/admin/plan/', accessToken),
     getJSON<PaginatedResponse<ReferralPayout>>('/api/admin/referrals/payouts/', accessToken),
   ]);
+
+  // ... rest unchanged
 
   // console.log(`${LOG_TAG} ✅ All 10 endpoints resolved`);
   // Prints: nothing but a marker string — confirms Promise.all settled successfully.

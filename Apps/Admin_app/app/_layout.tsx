@@ -33,7 +33,8 @@ import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AppDataProvider }       from '@/context/AppDataContext';
-import { ThemeProvider }         from '@/context/ThemeContext';
+import { ThemeProvider, useTheme }         from '@/context/ThemeContext';
+
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -44,6 +45,7 @@ const LOG_TAG = '[RootLayout]';
 function RootNavigator() {
   const { isAuthenticated, initializing } = useAuth();
   const segments = useSegments();
+  const { colors } = useTheme();
   const router = useRouter();
 
   useEffect(() => {
@@ -59,7 +61,7 @@ function RootNavigator() {
 
     if (!isAuthenticated && !inLoginRoute) {
       console.log(`${LOG_TAG} 🔒 Not authenticated — redirecting to /login`);
-      router.replace('/login/index');
+      router.replace('/login');
     } else if (isAuthenticated && inLoginRoute) {
       console.log(`${LOG_TAG} 🔓 Authenticated but on /login — redirecting to app`);
       router.replace('/(tabs)');
@@ -67,11 +69,17 @@ function RootNavigator() {
   }, [isAuthenticated, initializing, segments, router]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="login" />
       <Stack.Screen name="profile" />
-      <Stack.Screen name="support" />
+      <Stack.Screen name="users" />
+      <Stack.Screen name="ops" />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
     </Stack>
   );

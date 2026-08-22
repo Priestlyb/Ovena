@@ -1,17 +1,25 @@
 /**
  * app/(tabs)/support.tsx
  *
- * Support Hub inbox — now backed by GET /api/admin/support/tickets/
- * (via useSupportTickets) instead of static mock data.
+ * Support Hub inbox — backed by GET /api/admin/support/tickets/ via
+ * useSupportTickets, now with an Open/Closed tab split on top of the
+ * existing owner-role filter chips.
  *
- *  TopBar: "Support Hub" + stats
- *  Search bar
- *  Filter tabs: All | Customer | Driver | Business Admin | Business Staff
- *    - filters ticket.owner_role client-side (backend has no role param)
- *  Inbox list: FlatList of InboxTile rows, onEndReached → loadMore()
- *    (automatic pagination as the user scrolls)
- *  Stats bento: Unresolved | Avg Response
- *  Toast + ResolveConfirmModal unchanged
+ * Closing/reopening now call the real endpoints (closeTicket/reopenTicket
+ * in services/actionsApi.ts) instead of the old local-only `resolvedIds`
+ * simulation. Since useSupportTickets doesn't expose a setter into its
+ * internal ticket list, successful close/reopen calls are tracked in a
+ * local `statusOverrides` map (ticket id → new status) that's merged over
+ * the hook's data at render time — this is what makes a ticket visibly
+ * jump from one tab to the other immediately after the action succeeds,
+ * without needing a full refetch.
+ *
+ * Close keeps the existing confirm-modal step (ResolveConfirmModal).
+ * Reopen is a direct swipe action with no confirmation — it's
+ * non-destructive and easily reversible, so a confirm step didn't seem
+ * warranted. (ResolveConfirmModal's source isn't available in this
+ * change, so its confirm text/props weren't touched — it's still only
+ * used for the close flow, matching its original "resolve" framing.)
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -23,6 +31,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   TouchableWithoutFeedback,
+  Pressable,
 } from 'react-native';
 import { router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -34,9 +43,11 @@ import { InboxTile }           from '@/components/support/InboxTile';
 import { ResolveConfirmModal } from '@/components/support/ResolveConfirmModal';
 import { Toast }               from '@/components/support/Toast';
 import { useTheme }            from '@/context/ThemeContext';
+import { useAuth }             from '@/context/AuthContext';
 import { Spacing, Radius, FontFamily } from '@/constants/theme';
 import { useSupportTickets, OwnerRoleFilter } from '@/hooks/useSupportTickets';
-import { SupportTicket } from '@/types/appData';
+import { SupportTicket, TicketStatus } from '@/types/appData';
+import { closeTicket, reopenTicket, SupportActionsApiError } from '@/services/actionsApi';
 
 const FILTER_TABS: { key: OwnerRoleFilter; label: string }[] = [
   { key: 'all',            label: 'All' },
@@ -46,50 +57,112 @@ const FILTER_TABS: { key: OwnerRoleFilter; label: string }[] = [
   { key: 'business_staff', label: 'Business Staff' },
 ];
 
+type StatusTab = 'open' | 'closed';
+
 export default function SupportScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { tokens } = useAuth();
 
   const {
     tickets, totalCount, ownerRoleFilter, setOwnerRoleFilter,
-    loading, loadingMore, error, hasMore, loadMore, refresh,
+    loading, loadingMore, error, hasMore, loadMore,
   } = useSupportTickets();
 
   const [searchQuery, setSearchQuery]     = useState('');
-  const [resolvedIds, setResolvedIds]     = useState<Set<string>>(new Set());
+  const [statusTab, setStatusTab]         = useState<StatusTab>('open');
+  // Local overrides for tickets whose status has changed via a successful
+  // close/reopen call this session — merged over the hook's data at render
+  // time, since useSupportTickets doesn't expose a setter for its list.
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, TicketStatus>>({});
+  const [actioningIds, setActioningIds]   = useState<Set<string>>(new Set());
   const [pendingTicket, setPendingTicket] = useState<SupportTicket | null>(null);
   const [showToast, setShowToast]         = useState(false);
   const [toastMsg, setToastMsg]           = useState('');
+  const [toastVariant, setToastVariant]   = useState<'success' | 'error'>('success');
+
+  const effectiveStatus = useCallback(
+    (ticket: SupportTicket): TicketStatus => statusOverrides[ticket.id] ?? ticket.status,
+    [statusOverrides]
+  );
+
+  const ticketsForTab = useMemo(
+    () => tickets.filter((t) =>
+      statusTab === 'closed'
+        ? effectiveStatus(t) === 'closed'
+        : effectiveStatus(t) !== 'closed'
+    ),
+    [tickets, statusTab, effectiveStatus]
+  );
 
   const visibleTickets = useMemo(() => {
-    if (!searchQuery.trim()) return tickets;
+    if (!searchQuery.trim()) return ticketsForTab;
     const q = searchQuery.toLowerCase();
-    return tickets.filter(t =>
+    return ticketsForTab.filter(t =>
       t.owner_id.toLowerCase().includes(q)          ||
       (t.owner_email ?? '').toLowerCase().includes(q) ||
       t.category.toLowerCase().includes(q)          ||
       t.id.toLowerCase().includes(q)
     );
-  }, [tickets, searchQuery]);
+  }, [ticketsForTab, searchQuery]);
 
-  const handleSwipeResolve = (ticket: SupportTicket) => {
-    if (resolvedIds.has(ticket.id) || ticket.status === 'closed') return;
+  const openCount   = useMemo(() => tickets.filter((t) => effectiveStatus(t) !== 'closed').length, [tickets, effectiveStatus]);
+  const closedCount = useMemo(() => tickets.filter((t) => effectiveStatus(t) === 'closed').length, [tickets, effectiveStatus]);
+
+  const runToast = (message: string, variant: 'success' | 'error') => {
+    setToastMsg(message);
+    setToastVariant(variant);
+    setShowToast(true);
+  };
+
+  // ── Close flow (confirm modal → API call) ──────────────────────────────
+  const handleSwipeClose = (ticket: SupportTicket) => {
+    if (effectiveStatus(ticket) === 'closed' || actioningIds.has(ticket.id)) return;
     setPendingTicket(ticket);
   };
 
-  const handleConfirmResolve = () => {
-    if (!pendingTicket) return;
-    setResolvedIds(prev => new Set([...prev, pendingTicket.id]));
-    setToastMsg(`Ticket ${pendingTicket.id.slice(-6)} marked as resolved`);
-    setShowToast(true);
+  const handleConfirmClose = async () => {
+    if (!pendingTicket || !tokens?.accessToken) return;
+    const ticket = pendingTicket;
     setPendingTicket(null);
+    setActioningIds((prev) => new Set(prev).add(ticket.id));
+
+    try {
+      await closeTicket(ticket, tokens.accessToken);
+      setStatusOverrides((prev) => ({ ...prev, [ticket.id]: 'closed' }));
+      runToast(`Ticket ${ticket.id.slice(-6)} closed`, 'success');
+    } catch (err) {
+      const message = err instanceof SupportActionsApiError ? err.message : 'Failed to close ticket';
+      runToast(message, 'error');
+    } finally {
+      setActioningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(ticket.id);
+        return next;
+      });
+    }
   };
 
-  // Unresolved count is based on what's currently loaded, since the
-  // tickets endpoint doesn't return a status breakdown of its own.
-  const unresolvedCount = tickets.filter(
-    t => t.status !== 'closed' && !resolvedIds.has(t.id)
-  ).length;
+  // ── Reopen flow (direct swipe action, no confirm step) ─────────────────
+  const handleSwipeReopen = async (ticket: SupportTicket) => {
+    if (effectiveStatus(ticket) !== 'closed' || actioningIds.has(ticket.id) || !tokens?.accessToken) return;
+    setActioningIds((prev) => new Set(prev).add(ticket.id));
+
+    try {
+      await reopenTicket(ticket, tokens.accessToken);
+      setStatusOverrides((prev) => ({ ...prev, [ticket.id]: 'open' }));
+      runToast(`Ticket ${ticket.id.slice(-6)} reopened`, 'success');
+    } catch (err) {
+      const message = err instanceof SupportActionsApiError ? err.message : 'Failed to reopen ticket';
+      runToast(message, 'error');
+    } finally {
+      setActioningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(ticket.id);
+        return next;
+      });
+    }
+  };
 
   const cardBg     = isDark ? '#1c1b20' : colors.surfaceContainerLow;
   const cardBorder = isDark ? 'rgba(255,255,255,0.07)' : colors.border;
@@ -122,6 +195,24 @@ export default function SupportScreen() {
           </Text>
         </View>
 
+        {/* ── Open / Closed tabs ── */}
+        <View style={[styles.statusTabRow, { borderBottomColor: cardBorder }]}>
+          <StatusTabButton
+            label="Open"
+            count={openCount}
+            active={statusTab === 'open'}
+            onPress={() => setStatusTab('open')}
+            colors={colors}
+          />
+          <StatusTabButton
+            label="Closed"
+            count={closedCount}
+            active={statusTab === 'closed'}
+            onPress={() => setStatusTab('closed')}
+            colors={colors}
+          />
+        </View>
+
         <FlatList
           data={visibleTickets}
           keyExtractor={(item) => item.id}
@@ -131,13 +222,10 @@ export default function SupportScreen() {
           keyboardShouldPersistTaps="handled"
           onEndReachedThreshold={0.4}
           onEndReached={() => {
-            // Automatic pagination — only fires when a filter isn't already
-            // triggering background loads and the backend has more pages.
             if (hasMore && !loadingMore) loadMore();
           }}
           ListHeaderComponent={
             <>
-              {/* Search */}
               <View style={[styles.searchWrap, { backgroundColor: inputBg, borderColor: cardBorder }]}>
                 <Ionicons name="search-outline" size={20} color={colors.onSurfaceVariant} style={styles.searchIcon} />
                 <TextInput
@@ -156,7 +244,6 @@ export default function SupportScreen() {
                 )}
               </View>
 
-              {/* Role filter chips — horizontally scrollable, labels are longer than the old category tabs */}
               <FlatList
                 data={FILTER_TABS}
                 keyExtractor={(t) => t.key}
@@ -205,7 +292,7 @@ export default function SupportScreen() {
               <View style={styles.emptyState}>
                 <Ionicons name="chatbubbles-outline" size={48} color={colors.outlineVariant} />
                 <Text style={[styles.emptyText, { color: colors.onSurfaceVariant }]}>
-                  No conversations found
+                  {statusTab === 'closed' ? 'No closed tickets' : 'No open conversations found'}
                 </Text>
               </View>
             ) : null
@@ -213,21 +300,21 @@ export default function SupportScreen() {
           renderItem={({ item: ticket }) => (
             <InboxTile
               ticket={ticket}
-              isResolved={resolvedIds.has(ticket.id)}
-             onPress={() =>
-                        router.push({
-                          pathname: '/support/chat',
-                          params: {
-                            threadId:   ticket.id,
-                            ownerRole:  ticket.owner_role,
-                            ownerId:    ticket.owner_id,
-                            ownerEmail: ticket.owner_email ?? '',
-                            category:   ticket.category,
-                            status:     ticket.status,
-                          },
-                        })
-                      }
-              onSwipeResolve={handleSwipeResolve}
+              isResolved={effectiveStatus(ticket) === 'closed'}
+              onPress={() =>
+                router.push({
+                  pathname: '/support/chat',
+                  params: {
+                    threadId:   ticket.id,
+                    ownerRole:  ticket.owner_role,
+                    ownerId:    ticket.owner_id,
+                    ownerEmail: ticket.owner_email ?? '',
+                    category:   ticket.category,
+                    status:     effectiveStatus(ticket),
+                  },
+                })
+              }
+              onSwipeResolve={statusTab === 'closed' ? handleSwipeReopen : handleSwipeClose}
             />
           )}
           ListFooterComponent={
@@ -235,13 +322,13 @@ export default function SupportScreen() {
               {renderFooter()}
               <View style={styles.statsGrid}>
                 <View style={[styles.statCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-                  <Text style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>UNRESOLVED</Text>
+                  <Text style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>OPEN</Text>
                   <Text style={[styles.statValue, { color: colors.primary }]}>
-                    {Math.max(0, unresolvedCount)}
+                    {openCount}
                   </Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-                  <Text style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>TOTAL TICKETS</Text>
+                  <Text style={[styles.statLabel, { color: colors.onSurfaceVariant }]}>TOTAL LOADED</Text>
                   <Text style={[styles.statValue, { color: colors.secondary ?? colors.onSurface }]}>
                     {totalCount}
                   </Text>
@@ -254,19 +341,43 @@ export default function SupportScreen() {
         <ResolveConfirmModal
           visible={!!pendingTicket}
           threadName={pendingTicket ? `${pendingTicket.owner_role} #${pendingTicket.owner_id}` : ''}
-          onConfirm={handleConfirmResolve}
+          onConfirm={handleConfirmClose}
           onCancel={() => setPendingTicket(null)}
         />
 
         <Toast
           visible={showToast}
           message={toastMsg}
-          icon="checkmark-circle"
-          variant="success"
+          icon={toastVariant === 'success' ? 'checkmark-circle' : 'alert-circle'}
+          variant={toastVariant}
           onHide={() => setShowToast(false)}
         />
       </ScreenWrapper>
     </GestureHandlerRootView>
+  );
+}
+
+function StatusTabButton({
+  label, count, active, onPress, colors,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onPress: () => void;
+  colors: ReturnType<typeof useTheme>['colors'];
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.statusTabBtn}>
+      <Text
+        style={[
+          styles.statusTabLabel,
+          { color: active ? colors.primaryContainer : colors.onSurfaceVariant },
+        ]}
+      >
+        {label} ({count})
+      </Text>
+      {active && <View style={[styles.statusTabUnderline, { backgroundColor: colors.primaryContainer }]} />}
+    </Pressable>
   );
 }
 
@@ -276,6 +387,20 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm, borderBottomWidth: 1, zIndex: 10,
   },
   topBarTitle: { fontFamily: FontFamily.heading, fontSize: 24, fontWeight: '700', letterSpacing: -0.4 },
+
+  statusTabRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.gutter,
+    borderBottomWidth: 1,
+  },
+  statusTabBtn: {
+    paddingVertical: Spacing.sm,
+    marginRight: Spacing.lg,
+    alignItems: 'center',
+  },
+  statusTabLabel: { fontFamily: FontFamily.body, fontSize: 14, fontWeight: '700' },
+  statusTabUnderline: { height: 2, width: '100%', marginTop: 6, borderRadius: 1 },
+
   scroll: { flex: 1 },
   content: { paddingHorizontal: Spacing.gutter, paddingTop: Spacing.gutter, gap: Spacing.md },
   searchWrap: {

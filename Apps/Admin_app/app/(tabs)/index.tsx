@@ -1,17 +1,14 @@
 /**
  * app/(tabs)/index.tsx
  *
- * Home screen. Layout order mirrors the HTML exactly:
+ * Home screen. Layout order:
  *   Header (topbar + greeting)
- *   StatsRow
- *   CouponWheelBanner + QuickActions  (single "Promotion Engine" section in HTML)
+ *   StatsScrollStrip  (10 metrics, horizontal scroll)
+ *   CouponWheelBanner (now includes Coupon Manager + Assign Spinwheel
+ *     as glass buttons inside the banner — QuickActions row removed)
+ *   LiveMapCard  (placeholder map + "view all active orders")
  *   LiveLogistics
  *   PanicProtocol
- *
- * Mock data matches the HTML exactly:
- *   - Rider #4402  → ETA 8m  → lava left border
- *   - Pasta Palace → Delay 15m → error left border
- *   - Sarah J.     → no ETA  → no border
  */
 
 import React from 'react';
@@ -20,13 +17,14 @@ import { router } from 'expo-router';
 
 import ScreenWrapper                        from '@/components/ScreenWrapper';
 import { Header }                           from '@/components/home/Header';
-import { StatsRow }                         from '@/components/home/StatsRow';
+import { StatsScrollStrip, StatCardData }   from '@/components/home/StatsScrollStrip';
 import { CouponWheelBanner }                from '@/components/home/CouponWheelBanner';
-import { QuickActions }                     from '@/components/home/QuickActions';
+import { LiveMapCard }                      from '@/components/home/LiveMapCard';
 import { LiveLogistics, LogisticsItem }     from '@/components/home/LiveLogistics';
 import { PanicProtocol }                    from '@/components/home/PanicProtocol';
 import { useTheme }                         from '@/context/ThemeContext';
 import { Spacing }                          from '@/constants/theme';
+import { MOCK_MAP_MARKERS }                 from '@/data/mockDashboard';
 
 const LOGISTICS: LogisticsItem[] = [
   {
@@ -56,6 +54,21 @@ const LOGISTICS: LogisticsItem[] = [
   },
 ];
 
+// ⚠️ UNVERIFIED: values are mock/display-formatted until the real
+// dashboard-summary endpoint is confirmed.
+const STATS: StatCardData[] = [
+  { id: 'total-orders',   label: 'Total Orders Today',   value: '312',      icon: 'receipt-outline',          delta: '+12%', deltaPositive: true },
+  { id: 'in-progress',    label: 'Orders In Progress',   value: '124',      icon: 'sync-outline',              accent: 'lava' },
+  { id: 'completed',      label: 'Completed Orders',     value: '178',      icon: 'checkmark-circle-outline',  accent: 'success' },
+  { id: 'cancelled',      label: 'Cancelled Orders',     value: '10',       icon: 'close-circle-outline',      accent: 'error', delta: '-2%', deltaPositive: false },
+  { id: 'revenue',        label: 'Total Revenue Today',  value: '₦1.82M',   icon: 'cash-outline',              accent: 'lava' },
+  { id: 'delivery-fees',  label: 'Delivery Fees Earned', value: '₦248K',    icon: 'bicycle-outline' },
+  { id: 'service-fees',   label: 'Service Fees Earned',  value: '₦96K',     icon: 'construct-outline' },
+  { id: 'commissions',    label: 'Restaurant Commissions', value: '₦412K',  icon: 'storefront-outline' },
+  { id: 'active-riders',  label: 'Active Riders',        value: '47',       icon: 'people-outline' },
+  { id: 'online-restaurants', label: 'Online Restaurants', value: '63',     icon: 'restaurant-outline' },
+];
+
 export default function HomeScreen() {
   const { colors } = useTheme();
 
@@ -74,23 +87,16 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Stats */}
-        <StatsRow
-          activeOrders={124}
-          activeOrdersDelta="+12%"
-          activeOrdersPositive
-          pendingValidation={8}
-          pendingDelta="-2%"
-          pendingDeltaPositive={false}
+        <StatsScrollStrip stats={STATS} />
+
+        {/* Promotion Engine — actions now live inside the banner */}
+        <CouponWheelBanner
+          onCouponManager={()   => router.push('/coupons')}
+          onAssignSpinwheel={() => router.push('/spinwheel')}
         />
 
-        {/* Promotion Engine: banner + quick actions */}
-        <View style={styles.section}>
-          <CouponWheelBanner onLaunch={() => router.push('/spinwheel')} />
-          <QuickActions
-            onCouponManager={()    => router.push('/coupons')}
-            onAssignSpinwheel={()  => router.push('/spinwheel')}
-          />
-        </View>
+        {/* Live map of active deliveries */}
+        <LiveMapCard markers={MOCK_MAP_MARKERS} />
 
         {/* Live Logistics */}
         <LiveLogistics items={LOGISTICS} />
@@ -113,9 +119,6 @@ const styles = StyleSheet.create({
   content: {
     gap:           Spacing.lg,
     paddingBottom: Spacing.md,
-  },
-  section: {
-    gap: Spacing.md,
   },
   panicSection: {
     marginTop: Spacing.lg,

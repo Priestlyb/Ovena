@@ -31,6 +31,20 @@ import {
   TouchableWithoutFeedback,
   FlatList,
 } from 'react-native';
+
+import {
+  OPERATIONAL_METRICS,
+  TOP_RIDERS,
+  TOP_CUSTOMERS,
+} from '@/data/opsMetrics';
+import { useAppData } from '@/context/AppDataContext';
+import {
+  TOP_REFERRERS,
+  CAMPAIGNS,
+  PROMO_EFFECTIVENESS,
+  CampaignStatus,
+  RESTAURANT_AD_PERFORMANCE
+} from '@/data/growthMetrics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -113,10 +127,35 @@ function Dropdown<T extends string>({ options, value, onChange, label }: Dropdow
   );
 }
 
+function CampaignStatusPill({ status, colors }: { status: CampaignStatus; colors: ReturnType<typeof useTheme>['colors'] }) {
+  const map: Record<CampaignStatus, { bg: string; fg: string; label: string }> = {
+    active:    { bg: colors.success + '33', fg: colors.success, label: 'Active' },
+    ended:     { bg: colors.secondaryContainer, fg: colors.onSecondaryContainer, label: 'Ended' },
+    scheduled: { bg: colors.primaryContainer + '33', fg: colors.primaryContainer, label: 'Scheduled' },
+  };
+  const s = map[status];
+  return (
+    <View style={[styles.campaignPill, { backgroundColor: s.bg }]}>
+      <Text style={[styles.campaignPillText, { color: s.fg }]}>{s.label}</Text>
+    </View>
+  );
+}
+
+function CampaignStat({ label, value, colors }: { label: string; value: string; colors: ReturnType<typeof useTheme>['colors'] }) {
+  return (
+    <View style={styles.campaignStat}>
+      <Text style={[styles.campaignStatValue, { color: colors.onSurface }]} numberOfLines={1}>{value}</Text>
+      <Text style={[styles.campaignStatLabel, { color: colors.onSurfaceVariant }]}>{label}</Text>
+    </View>
+  );
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function StatsScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { data: appData } = useAppData();
+  const coupons = appData?.coupons ?? [];
 
   const [dataset,     setDataset]     = useState<DatasetKey>('sales');
   const [period,      setPeriod]      = useState<TimePeriod>('months');
@@ -233,7 +272,7 @@ export default function StatsScreen() {
         {/* ── Best Sellers ── */}
         <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Best Sellers</Text>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Most Ordered Foods</Text>
             <TouchableOpacity>
               <Text style={[styles.viewAll, { color: colors.primaryContainer }]}>VIEW ALL</Text>
             </TouchableOpacity>
@@ -276,11 +315,326 @@ export default function StatsScreen() {
           ))}
         </View>
 
-        {/* ── Top Venues ── */}
+        {/* ── Operational Health ── */}
         <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Top Venues</Text>
-            <Text style={[styles.viewAll, { color: colors.onSurfaceVariant }]}>MOST VISITED</Text>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Operational Health</Text>
+          </View>
+          <View style={styles.metricsGrid}>
+            {OPERATIONAL_METRICS.map((m) => {
+              const accentColor =
+                m.accent === 'success' ? colors.success :
+                m.accent === 'error'   ? colors.error :
+                m.accent === 'lava'    ? colors.primaryContainer :
+                colors.onSurfaceVariant;
+              return (
+                <View
+                  key={m.id}
+                  style={[styles.metricCard, { backgroundColor: colors.surfaceContainerHigh, borderColor: cardBor }]}
+                >
+                  <View style={styles.metricHeader}>
+                    <View style={[styles.metricIconWrap, { backgroundColor: accentColor + '22' }]}>
+                      <Ionicons name={m.icon as keyof typeof Ionicons.glyphMap} size={14} color={accentColor} />
+                    </View>
+                    {m.delta && (
+                      <Text style={[styles.metricDelta, { color: m.deltaPositive ? colors.success : colors.error }]}>
+                        {m.delta}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={[styles.metricValue, { color: colors.onSurface }]}>{m.value}</Text>
+                  <Text style={[styles.metricLabel, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
+                    {m.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── Top Riders ── */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Top Riders</Text>
+            <Text style={[styles.viewAll, { color: colors.onSurfaceVariant }]}>BY DELIVERIES</Text>
+          </View>
+
+          {TOP_RIDERS.map((rider, i) => (
+            <View
+              key={rider.id}
+              style={[
+                styles.sellerRow,
+                i < TOP_RIDERS.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : colors.border,
+                },
+              ]}
+            >
+              <View style={[styles.sellerImg, { backgroundColor: colors.surfaceContainerHighest, borderColor: cardBor }]}>
+                {rider.imageUri ? (
+                  <Image source={{ uri: rider.imageUri }} style={StyleSheet.absoluteFill} />
+                ) : (
+                  <Ionicons name="bicycle" size={26} color={colors.primaryContainer} />
+                )}
+              </View>
+              <View style={styles.sellerInfo}>
+                <Text style={[styles.sellerName, { color: colors.onSurface }]}>{rider.name}</Text>
+                <Text style={[styles.sellerMeta, { color: colors.onSurfaceVariant }]}>
+                  {rider.deliveries.toLocaleString()} deliveries · ★{rider.rating}
+                </Text>
+              </View>
+              <View style={styles.sellerRight}>
+                <View style={styles.trendRow}>
+                  <Ionicons name="trending-up" size={10} color={colors.primaryContainer} />
+                  <Text style={[styles.sellerTrend, { color: colors.primaryContainer }]}>
+                    {rider.trend}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* ── Top Customers ── */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Top Customers</Text>
+            <Text style={[styles.viewAll, { color: colors.onSurfaceVariant }]}>BY SPEND</Text>
+          </View>
+
+          {TOP_CUSTOMERS.map((customer, i) => (
+            <View
+              key={customer.id}
+              style={[
+                styles.sellerRow,
+                i < TOP_CUSTOMERS.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : colors.border,
+                },
+              ]}
+            >
+              <View style={[styles.sellerImg, { backgroundColor: colors.surfaceContainerHighest, borderColor: cardBor }]}>
+                {customer.imageUri ? (
+                  <Image source={{ uri: customer.imageUri }} style={StyleSheet.absoluteFill} />
+                ) : (
+                  <Ionicons name="person" size={26} color={colors.primaryContainer} />
+                )}
+              </View>
+              <View style={styles.sellerInfo}>
+                <Text style={[styles.sellerName, { color: colors.onSurface }]}>{customer.name}</Text>
+                <Text style={[styles.sellerMeta, { color: colors.onSurfaceVariant }]}>
+                  {customer.orders} orders
+                </Text>
+              </View>
+              <View style={styles.sellerRight}>
+                <Text style={[styles.sellerPrice, { color: colors.onSurface }]}>{customer.totalSpent}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* ── Referral Leaderboard ── */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Referral Leaderboard</Text>
+            <Text style={[styles.viewAll, { color: colors.onSurfaceVariant }]}>TOP REFERRERS</Text>
+          </View>
+
+          {TOP_REFERRERS.map((r, i) => (
+            <View
+              key={r.id}
+              style={[
+                styles.sellerRow,
+                i < TOP_REFERRERS.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : colors.border,
+                },
+              ]}
+            >
+              <View style={[styles.sellerImg, { backgroundColor: colors.surfaceContainerHighest, borderColor: cardBor }]}>
+                <Ionicons name="gift" size={26} color={colors.primaryContainer} />
+              </View>
+              <View style={styles.sellerInfo}>
+                <Text style={[styles.sellerName, { color: colors.onSurface }]}>{r.name}</Text>
+                <Text style={[styles.sellerMeta, { color: colors.onSurfaceVariant }]}>
+                  {r.referralCount} referrals
+                </Text>
+              </View>
+              <View style={styles.sellerRight}>
+                <Text style={[styles.sellerPrice, { color: colors.onSurface }]}>{r.rewardEarned}</Text>
+                <View style={styles.trendRow}>
+                  <Ionicons name="trending-up" size={10} color={colors.primaryContainer} />
+                  <Text style={[styles.sellerTrend, { color: colors.primaryContainer }]}>{r.trend}</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* ── Campaign Performance ── */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Campaign Performance</Text>
+          </View>
+
+          {CAMPAIGNS.map((c) => (
+            <View
+              key={c.id}
+              style={[styles.campaignCard, { backgroundColor: colors.surfaceContainerHigh, borderColor: cardBor }]}
+            >
+              <View style={styles.rowBetween}>
+                <Text style={[styles.campaignName, { color: colors.onSurface }]} numberOfLines={1}>
+                  {c.name}
+                </Text>
+                <CampaignStatusPill status={c.status} colors={colors} />
+              </View>
+              <View style={styles.campaignStatsRow}>
+                <CampaignStat label="Reach" value={c.reach.toLocaleString()} colors={colors} />
+                <CampaignStat label="Conversions" value={c.conversions.toLocaleString()} colors={colors} />
+                <CampaignStat label="Rate" value={c.conversionRate} colors={colors} />
+                <CampaignStat label="Revenue" value={c.revenue} colors={colors} />
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* ── Coupon Usage — REAL DATA from useAppData().coupons ── */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Coupon Usage</Text>
+            <Text style={[styles.viewAll, { color: colors.onSurfaceVariant }]}>{coupons.length} TOTAL</Text>
+          </View>
+
+          {coupons.length === 0 ? (
+            <Text style={[styles.emptyCouponText, { color: colors.onSurfaceVariant }]}>
+              No coupons found.
+            </Text>
+          ) : (
+            coupons.slice(0, 8).map((coupon, i) => {
+              const usagePct = coupon.max_uses > 0
+                ? Math.min(100, Math.round((coupon.uses_count / coupon.max_uses) * 100))
+                : 0;
+              return (
+                <View
+                  key={coupon.id}
+                  style={[
+                    styles.couponRow,
+                    i < Math.min(coupons.length, 8) - 1 && {
+                      borderBottomWidth: 1,
+                      borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : colors.border,
+                    },
+                  ]}
+                >
+                  <View style={styles.rowBetween}>
+                    <Text style={[styles.couponCode, { color: colors.onSurface }]} numberOfLines={1}>
+                      {coupon.code}
+                    </Text>
+                    <Text style={[styles.couponMeta, { color: colors.onSurfaceVariant }]}>
+                      {coupon.uses_count}/{coupon.max_uses}
+                    </Text>
+                  </View>
+                  <Text style={[styles.couponDesc, { color: colors.onSurfaceVariant }]} numberOfLines={1}>
+                    {coupon.description || 'No description'}
+                  </Text>
+                  <View style={[styles.progressTrack, { backgroundColor: colors.surfaceContainerHighest }]}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: `${usagePct}%`,
+                          backgroundColor: coupon.exhausted ? colors.error : colors.primaryContainer,
+                        },
+                      ]}
+                    />
+                  </View>
+                  {coupon.exhausted && (
+                    <Text style={[styles.exhaustedLabel, { color: colors.error }]}>Exhausted</Text>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        {/* ── Promo Effectiveness ── */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Promo Effectiveness</Text>
+          </View>
+          <View style={styles.metricsGrid}>
+            {PROMO_EFFECTIVENESS.map((m) => {
+              const accentColor =
+                m.accent === 'success' ? colors.success :
+                m.accent === 'error'   ? colors.error :
+                m.accent === 'lava'    ? colors.primaryContainer :
+                colors.onSurfaceVariant;
+              return (
+                <View
+                  key={m.id}
+                  style={[styles.metricCard, { backgroundColor: colors.surfaceContainerHigh, borderColor: cardBor }]}
+                >
+                  <View style={styles.metricHeader}>
+                    <View style={[styles.metricIconWrap, { backgroundColor: accentColor + '22' }]}>
+                      <Ionicons name={m.icon as keyof typeof Ionicons.glyphMap} size={14} color={accentColor} />
+                    </View>
+                    {m.delta && (
+                      <Text style={[styles.metricDelta, { color: m.deltaPositive ? colors.success : colors.error }]}>
+                        {m.delta}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={[styles.metricValue, { color: colors.onSurface }]}>{m.value}</Text>
+                  <Text style={[styles.metricLabel, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
+                    {m.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── Restaurant Ad Performance ── */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Restaurant Ad Performance</Text>
+            <Text style={[styles.viewAll, { color: colors.onSurfaceVariant }]}>CTR & ORDERS</Text>
+          </View>
+
+          {RESTAURANT_AD_PERFORMANCE.map((r, i) => (
+            <View
+              key={r.id}
+              style={[
+                styles.sellerRow,
+                i < RESTAURANT_AD_PERFORMANCE.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : colors.border,
+                },
+              ]}
+            >
+              <View style={[styles.sellerImg, { backgroundColor: colors.surfaceContainerHighest, borderColor: cardBor }]}>
+                <Ionicons name="megaphone" size={24} color={colors.primaryContainer} />
+              </View>
+              <View style={styles.sellerInfo}>
+                <Text style={[styles.sellerName, { color: colors.onSurface }]}>{r.restaurantName}</Text>
+                <Text style={[styles.sellerMeta, { color: colors.onSurfaceVariant }]}>
+                  {r.impressions.toLocaleString()} impressions · {r.clicks.toLocaleString()} clicks
+                </Text>
+              </View>
+              <View style={styles.sellerRight}>
+                <Text style={[styles.sellerPrice, { color: colors.onSurface }]}>{r.ctr}</Text>
+                <Text style={[styles.adOrders, { color: colors.onSurfaceVariant }]}>
+                  {r.ordersGenerated} orders
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* ── Top Restaurants ── */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBor }]}>
+          <View style={styles.cardHeader}>
+          <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Top Restaurants</Text>      
+       <Text style={[styles.viewAll, { color: colors.onSurfaceVariant }]}>MOST VISITED</Text>
           </View>
           <View style={styles.venuesRow}>
             {TOP_VENUES.map(venue => (
@@ -531,4 +885,83 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  metricCard: {
+    flexBasis: '47%',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    padding: Spacing.sm,
+    gap: 4,
+  },
+  metricHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  metricIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricDelta: {
+    fontFamily: FontFamily.mono,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  metricValue: {
+    fontFamily: FontFamily.heading,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  metricLabel: {
+    fontFamily: FontFamily.body,
+    fontSize: 10,
+    lineHeight: 13,
+  },
+
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+
+  // Campaign cards
+  campaignCard: {
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  campaignName: { fontFamily: FontFamily.heading, fontSize: 14, fontWeight: '700', flex: 1 },
+  campaignPill: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
+  campaignPillText: { fontFamily: FontFamily.body, fontSize: 10, fontWeight: '700' },
+  campaignStatsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  campaignStat: { alignItems: 'flex-start', gap: 2 },
+  campaignStatValue: { fontFamily: FontFamily.mono, fontSize: 13, fontWeight: '700' },
+  campaignStatLabel: {
+    fontFamily: FontFamily.mono, fontSize: 9, fontWeight: '500',
+    letterSpacing: 0.5, textTransform: 'uppercase',
+  },
+
+  // Coupon usage (real data)
+  couponRow: { paddingVertical: Spacing.sm, gap: 6 },
+  couponCode: {
+    fontFamily: FontFamily.mono, fontSize: 14, fontWeight: '700',
+    letterSpacing: 0.5, flex: 1,
+  },
+  couponMeta: { fontFamily: FontFamily.mono, fontSize: 11, fontWeight: '600' },
+  couponDesc: { fontFamily: FontFamily.body, fontSize: 11 },
+  progressTrack: { height: 5, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3 },
+  exhaustedLabel: { fontFamily: FontFamily.mono, fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+  emptyCouponText: { fontFamily: FontFamily.body, fontSize: 13, paddingVertical: Spacing.md },
+
+  // Reused from Operational Health (already present) — metricsGrid, metricCard,
+  // metricHeader, metricIconWrap, metricDelta, metricValue, metricLabel
+
+  // Restaurant ad performance
+  adOrders: { fontFamily: FontFamily.mono, fontSize: 10, fontWeight: '600' },
 });

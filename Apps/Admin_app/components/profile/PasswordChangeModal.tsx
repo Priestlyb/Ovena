@@ -3,7 +3,8 @@
  *
  * Bottom-sheet for changing password.
  * Three fields: Current Password, New Password, Confirm New Password.
- * Validates that new passwords match before saving.
+ * Validates that new passwords match before saving, then calls
+ * POST /api/admin/change-password/.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -20,9 +21,12 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
+import { changeAdminPassword } from '@/services/actionsApi';
 import { Spacing, Radius, FontFamily } from '@/constants/theme';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -39,9 +43,10 @@ interface PasswordFieldProps {
   onChange:    (v: string) => void;
   placeholder: string;
   hasError?:   boolean;
+  editable?:   boolean;
 }
 
-function PasswordField({ label, value, onChange, placeholder, hasError }: PasswordFieldProps) {
+function PasswordField({ label, value, onChange, placeholder, hasError, editable = true }: PasswordFieldProps) {
   const { colors, isDark } = useTheme();
   const [show, setShow] = useState(false);
   const inputBg = isDark ? colors.surfaceContainerHigh : colors.surfaceContainer;
@@ -72,6 +77,7 @@ function PasswordField({ label, value, onChange, placeholder, hasError }: Passwo
             backgroundColor: inputBg,
             borderColor:     hasError ? colors.error : colors.border,
             transform:       [{ translateX: shakeAnim }],
+            opacity:         editable ? 1 : 0.6,
           },
         ]}
       >
@@ -84,8 +90,9 @@ function PasswordField({ label, value, onChange, placeholder, hasError }: Passwo
           secureTextEntry={!show}
           autoCapitalize="none"
           selectionColor={colors.primaryContainer}
+          editable={editable}
         />
-        <TouchableOpacity onPress={() => setShow(v => !v)} style={styles.eyeBtn}>
+        <TouchableOpacity onPress={() => setShow(v => !v)} style={styles.eyeBtn} disabled={!editable}>
           <Ionicons
             name={show ? 'eye-off-outline' : 'eye-outline'}
             size={20}
@@ -99,15 +106,17 @@ function PasswordField({ label, value, onChange, placeholder, hasError }: Passwo
 
 export function PasswordChangeModal({ visible, onClose, onSaved }: PasswordChangeModalProps) {
   const { colors, isDark } = useTheme();
-  const [current, setCurrent]   = useState('');
-  const [next, setNext]         = useState('');
-  const [confirm, setConfirm]   = useState('');
-  const [mismatch, setMismatch] = useState(false);
+  const { tokens } = useAuth();
+  const [current, setCurrent]     = useState('');
+  const [next, setNext]           = useState('');
+  const [confirm, setConfirm]     = useState('');
+  const [mismatch, setMismatch]   = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOp = useRef(new Animated.Value(0)).current;
 
-  const reset = () => { setCurrent(''); setNext(''); setConfirm(''); setMismatch(false); };
+  const reset = () => { setCurrent(''); setNext(''); setConfirm(''); setMismatch(false); setSubmitting(false); };
 
   useEffect(() => {
     if (visible) {
@@ -124,7 +133,9 @@ export function PasswordChangeModal({ visible, onClose, onSaved }: PasswordChang
     }
   }, [visible]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (submitting) return;
+
     if (!current) {
       Alert.alert('Missing field', 'Please enter your current password.');
       return;
@@ -138,10 +149,25 @@ export function PasswordChangeModal({ visible, onClose, onSaved }: PasswordChang
       setTimeout(() => setMismatch(false), 600);
       return;
     }
-    // TODO: call password change API
-    Alert.alert('Password Updated', 'Your password has been changed successfully.', [
-      { text: 'OK', onPress: () => { onSaved?.(); onClose(); } },
-    ]);
+    if (!tokens?.accessToken) {
+      Alert.alert('Not signed in', 'Your session has expired. Please sign in again.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await changeAdminPassword(
+        { password: current, new_password: next },
+        tokens.accessToken,
+      );
+      Alert.alert('Password Updated', 'Your password has been changed successfully.', [
+        { text: 'OK', onPress: () => { onSaved?.(); onClose(); } },
+      ]);
+    } catch (err: any) {
+      Alert.alert('Update Failed', err.message ?? 'Could not change your password. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const cardBg = isDark ? '#1b1b1e' : colors.surfaceContainerLow;
@@ -171,7 +197,7 @@ export function PasswordChangeModal({ visible, onClose, onSaved }: PasswordChang
 
           <View style={styles.sheetHeader}>
             <Text style={[styles.sheetTitle, { color: colors.onSurface }]}>Change Password</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} disabled={submitting}>
               <Ionicons name="close" size={22} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
@@ -181,12 +207,14 @@ export function PasswordChangeModal({ visible, onClose, onSaved }: PasswordChang
             value={current}
             onChange={setCurrent}
             placeholder="Enter current password"
+            editable={!submitting}
           />
           <PasswordField
             label="New Password"
             value={next}
             onChange={setNext}
             placeholder="Min. 8 characters"
+            editable={!submitting}
           />
           <PasswordField
             label="Confirm New Password"
@@ -194,6 +222,7 @@ export function PasswordChangeModal({ visible, onClose, onSaved }: PasswordChang
             onChange={setConfirm}
             placeholder="Repeat new password"
             hasError={mismatch}
+            editable={!submitting}
           />
 
           {mismatch && (
@@ -207,15 +236,20 @@ export function PasswordChangeModal({ visible, onClose, onSaved }: PasswordChang
               style={[styles.cancelBtn, { borderColor: colors.border }]}
               onPress={onClose}
               activeOpacity={0.7}
+              disabled={submitting}
             >
               <Text style={[styles.cancelText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: colors.primaryContainer }]}
+              style={[styles.saveBtn, { backgroundColor: colors.primaryContainer }, submitting && { opacity: 0.75 }]}
               onPress={handleSave}
               activeOpacity={0.85}
+              disabled={submitting}
             >
-              <Text style={[styles.saveText, { color: colors.onPrimaryContainer }]}>Update</Text>
+              {submitting
+                ? <ActivityIndicator color={colors.onPrimaryContainer} />
+                : <Text style={[styles.saveText, { color: colors.onPrimaryContainer }]}>Update</Text>
+              }
             </TouchableOpacity>
           </View>
         </Animated.View>

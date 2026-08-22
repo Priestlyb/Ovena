@@ -3,25 +3,36 @@
  *
  * Keeps the active item exactly centred at all times.
  *
- * How centring works:
- *   leading padding = containerWidth / 2  (state, triggers re-render on measure)
- *   trailing padding = containerWidth / 2
+ * Rewritten from a manual ScrollView + hand-computed pixel-offset approach
+ * to FlatList + getItemLayout + scrollToIndex({ viewPosition: 0.5 }).
  *
- *   This means:
- *     scrollX = 0       → item 0 midpoint is at container centre
- *     scrollX = Σw[0..i-1] + w[i]/2 - containerWidth/2
- *             → item i midpoint is at container centre
+ * WHY: the old approach measured each item's width asynchronously via
+ * onLayout and summed those widths to compute a scroll offset. That's
+ * fine once every item has reported its real width, but any selection
+ * that happened before all ~14-18 items settled (or right after a
+ * dataset/period switch replaces the list) used a `?? 60` fallback width
+ * for not-yet-measured items — which under-estimates real widths
+ * (especially long labels like "Apr(4)–May(1)" in the weeks view),
+ * producing a scroll distance that's too short and leaving the selected
+ * item sitting right of center, sometimes off the visible edge.
  *
- * The key fix over previous versions: containerWidth is STATE not a ref,
- * so when onLayout fires the spacer Views re-render with the correct
- * padding before scrollToActive calculates its target offset.
+ * Fixed-width item slots (ITEM_WIDTH) make getItemLayout exact with zero
+ * measurement, so scrollToIndex's viewPosition: 0.5 (RN's own tested
+ * centering primitive) can position the item correctly on every call,
+ * synchronously, with no measurement race possible.
+ *
+ * contentContainerStyle gets dynamic horizontal padding equal to half the
+ * container width so that even the FIRST and LAST items can be fully
+ * centered (otherwise FlatList would clamp at the content edge and those
+ * items could never reach the viewport's center) — same purpose the old
+ * leading/trailing spacer Views served.
  */
 
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   StyleSheet,
   LayoutChangeEvent,
@@ -30,8 +41,8 @@ import { useTheme } from '@/context/ThemeContext';
 import { FontFamily } from '@/constants/theme';
 import { TimePoint } from '@/data/analyticsData';
 
-const ITEM_H       = 60;
-const ITEM_PADDING = 14;
+const ITEM_WIDTH = 78; // fixed slot — sized for the longest label (weeks view)
+const ITEM_H     = 60;
 
 interface TimelineScrollerProps {
   points:      TimePoint[];
@@ -41,102 +52,82 @@ interface TimelineScrollerProps {
 
 export function TimelineScroller({ points, activeIndex, onSelect }: TimelineScrollerProps) {
   const { colors, isDark } = useTheme();
+  const listRef = useRef<FlatList<TimePoint>>(null);
 
-  const scrollRef   = useRef<ScrollView>(null);
-  const itemWidths  = useRef<number[]>([]);
-  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // STATE — so spacer Views re-render when the container measures
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const scrollToActive = useCallback((animated: boolean, cw: number) => {
-    const widths = itemWidths.current;
-    if (cw === 0) return;
+  const onWrapperLayout = useCallback((e: LayoutChangeEvent) => {
+    setContainerWidth(e.nativeEvent.layout.width);
+  }, []);
 
-    let x = 0;
-    for (let i = 0; i < activeIndex; i++) {
-      x += widths[i] ?? 60;
-    }
-    x += (widths[activeIndex] ?? 60) / 2;
-    x -= cw / 2;
+  // getItemLayout is exact (no measurement needed) because every item is
+  // a fixed ITEM_WIDTH — this is what makes scrollToIndex reliable.
+  const getItemLayout = useCallback(
+    (_: ArrayLike<TimePoint> | null | undefined, index: number) => ({
+      length: ITEM_WIDTH,
+      offset: ITEM_WIDTH * index,
+      index,
+    }),
+    []
+  );
 
-    scrollRef.current?.scrollTo({ x: Math.max(0, x), animated });
-  }, [activeIndex]);
-
-  const scheduleScroll = useCallback((animated: boolean, cw: number) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => scrollToActive(animated, cw), 100);
-  }, [scrollToActive]);
-
-  // Re-centre whenever activeIndex or points change
+  // Re-center whenever the selected index changes OR the list itself
+  // changes (dataset/period switch resets the points array).
   useEffect(() => {
-    // Reset widths array when points list length changes
-    if (itemWidths.current.length !== points.length) {
-      itemWidths.current = [];
-    }
-    scheduleScroll(true, containerWidth);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [activeIndex, points, containerWidth, scheduleScroll]);
+    if (points.length === 0) return;
+    const clamped = Math.min(Math.max(activeIndex, 0), points.length - 1);
 
-  const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    setContainerWidth(prev => {
-      if (prev !== w) {
-        // Scroll after the new spacer width has rendered (next frame)
-        setTimeout(() => scrollToActive(false, w), 50);
-        return w;
-      }
-      return prev;
-    });
-  }, [scrollToActive]);
+    // Deferred one tick so FlatList has committed the current data/layout
+    // before we ask it to scroll — avoids scrolling against stale content.
+    const id = setTimeout(() => {
+      listRef.current?.scrollToIndex({
+        index:        clamped,
+        animated:     true,
+        viewPosition: 0.001, // 0.5 = center the item in the viewport
+      });
+    }, 0);
 
-  const onItemLayout = useCallback((index: number) => (e: LayoutChangeEvent) => {
-    itemWidths.current[index] = e.nativeEvent.layout.width;
-    const allMeasured = itemWidths.current.filter(w => w > 0).length === points.length;
-    if (allMeasured) {
-      scheduleScroll(true, containerWidth);
-    }
-  }, [points.length, containerWidth, scheduleScroll]);
-
-  // Half the container width — used as both leading and trailing padding.
-  // Because containerWidth is state, changes here cause the spacers to re-render
-  // BEFORE the next scrollToActive fires.
-  const halfPad = containerWidth > 0 ? containerWidth / 2 : 0;
+    return () => clearTimeout(id);
+  }, [activeIndex, points]);
 
   const bgColor   = isDark ? colors.surfaceContainerLow : colors.surfaceContainerLow;
   const fadeColor = isDark ? '#1c1b20' : (colors.surfaceContainerLow ?? '#f5ede6');
+
+  const sidePad = containerWidth > 0 ? Math.max(0, containerWidth / 2 - ITEM_WIDTH / 2) : 0;
 
   return (
     <View
       style={[
         styles.wrapper,
-        {
-          backgroundColor: bgColor,
-          borderColor: isDark ? 'rgba(255,255,255,0.05)' : colors.border,
-        },
+        { backgroundColor: bgColor, borderColor: isDark ? 'rgba(255,255,255,0.05)' : colors.border },
       ]}
-      onLayout={onContainerLayout}
+      onLayout={onWrapperLayout}
     >
-      <ScrollView
-        ref={scrollRef}
+      <FlatList
+        ref={listRef}
+        data={points}
+        keyExtractor={(pt) => pt.key}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
         decelerationRate="fast"
-      >
-        {/* Leading pad — re-renders when containerWidth state changes */}
-        <View style={{ width: halfPad }} />
-
-        {points.map((pt, i) => {
+        getItemLayout={getItemLayout}
+        contentContainerStyle={{ paddingHorizontal: sidePad }}
+        // Safety net only — shouldn't normally fire since getItemLayout is
+        // exact, but guards the rare case scrollToIndex runs before the
+        // container has ever laid out (containerWidth still 0).
+        onScrollToIndexFailed={({ index }) => {
+          setTimeout(() => {
+            listRef.current?.scrollToIndex({ index, animated: false, viewPosition: 0.5 });
+          }, 50);
+        }}
+        renderItem={({ item: pt, index: i }) => {
           const isActive = i === activeIndex;
           const dist     = Math.abs(i - activeIndex);
           const opacity  = isActive ? 1 : Math.max(0.14, 1 - dist * 0.28);
 
           return (
             <TouchableOpacity
-              key={pt.key}
               onPress={() => onSelect(i)}
-              onLayout={onItemLayout(i)}
               style={styles.item}
               activeOpacity={0.7}
             >
@@ -150,6 +141,7 @@ export function TimelineScroller({ points, activeIndex, onSelect }: TimelineScro
                     fontSize:   isActive ? 13 : 12,
                   },
                 ]}
+                numberOfLines={1}
               >
                 {pt.label}
               </Text>
@@ -158,11 +150,8 @@ export function TimelineScroller({ points, activeIndex, onSelect }: TimelineScro
               )}
             </TouchableOpacity>
           );
-        })}
-
-        {/* Trailing pad */}
-        <View style={{ width: halfPad }} />
-      </ScrollView>
+        }}
+      />
 
       <View style={[styles.fadeEdge, styles.fadeLeft,  { backgroundColor: fadeColor }]} pointerEvents="none" />
       <View style={[styles.fadeEdge, styles.fadeRight, { backgroundColor: fadeColor }]} pointerEvents="none" />
@@ -178,17 +167,12 @@ const styles = StyleSheet.create({
     overflow:       'hidden',
     justifyContent: 'center',
   },
-  scrollContent: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    height:        ITEM_H,
-  },
   item: {
-    alignItems:        'center',
-    justifyContent:    'center',
-    paddingHorizontal: ITEM_PADDING,
-    height:            ITEM_H,
-    gap:               5,
+    width:          ITEM_WIDTH,
+    alignItems:     'center',
+    justifyContent: 'center',
+    height:         ITEM_H,
+    gap:            5,
   },
   itemText: {
     fontFamily:    FontFamily.mono,

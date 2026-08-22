@@ -1,32 +1,3 @@
-/**
- * app/profile/index.tsx
- *
- * Profile Settings screen — mirrors the HTML exactly:
- *
- *  ┌─────────────────────────────────────────────────────┐
- *  │  ← Back                   Profile Settings          │  ← header
- *  ├─────────────────────────────────────────────────────┤
- *  │        [avatar + lava glow + edit button]           │
- *  │            Aleksandr Smith                          │
- *  │         System Administrator • Senior DevOps        │
- *  ├─────────────────────────────────────────────────────┤
- *  │  PERSONAL DATA                                      │
- *  │  ▸ Full Name          Aleksandr Smith  ›            │  → EditFieldModal
- *  │  ▸ Email Address      a.smith@…        ›            │  → EditFieldModal
- *  ├─────────────────────────────────────────────────────┤
- *  │  THEME PREFERENCES                                  │
- *  │  ◈ Dark Mode                          [toggle]      │  → useTheme toggleTheme()
- *  ├─────────────────────────────────────────────────────┤
- *  │  ACCOUNT SECURITY                                   │
- *  │  ▸ Password Change                    ›            │  → PasswordChangeModal
- *  │  ▸ 2FA Security       ACTIVE          ›            │  → TwoFAModal
- *  ├─────────────────────────────────────────────────────┤
- *  │         [  Logout from LAVA ADMIN  ]                │  → Alert confirm → router.replace('/login')
- *  └─────────────────────────────────────────────────────┘
- *
- *  All list rows: scale-[0.98] spring on press (from HTML JS micro-interaction)
- */
-
 import React, { useRef, useState } from 'react';
 import {
   View,
@@ -39,6 +10,7 @@ import {
   Alert,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,6 +23,7 @@ import { PasswordChangeModal }      from '@/components/profile/PasswordChangeMod
 import { TwoFAModal }               from '@/components/profile/TwoFAModal';
 import { useTheme }                 from '@/context/ThemeContext';
 import { Spacing, Radius, FontFamily } from '@/constants/theme';
+import { useAuth }                  from '@/context/AuthContext';
 
 // ─── Pressable row with scale-[0.98] spring ───────────────────────────────────
 interface SettingsRowProps {
@@ -159,17 +132,21 @@ function SettingsSection({ title, children }: SettingsSectionProps) {
 export default function ProfileScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
+  const { user, logout, refreshSession } = useAuth();
 
-  // Local profile state (in a real app this would come from an API / store)
-  const [fullName, setFullName] = useState('Aleksandr Smith');
-  const [email,    setEmail]    = useState('a.smith@lava-admin.io');
-  const [twoFA,    setTwoFA]    = useState(true);
+  // NOTE: no local fullName/email state anymore — these fields now render
+  // directly from AuthContext.user, which is populated by GET /api/admin/profile/
+  // (via fetchCurrentUser in authApi.ts) on login and every session rehydrate.
+  // EditFieldModal's onSave callbacks below are optimistic-UI only until a
+  // real "update profile" endpoint exists — they call refreshSession() after
+  // to re-sync with the server rather than trusting the local edit as final.
+  const [twoFA, setTwoFA] = useState(user?.twoFAEnabled ?? false);
 
   // Modal visibility
-  const [editName,    setEditName]    = useState(false);
-  const [editEmail,   setEditEmail]   = useState(false);
-  const [editPw,      setEditPw]      = useState(false);
-  const [edit2FA,     setEdit2FA]     = useState(false);
+  const [editName,  setEditName]  = useState(false);
+  const [editEmail, setEditEmail] = useState(false);
+  const [editPw,    setEditPw]    = useState(false);
+  const [edit2FA,   setEdit2FA]   = useState(false);
 
   // Logout: scale-95 spring + confirm alert
   const logoutScale = useRef(new Animated.Value(1)).current;
@@ -185,7 +162,9 @@ export default function ProfileScreen() {
         {
           text:    'Logout',
           style:   'destructive',
-          onPress: () => router.replace('/(tabs)'), // replace with /login when auth exists
+          onPress: () => {
+            logout(); // hits /api/admin/logout/, clears tokens + cache; RootNavigator redirects to /login
+          },
         },
       ],
     );
@@ -193,6 +172,19 @@ export default function ProfileScreen() {
 
   const cardBg     = isDark ? '#1b1b1e' : colors.surfaceContainer;
   const cardBorder = isDark ? 'rgba(255,255,255,0.05)' : colors.border;
+
+  // Session should always be populated by the time this screen is reachable
+  // (RootNavigator gates it behind isAuthenticated), but guard anyway rather
+  // than crash on a null user during a brief rehydrate window.
+  if (!user) {
+    return (
+      <ScreenWrapper noPadding>
+        <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+          <ActivityIndicator color={colors.primaryContainer} />
+        </View>
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper noPadding>
@@ -228,9 +220,9 @@ export default function ProfileScreen() {
       >
         {/* ── Avatar / name / role ── */}
         <ProfileHeader
-          name={fullName}
-          role="System Administrator • Senior DevOps"
-          avatarUri="https://lh3.googleusercontent.com/aida-public/AB6AXuBxW6ckZbmi2iKqb28MIpktNMJHoRJjMEjAhgDbl9haXu5GkXydZp4yqBndq29WdPQSht1rz9b5XMYZxcHVvwhhhy1TDOTc84E9DpOTxi0R6yVvJVHLHWFwwXrsO7k5KrHoolMFdwH1Q36jDE5jpkOdnsPZt3LRLAwPhMe3oTOi97F8wioUmQa_7xWfuPvX4SL2XYK0uaVraJLLLu07ud391X8ljCqOWKUfE6-2ICCBceKZdiI3yBf65uN2l-8AzNm9AtOqcjdNUZwi"
+          name={user.name}
+          role={user.role}
+          avatarUri={user.avatarUri}
           onEditAvatar={() => Alert.alert('Edit Photo', 'Photo picker coming soon.')}
         />
 
@@ -239,13 +231,13 @@ export default function ProfileScreen() {
           <SettingsRow
             icon="person-outline"
             label="Full Name"
-            value={fullName}
+            value={user.name}
             onPress={() => setEditName(true)}
           />
           <SettingsRow
             icon="mail-outline"
             label="Email Address"
-            value={email}
+            value={user.email}
             onPress={() => setEditEmail(true)}
             isLast
           />
@@ -325,19 +317,25 @@ export default function ProfileScreen() {
         visible={editName}
         title="Full Name"
         label="Full Name"
-        value={fullName}
+        value={user.name}
         placeholder="Enter your full name"
-        onSave={setFullName}
+        onSave={() => {
+          // No update-profile endpoint provided yet — re-sync from the
+          // server instead of trusting a local-only edit as final.
+          refreshSession();
+        }}
         onClose={() => setEditName(false)}
       />
       <EditFieldModal
         visible={editEmail}
         title="Email Address"
         label="Email Address"
-        value={email}
+        value={user.email}
         placeholder="Enter your email"
         keyboardType="email-address"
-        onSave={setEmail}
+        onSave={() => {
+          refreshSession();
+        }}
         onClose={() => setEditEmail(false)}
       />
       <PasswordChangeModal
@@ -355,6 +353,12 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex:           1,
+    justifyContent: 'center',
+    alignItems:     'center',
+  },
+
   // Top bar
   topBar: {
     flexDirection:    'row',

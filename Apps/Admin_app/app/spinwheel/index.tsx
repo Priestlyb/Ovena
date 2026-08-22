@@ -1,25 +1,30 @@
 /**
  * app/spinwheel/index.tsx
  *
- * Promotion Engine — Spinwheel Management. Mirrors HTML doc 11.
+ * Promotion Engine — Spinwheel Management.
  *
- * Sections:
- *  Hero: animated spinwheel + "Summer Sizzler Wheel" active status + CTA buttons
- *  Main Actions: Create New Wheel | Assign Spinwheel
- *  Assigned Wheels list
- *  Segment Weights table
+ * Now backed by real endpoints:
+ *  GET  /api/admin/coupons/wheel/all/     — list (id, max_entries_amount, is_active)
+ *  GET  /api/admin/coupons/wheel/{id}/    — detail (adds full nested `coupons`)
+ *  POST /api/admin/coupons/wheel/create/  — create
  *
- * "Create New Wheel" opens a bottom-sheet modal where admin:
- *  1. Names the wheel
- *  2. Sets number of coupon slots
- *  3. Selects coupons from the list
- *  4. Sees a LIVE PREVIEW of the spinwheel with their selections rendering as segments
- *  5. Confirms → wheel added to list with "Drafting" status
+ * A wheel has NO name field on the backend — confirmed against the real
+ * list response. The "Spinwheel Name" field in the create modal is kept as
+ * a LOCAL-ONLY label (stored in a local id→name map, not persisted, and
+ * lost on app restart / reinstall) since there's currently nowhere on the
+ * backend to save it. Wheels without a locally-cached name (e.g. any wheel
+ * that existed before this session, or created from another device) just
+ * display as "Wheel #{id}".
  *
- * The SpinwheelVisual shows the visual with slow rotation + Spin to Preview button.
+ * ⚠️ Still no assign endpoint — the Assign Spinwheel modal lists the real
+ * wheels but tapping one shows an honest "not available yet" message
+ * rather than faking a persisted assignment.
+ *
+ * Coupon selection in Create Wheel pulls real reward coupons
+ * (is_reward === true, not exhausted, not expired) from AppDataContext.
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,6 +37,8 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,47 +47,83 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenWrapper                from '@/components/ScreenWrapper';
 import { SpinwheelVisual }          from '@/components/spinwheel/SpinwheelVisual';
 import { useTheme }                 from '@/context/ThemeContext';
+import { useAuth }                  from '@/context/AuthContext';
+import { useAppData }               from '@/context/AppDataContext';
 import { Spacing, Radius, FontFamily } from '@/constants/theme';
-import { INITIAL_COUPONS }          from '@/data/couponData';
+import {
+  createSpinWheel,
+  fetchAllSpinWheels,
+  fetchSpinWheelDetail,
+  CouponsActionsApiError,
+} from '@/services/actionsApi';
+import { Coupon, SpinWheel, SpinWheelDetail } from '@/types/appData';
 
-// ─── Assigned wheel item ──────────────────────────────────────────────────────
-interface WheelItem {
-  id:     string;
-  name:   string;
-  status: 'live' | 'paused' | 'drafting';
-  icon:   string; // Ionicons name
+function isRewardCouponUsable(c: Coupon) {
+  const notExpired = new Date(c.valid_until).getTime() > Date.now();
+  return c.is_reward && !c.exhausted && notExpired;
 }
 
-const INITIAL_WHEELS: WheelItem[] = [
-  { id: 'w1', name: 'New User Welcome',  status: 'live',   icon: 'gift-outline'   },
-  { id: 'w2', name: 'Retention Burst',   status: 'paused', icon: 'time-outline'   },
-];
-
-function statusColor(status: WheelItem['status'], colors: any) {
-  switch (status) {
-    case 'live':     return { bg: `${colors.primaryContainer}1A`, text: colors.primaryContainer };
-    case 'paused':   return { bg: colors.surfaceContainerHighest, text: colors.onSurfaceVariant };
-    case 'drafting': return { bg: `${colors.secondary ?? '#c8c6c5'}22`, text: colors.secondary ?? '#c8c6c5' };
-  }
+function couponLabel(c: Coupon) {
+  const value = parseFloat(c.discount_value);
+  const shown = Number.isFinite(value) ? value : c.discount_value;
+  const discount = c.discount_type === 'percent' ? `${shown}% OFF` : `₦${shown} OFF`;
+  return `${discount} — ${c.code}`;
 }
 
 export default function SpinwheelScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { tokens } = useAuth();
+  const { data } = useAppData();
 
-  const [wheels,     setWheels]     = useState<WheelItem[]>(INITIAL_WHEELS);
+  const rewardCoupons = (data?.coupons ?? []).filter(isRewardCouponUsable);
+
+  // Real wheel list + loading/error state
+  const [wheels,     setWheels]     = useState<SpinWheel[]>([]);
+  const [wheelsLoading, setWheelsLoading] = useState(false);
+  const [wheelsError,   setWheelsError]   = useState<string | null>(null);
+
+  // Local-only name labels (id → name), lost on restart — backend has no
+  // name field, this is purely a client-side convenience.
+  const [localNames, setLocalNames] = useState<Record<number, string>>({});
+
   const [showModal,  setShowModal]  = useState(false);
   const [showAssign, setShowAssign] = useState(false);
 
-  // Modal state
-  const [wheelName,       setWheelName]      = useState('');
-  const [couponLimit,     setCouponLimit]     = useState('3');
-  const [selectedIds,     setSelectedIds]     = useState<Set<string>>(new Set());
-  const [couponSearch,    setCouponSearch]    = useState('');
+  // Info modal
+  const [infoWheelId, setInfoWheelId] = useState<number | null>(null);
+  const [infoDetail,  setInfoDetail]  = useState<SpinWheelDetail | null>(null);
+  const [infoLoading, setInfoLoading] = useState(false);
+  const [infoError,   setInfoError]   = useState<string | null>(null);
 
-  // Modal slide animation
-  const sheetY   = useRef(new Animated.Value(800)).current;
+  // Create modal state
+  const [wheelName,       setWheelName]       = useState('');
+  const [maxEntries,      setMaxEntries]      = useState('100');
+  const [isActive,        setIsActive]        = useState(true);
+  const [selectedIds,     setSelectedIds]     = useState<Set<number>>(new Set());
+  const [couponSearch,    setCouponSearch]    = useState('');
+  const [submitting,      setSubmitting]      = useState(false);
+
+  const sheetY    = useRef(new Animated.Value(800)).current;
   const backdropA = useRef(new Animated.Value(0)).current;
+
+  const loadWheels = useCallback(async () => {
+    if (!tokens?.accessToken) return;
+    setWheelsLoading(true);
+    setWheelsError(null);
+    try {
+      const page = await fetchAllSpinWheels(tokens.accessToken);
+      setWheels([...page.results].sort((a, b) => b.id - a.id)); // newest first
+    } catch (err) {
+      setWheelsError(err instanceof CouponsActionsApiError ? err.message : 'Failed to load spinwheels.');
+    } finally {
+      setWheelsLoading(false);
+    }
+  }, [tokens?.accessToken]);
+
+  useEffect(() => {
+    loadWheels();
+  }, [loadWheels]);
 
   const openModal = () => {
     setShowModal(true);
@@ -105,62 +148,106 @@ export default function SpinwheelScreen() {
       setShowModal(false);
       setWheelName('');
       setSelectedIds(new Set());
-      setCouponLimit('3');
+      setMaxEntries('100');
+      setIsActive(true);
       setCouponSearch('');
     });
   };
 
-  const toggleCoupon = (id: string) => {
-    const limit = parseInt(couponLimit) || 0;
+  const toggleCoupon = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) { next.delete(id); return next; }
-      if (next.size >= limit) {
-        Alert.alert('Limit reached', `You can only select ${limit} coupons.`);
-        return prev;
-      }
       next.add(id);
       return next;
     });
   };
 
-  const handleCreate = () => {
-    const name   = wheelName.trim() || 'New Promo Wheel';
-    const id     = `w${Date.now()}`;
-    const labels = selectedIds.size >= 2
-      ? INITIAL_COUPONS.filter(c => selectedIds.has(c.id)).map(c => c.code)
-      : ['50% OFF', 'Free Delivery', '$20 OFF', 'LAVA25'];
+  const handleCreate = async () => {
+    if (selectedIds.size < 2) {
+      return Alert.alert('Select coupons', 'Pick at least 2 reward coupons for the wheel.');
+    }
+    if (!maxEntries || isNaN(Number(maxEntries)) || Number(maxEntries) <= 0) {
+      return Alert.alert('Missing max entries', 'Please enter a valid max entries number.');
+    }
+    if (!tokens?.accessToken) {
+      return Alert.alert('Not signed in', 'Please sign in again and retry.');
+    }
 
-    // Add to list as drafting
-    setWheels(prev => [
-      { id, name, status: 'drafting', icon: 'sparkles-outline' },
-      ...prev,
-    ]);
+    const selectedCoupons = rewardCoupons.filter(c => selectedIds.has(c.id));
+    const name = wheelName.trim() || 'New Promo Wheel';
 
-    closeModal(true);
+    setSubmitting(true);
+    try {
+      const created = await createSpinWheel(
+        {
+          max_entries_amount: Number(maxEntries),
+          is_active: isActive,
+          coupon_ids: Array.from(selectedIds),
+        },
+        tokens.accessToken,
+      );
 
-    // Navigate to full-screen preview
-    router.push({
-      pathname: '/spinwheel/preview',
-      params: {
-        wheelName: name,
-        labels:    JSON.stringify(labels),
-      },
-    });
+      if (created?.id != null) {
+        setLocalNames(prev => ({ ...prev, [created.id]: name }));
+      }
+
+      await loadWheels(); // refetch so the list reflects the real backend state
+      closeModal(true);
+
+      router.push({
+        pathname: '/spinwheel/preview',
+        params: {
+          wheelName: name,
+          labels:    JSON.stringify(selectedCoupons.map(c => c.code)),
+        },
+      });
+    } catch (err) {
+      const message = err instanceof CouponsActionsApiError ? err.message : 'Something went wrong creating the wheel.';
+      Alert.alert("Couldn't create wheel", message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // Coupon labels for wheel preview (selected coupons → use codes as labels)
-  const previewLabels = selectedIds.size >= 2
-    ? INITIAL_COUPONS.filter(c => selectedIds.has(c.id)).map(c => c.code)
-    : ['A', 'B', 'C', 'D']; // placeholder until selections made
+  const openInfo = async (wheelId: number) => {
+    setInfoWheelId(wheelId);
+    setInfoDetail(null);
+    setInfoError(null);
+    if (!tokens?.accessToken) {
+      setInfoError('Not signed in.');
+      return;
+    }
+    setInfoLoading(true);
+    try {
+      const detail = await fetchSpinWheelDetail(wheelId, tokens.accessToken);
+      setInfoDetail(detail);
+    } catch (err) {
+      setInfoError(err instanceof CouponsActionsApiError ? err.message : 'Failed to load wheel details.');
+    } finally {
+      setInfoLoading(false);
+    }
+  };
 
-  const filteredCoupons = INITIAL_COUPONS.filter(c =>
+  const closeInfo = () => {
+    setInfoWheelId(null);
+    setInfoDetail(null);
+    setInfoError(null);
+  };
+
+  const previewLabels = selectedIds.size >= 2
+    ? rewardCoupons.filter(c => selectedIds.has(c.id)).map(c => c.code)
+    : [];
+
+  const filteredCoupons = rewardCoupons.filter(c =>
     !couponSearch || c.code.toLowerCase().includes(couponSearch.toLowerCase())
   );
 
   const cardBg   = isDark ? 'rgba(27,27,30,0.8)' : colors.surfaceContainer;
   const cardBord = isDark ? 'rgba(255,255,255,0.10)' : colors.border;
   const sheetBg  = isDark ? '#1c1b20' : colors.surfaceContainerLow;
+
+  const wheelDisplayName = (w: SpinWheel) => localNames[w.id] ?? `Wheel #${w.id}`;
 
   return (
     <ScreenWrapper noPadding>
@@ -173,8 +260,8 @@ export default function SpinwheelScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={[styles.topBarTitle, { color: colors.onSurface }]}>Promotion Engine</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Ionicons name="notifications-outline" size={22} color={colors.onSurfaceVariant} />
+        <TouchableOpacity style={styles.iconBtn} onPress={loadWheels}>
+          <Ionicons name="refresh-outline" size={20} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
       </View>
 
@@ -183,10 +270,9 @@ export default function SpinwheelScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Hero card ── */}
+        {/* ── Hero card — static/decorative, not tied to a real wheel record ── */}
         <View style={[styles.heroCard, { backgroundColor: cardBg, borderColor: cardBord }]}>
           <View style={styles.heroInner}>
-            {/* Spinning wheel visual */}
             <SpinwheelVisual
               labels={['50% OFF', 'Free Delivery', '$20 OFF', 'LAVA25', '15% OFF', 'FREESHIP']}
               size={140}
@@ -237,53 +323,72 @@ export default function SpinwheelScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Assigned wheels ── */}
+        {/* ── Wheels list ── */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Assigned Wheels</Text>
-          <TouchableOpacity>
-            <Text style={[styles.seeAll, { color: colors.primaryContainer }]}>SEE ALL</Text>
-          </TouchableOpacity>
+          <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Your Wheels</Text>
+          {wheels.length > 0 && (
+            <Text style={[styles.seeAllHint, { color: colors.onSurfaceVariant }]}>{wheels.length} TOTAL</Text>
+          )}
         </View>
 
-        {wheels.map((wheel, i) => {
-          const sc = statusColor(wheel.status, colors);
-          return (
-            <View
-              key={wheel.id}
-              style={[
-                styles.wheelRow,
-                {
-                  backgroundColor: cardBg,
-                  borderColor:     cardBord,
-                  borderLeftColor: wheel.status === 'live' ? colors.primaryContainer : 'transparent',
-                  borderLeftWidth: wheel.status === 'live' ? 4 : 1,
-                },
-              ]}
-            >
-              <View style={[styles.wheelIcon, { backgroundColor: colors.surfaceContainerHigh }]}>
-                <Ionicons name={wheel.icon as any} size={22} color={colors.onSurfaceVariant} />
-              </View>
-              <View style={styles.wheelInfo}>
-                <View style={styles.wheelTitleRow}>
-                  <Text style={[styles.wheelName, { color: colors.onSurface }]}>{wheel.name}</Text>
-                  <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
-                    <Text style={[styles.statusPillText, { color: sc.text }]}>
-                      {wheel.status.toUpperCase()}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={[styles.wheelId, { color: colors.onSurfaceVariant }]}>
-                  ID: WHEEL-{wheel.id.slice(-4).toUpperCase().padStart(4, '0')}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
-            </View>
-          );
-        })}
+        {wheelsLoading && wheels.length === 0 && (
+          <View style={styles.centerBlock}>
+            <ActivityIndicator color={colors.primaryContainer} />
+          </View>
+        )}
 
-        {/* ── Segment weights table ── */}
+        {!wheelsLoading && wheelsError && wheels.length === 0 && (
+          <View style={styles.centerBlock}>
+            <Ionicons name="alert-circle-outline" size={32} color={colors.error} />
+            <Text style={[styles.emptyText, { color: colors.onSurfaceVariant }]}>{wheelsError}</Text>
+          </View>
+        )}
+
+        {!wheelsLoading && !wheelsError && wheels.length === 0 && (
+          <View style={styles.centerBlock}>
+            <Ionicons name="sync-circle-outline" size={32} color={colors.outlineVariant} />
+            <Text style={[styles.emptyText, { color: colors.onSurfaceVariant }]}>No spinwheels yet — create one above.</Text>
+          </View>
+        )}
+
+        {wheels.map((wheel) => (
+          <TouchableOpacity
+            key={wheel.id}
+            onPress={() => openInfo(wheel.id)}
+            activeOpacity={0.8}
+            style={[
+              styles.wheelRow,
+              {
+                backgroundColor: cardBg,
+                borderColor:     cardBord,
+                borderLeftColor: wheel.is_active ? colors.primaryContainer : 'transparent',
+                borderLeftWidth: wheel.is_active ? 4 : 1,
+              },
+            ]}
+          >
+            <View style={[styles.wheelIcon, { backgroundColor: colors.surfaceContainerHigh }]}>
+              <Ionicons name="sparkles-outline" size={22} color={colors.onSurfaceVariant} />
+            </View>
+            <View style={styles.wheelInfo}>
+              <View style={styles.wheelTitleRow}>
+                <Text style={[styles.wheelName, { color: colors.onSurface }]}>{wheelDisplayName(wheel)}</Text>
+                <View style={[styles.statusPill, { backgroundColor: wheel.is_active ? `${colors.primaryContainer}1A` : colors.surfaceContainerHighest }]}>
+                  <Text style={[styles.statusPillText, { color: wheel.is_active ? colors.primaryContainer : colors.onSurfaceVariant }]}>
+                    {wheel.is_active ? 'ACTIVE' : 'INACTIVE'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.wheelId, { color: colors.onSurfaceVariant }]}>
+                ID: {wheel.id} · Max entries: {wheel.max_entries_amount}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
+          </TouchableOpacity>
+        ))}
+
+        {/* ── Segment weights table — static illustrative example, not tied to a real wheel ── */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Segment Weights</Text>
+          <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Segment Weights (Example)</Text>
           <View style={[styles.totalPill, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.surfaceContainerHigh }]}>
             <Text style={[styles.totalText, { color: colors.onSurfaceVariant }]}>TOTAL: 100%</Text>
           </View>
@@ -328,10 +433,8 @@ export default function SpinwheelScreen() {
             { backgroundColor: sheetBg, borderColor: cardBord, transform: [{ translateY: sheetY }] },
           ]}
         >
-          {/* Handle */}
           <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
 
-          {/* Header */}
           <View style={styles.modalHeader}>
             <View>
               <Text style={[styles.modalTitle, { color: colors.onSurface }]}>Create New Wheel</Text>
@@ -347,9 +450,8 @@ export default function SpinwheelScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Wheel name */}
             <View style={styles.formGroup}>
-              <Text style={[styles.formLabel, { color: colors.onSurfaceVariant }]}>SPINWHEEL NAME</Text>
+              <Text style={[styles.formLabel, { color: colors.onSurfaceVariant }]}>SPINWHEEL NAME (LOCAL LABEL ONLY)</Text>
               <TextInput
                 style={[styles.formInput, { backgroundColor: isDark ? colors.surfaceContainer : colors.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : colors.border, color: colors.onSurface }]}
                 value={wheelName}
@@ -358,70 +460,92 @@ export default function SpinwheelScreen() {
                 placeholderTextColor={colors.onSurfaceVariant + '60'}
                 selectionColor={colors.primaryContainer}
               />
+              <Text style={[styles.fieldHint, { color: colors.onSurfaceVariant }]}>
+                Not saved on the backend — shown only on this device until reinstalled.
+              </Text>
             </View>
 
-            {/* Coupon limit */}
             <View style={styles.formGroup}>
-              <Text style={[styles.formLabel, { color: colors.onSurfaceVariant }]}>NUMBER OF COUPONS</Text>
+              <Text style={[styles.formLabel, { color: colors.onSurfaceVariant }]}>MAX ENTRIES</Text>
               <TextInput
                 style={[styles.formInput, { backgroundColor: isDark ? colors.surfaceContainer : colors.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : colors.border, color: colors.onSurface }]}
-                value={couponLimit}
-                onChangeText={(v) => { setCouponLimit(v); setSelectedIds(new Set()); }}
+                value={maxEntries}
+                onChangeText={setMaxEntries}
                 keyboardType="number-pad"
+                placeholder="100"
+                placeholderTextColor={colors.onSurfaceVariant + '60'}
                 selectionColor={colors.primaryContainer}
               />
             </View>
 
-            {/* Coupon selection */}
+            <View style={[styles.formGroup, styles.toggleRow]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.formLabel, { color: colors.onSurfaceVariant }]}>ACTIVE</Text>
+                <Text style={[styles.toggleSub, { color: colors.onSurfaceVariant }]}>Whether this wheel accepts entries right away</Text>
+              </View>
+              <Switch
+                value={isActive}
+                onValueChange={setIsActive}
+                trackColor={{ false: colors.surfaceContainerHighest, true: colors.primaryContainer }}
+                thumbColor={colors.onSurface}
+              />
+            </View>
+
             <View style={styles.formGroup}>
               <View style={styles.selectionHeader}>
-                <Text style={[styles.formLabel, { color: colors.onSurfaceVariant }]}>AVAILABLE COUPONS</Text>
+                <Text style={[styles.formLabel, { color: colors.onSurfaceVariant }]}>REWARD COUPONS</Text>
                 <Text style={[styles.counter, { color: colors.primaryContainer }]}>
-                  Selected: {selectedIds.size}/{couponLimit}
+                  Selected: {selectedIds.size}
                 </Text>
               </View>
-              {/* Search */}
               <View style={[styles.couponSearch, { backgroundColor: isDark ? colors.surfaceContainerLow : colors.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : colors.border }]}>
                 <Ionicons name="search-outline" size={16} color={colors.onSurfaceVariant} />
                 <TextInput
                   style={[styles.couponSearchInput, { color: colors.onSurface }]}
                   value={couponSearch}
                   onChangeText={setCouponSearch}
-                  placeholder="Search coupons..."
+                  placeholder="Search reward coupons..."
                   placeholderTextColor={colors.onSurfaceVariant + '60'}
                   selectionColor={colors.primaryContainer}
                 />
               </View>
-              {/* List */}
-              <View style={styles.couponList}>
-                {filteredCoupons.map(c => {
-                  const sel = selectedIds.has(c.id);
-                  return (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[
-                        styles.couponItem,
-                        {
-                          backgroundColor: sel ? `${colors.primaryContainer}12` : isDark ? 'rgba(255,255,255,0.05)' : colors.surfaceContainerLow,
-                          borderColor:     sel ? colors.primaryContainer : 'transparent',
-                        },
-                      ]}
-                      onPress={() => toggleCoupon(c.id)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.couponItemText, { color: colors.onSurface }]}>
-                        {c.discountType === 'percentage' ? `${c.discountValue}% OFF` : `$${c.discountValue} OFF`} — {c.code}
-                      </Text>
-                      <View style={[styles.checkbox, { borderColor: sel ? colors.primaryContainer : isDark ? 'rgba(255,255,255,0.20)' : colors.border, backgroundColor: sel ? `${colors.primaryContainer}20` : 'transparent' }]}>
-                        {sel && <Ionicons name="checkmark" size={12} color={colors.primaryContainer} />}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+
+              {filteredCoupons.length === 0 ? (
+                <Text style={[styles.previewHint, { color: colors.onSurfaceVariant }]}>
+                  {rewardCoupons.length === 0
+                    ? 'No active reward coupons available. Create one in Coupon Manager first.'
+                    : 'No reward coupons match your search.'}
+                </Text>
+              ) : (
+                <View style={styles.couponList}>
+                  {filteredCoupons.map(c => {
+                    const sel = selectedIds.has(c.id);
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={[
+                          styles.couponItem,
+                          {
+                            backgroundColor: sel ? `${colors.primaryContainer}12` : isDark ? 'rgba(255,255,255,0.05)' : colors.surfaceContainerLow,
+                            borderColor:     sel ? colors.primaryContainer : 'transparent',
+                          },
+                        ]}
+                        onPress={() => toggleCoupon(c.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.couponItemText, { color: colors.onSurface }]}>
+                          {couponLabel(c)}
+                        </Text>
+                        <View style={[styles.checkbox, { borderColor: sel ? colors.primaryContainer : isDark ? 'rgba(255,255,255,0.20)' : colors.border, backgroundColor: sel ? `${colors.primaryContainer}20` : 'transparent' }]}>
+                          {sel && <Ionicons name="checkmark" size={12} color={colors.primaryContainer} />}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
             </View>
 
-            {/* ── Live spinwheel preview ── */}
             {selectedIds.size >= 2 && (
               <View style={styles.formGroup}>
                 <Text style={[styles.formLabel, { color: colors.onSurfaceVariant }]}>LIVE PREVIEW</Text>
@@ -443,39 +567,55 @@ export default function SpinwheelScreen() {
             <View style={{ height: 20 }} />
           </ScrollView>
 
-          {/* Footer CTA */}
           <View style={[styles.sheetFooter, { backgroundColor: isDark ? colors.surfaceContainerHigh : colors.surfaceContainer, borderTopColor: isDark ? 'rgba(255,255,255,0.10)' : colors.border }]}>
             <TouchableOpacity
-              style={[styles.createBtn, { backgroundColor: colors.primary }]}
+              style={[styles.createBtn, { backgroundColor: colors.primary, opacity: submitting ? 0.7 : 1 }]}
               onPress={handleCreate}
               activeOpacity={0.88}
+              disabled={submitting}
             >
-              <Text style={[styles.createBtnText, { color: colors.onPrimary }]}>Create Wheel</Text>
+              {submitting ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={[styles.createBtnText, { color: colors.onPrimary }]}>Create Wheel</Text>
+              )}
             </TouchableOpacity>
           </View>
         </Animated.View>
       </Modal>
 
-      {/* Assign Spinwheel — simple placeholder modal */}
+      {/* ── Assign Spinwheel modal — real wheel list, no assign endpoint yet ── */}
       <Modal transparent visible={showAssign} animationType="fade" onRequestClose={() => setShowAssign(false)}>
         <TouchableWithoutFeedback onPress={() => setShowAssign(false)}>
           <View style={[styles.backdrop, { opacity: 1 }]} />
         </TouchableWithoutFeedback>
         <View style={[styles.assignModal, { backgroundColor: sheetBg, borderColor: cardBord }]}>
-          <Text style={[styles.modalTitle, { color: colors.onSurface, marginBottom: 8 }]}>Assign Spinwheel</Text>
-          <Text style={[styles.modalSub, { color: colors.onSurfaceVariant, marginBottom: Spacing.lg }]}>
-            Select a wheel and assign it to a user segment or campaign.
+          <Text style={[styles.modalTitle, { color: colors.onSurface, marginBottom: 4 }]}>Assign Spinwheel</Text>
+          <Text style={[styles.modalSub, { color: colors.onSurfaceVariant, marginBottom: 4 }]}>
+            Select a wheel to assign it to a user segment or campaign.
           </Text>
+          <Text style={[styles.assignNotice, { color: colors.onSurfaceVariant }]}>
+            ⚠️ No assign endpoint exists on the backend yet — this list is real, but assigning isn't saved anywhere.
+          </Text>
+
+          {wheelsLoading && wheels.length === 0 && (
+            <View style={styles.centerBlock}><ActivityIndicator color={colors.primaryContainer} /></View>
+          )}
+
           {wheels.map(w => (
-            <TouchableOpacity
-              key={w.id}
-              style={[styles.assignItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.surfaceContainerHigh, borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.border }]}
-              onPress={() => { Alert.alert('Assigned', `"${w.name}" has been assigned.`); setShowAssign(false); }}
-            >
-              <Text style={[styles.assignItemText, { color: colors.onSurface }]}>{w.name}</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.onSurfaceVariant} />
-            </TouchableOpacity>
+            <View key={w.id} style={[styles.assignItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.surfaceContainerHigh, borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.border }]}>
+              <TouchableOpacity
+                style={styles.assignItemMain}
+                onPress={() => Alert.alert('Not available yet', 'There is no assign endpoint on the backend yet, so this can\'t be persisted.')}
+              >
+                <Text style={[styles.assignItemText, { color: colors.onSurface }]}>{wheelDisplayName(w)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => openInfo(w.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="information-circle-outline" size={20} color={colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
           ))}
+
           <TouchableOpacity
             style={[styles.createBtn, { backgroundColor: colors.primaryContainer, marginTop: Spacing.md }]}
             onPress={() => setShowAssign(false)}
@@ -483,6 +623,74 @@ export default function SpinwheelScreen() {
             <Text style={[styles.createBtnText, { color: colors.onPrimaryContainer }]}>Done</Text>
           </TouchableOpacity>
         </View>
+      </Modal>
+
+      {/* ── Wheel info modal — real detail fetch ── */}
+      <Modal transparent visible={infoWheelId !== null} animationType="fade" onRequestClose={closeInfo}>
+        <TouchableWithoutFeedback onPress={closeInfo}>
+          <View style={[styles.backdrop, { opacity: 1 }]} />
+        </TouchableWithoutFeedback>
+        {infoWheelId !== null && (
+          <View style={[styles.infoModal, { backgroundColor: sheetBg, borderColor: cardBord }]}>
+            <View style={styles.infoHeader}>
+              <Text style={[styles.modalTitle, { color: colors.onSurface }]}>
+                {localNames[infoWheelId] ?? `Wheel #${infoWheelId}`}
+              </Text>
+              <TouchableOpacity onPress={closeInfo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={20} color={colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+
+            {infoLoading && (
+              <View style={styles.centerBlock}><ActivityIndicator color={colors.primaryContainer} /></View>
+            )}
+
+            {!infoLoading && infoError && (
+              <Text style={[styles.infoNoData, { color: colors.error }]}>{infoError}</Text>
+            )}
+
+            {!infoLoading && !infoError && infoDetail && (
+              <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                <View style={styles.infoRows}>
+                  <View style={styles.infoRow}>
+                    <Text style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}>ID</Text>
+                    <Text style={[styles.infoValue, { color: colors.onSurface }]}>{infoDetail.id}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}>ACTIVE</Text>
+                    <Text style={[styles.infoValue, { color: colors.onSurface }]}>{infoDetail.is_active ? 'Yes' : 'No'}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}>MAX ENTRIES</Text>
+                    <Text style={[styles.infoValue, { color: colors.onSurface }]}>{infoDetail.max_entries_amount}</Text>
+                  </View>
+                </View>
+
+                <Text style={[styles.formLabel, { color: colors.onSurfaceVariant, marginTop: Spacing.md, marginBottom: Spacing.xs }]}>
+                  COUPONS ({infoDetail.coupons?.length ?? 0})
+                </Text>
+                {(infoDetail.coupons ?? []).length === 0 ? (
+                  <Text style={[styles.infoNoData, { color: colors.onSurfaceVariant }]}>No coupons on this wheel.</Text>
+                ) : (
+                  <View style={{ gap: 6 }}>
+                    {infoDetail.coupons.map(c => (
+                      <View key={c.id} style={[styles.couponItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.surfaceContainerLow, borderColor: 'transparent' }]}>
+                        <Text style={[styles.couponItemText, { color: colors.onSurface }]}>{couponLabel(c)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              style={[styles.createBtn, { backgroundColor: colors.primaryContainer, marginTop: Spacing.md }]}
+              onPress={closeInfo}
+            >
+              <Text style={[styles.createBtnText, { color: colors.onPrimaryContainer }]}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </Modal>
     </ScreenWrapper>
   );
@@ -513,7 +721,9 @@ const styles = StyleSheet.create({
   actionLabel: { fontFamily: FontFamily.body, fontSize: 14, fontWeight: '500', textAlign: 'center' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: { fontFamily: FontFamily.heading, fontSize: 18, fontWeight: '600', letterSpacing: -0.2 },
-  seeAll: { fontFamily: FontFamily.mono, fontSize: 10, fontWeight: '500', letterSpacing: 1 },
+  seeAllHint: { fontFamily: FontFamily.mono, fontSize: 9, fontWeight: '500', letterSpacing: 1 },
+  centerBlock: { alignItems: 'center', paddingVertical: Spacing.lg, gap: Spacing.sm },
+  emptyText: { fontFamily: FontFamily.body, fontSize: 13, textAlign: 'center' },
   wheelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, borderRadius: 24, borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, overflow: 'hidden' },
   wheelIcon: { width: 48, height: 48, borderRadius: Radius.lg, justifyContent: 'center', alignItems: 'center' },
   wheelInfo: { flex: 1, gap: 3 },
@@ -541,7 +751,10 @@ const styles = StyleSheet.create({
   sheetScroll: { paddingHorizontal: Spacing.lg },
   formGroup: { paddingTop: Spacing.md, gap: 8 },
   formLabel: { fontFamily: FontFamily.mono, fontSize: 10, fontWeight: '500', letterSpacing: 1.5, textTransform: 'uppercase' },
+  fieldHint: { fontFamily: FontFamily.body, fontSize: 11, opacity: 0.75, marginLeft: 4 },
   formInput: { borderRadius: Radius.xl, borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: 10, fontFamily: FontFamily.body, fontSize: 14 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  toggleSub: { fontFamily: FontFamily.body, fontSize: 11, marginTop: 2, opacity: 0.8 },
   selectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   counter: { fontFamily: FontFamily.mono, fontSize: 10, fontWeight: '500' },
   couponSearch: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: Radius.xl, borderWidth: 1, paddingHorizontal: Spacing.md, height: 40 },
@@ -556,6 +769,15 @@ const styles = StyleSheet.create({
   createBtn: { borderRadius: Radius.xl, paddingVertical: Spacing.sm + 2, alignItems: 'center' },
   createBtnText: { fontFamily: FontFamily.heading, fontSize: 15, fontWeight: '700' },
   assignModal: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, paddingBottom: Platform.OS === 'ios' ? 40 : Spacing.xl },
+  assignNotice: { fontFamily: FontFamily.body, fontSize: 11, lineHeight: 15, marginBottom: Spacing.md },
   assignItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: Radius.xl, borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginBottom: Spacing.xs },
+  assignItemMain: { flex: 1 },
   assignItemText: { fontFamily: FontFamily.body, fontSize: 15, fontWeight: '500' },
+  infoModal: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, paddingBottom: Platform.OS === 'ios' ? 40 : Spacing.xl, gap: Spacing.md },
+  infoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  infoNoData: { fontFamily: FontFamily.body, fontSize: 13, lineHeight: 18 },
+  infoRows: { gap: Spacing.sm },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md },
+  infoLabel: { fontFamily: FontFamily.mono, fontSize: 10, fontWeight: '500', letterSpacing: 1, paddingTop: 2 },
+  infoValue: { fontFamily: FontFamily.body, fontSize: 14, fontWeight: '500', flex: 1, textAlign: 'right' },
 });

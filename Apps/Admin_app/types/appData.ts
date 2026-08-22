@@ -18,26 +18,56 @@ export interface DashboardStats {
   referrals: { eligible_users_for_payout: number };
 }
 
+export type CouponType = 'delivery' | 'itemdiscount' | string; // only these two seen so far
+export type CouponScope = 'global' | 'business' | string;
+export type CouponDiscountType = 'percent' | 'fixed' | string; // only "percent" confirmed live
+
 export interface Coupon {
   id: number;
   code: string;
   description: string;
-  coupon_type: string;
-  scope: string;
-  discount_type: string;
-  discount_value: string; // wire sends this as a string, e.g. "20.00"
+  coupon_type: CouponType;
+  scope: CouponScope;
+  discount_type: CouponDiscountType;
+  discount_value: string;
   max_uses: number;
   uses_count: number;
   valid_from: string;
   valid_until: string;
   buy_amount: number;
   get_amount: number;
-  buy_item: string | null;
-  get_item: string | null;
+  buy_item: string | number | null; // null in every sample seen so far
+  get_item: string | number | null; // null in every sample seen so far
   is_reward: boolean;
   exhausted: boolean;
   time_left_seconds: number;
 }
+
+/**
+ * POST /api/admin/coupons/create/ and PUT /api/admin/coupons/update/{id}/
+ * payload — trimmed to fields confirmed to exist on a real Coupon object.
+ * category/item/business/is_active from the earlier swagger stub do not
+ * appear anywhere on a real coupon and have been removed.
+ */
+export interface CreateCouponPayload {
+  code: string;
+  description: string;
+  coupon_type: CouponType;
+  scope: CouponScope;
+  discount_type: CouponDiscountType;
+  discount_value: string;
+  max_uses: number;
+  valid_from: string;
+  valid_until: string;
+  item?: number;       // required when coupon_type === 'itemdiscount'
+  buy_amount?: number;
+  get_amount?: number;
+  buy_item?: number | null;
+  get_item?: number | null;
+  is_reward?: boolean;
+}
+
+export type UpdateCouponPayload = CreateCouponPayload;
 
 export interface BusinessAdminUser {
   id: number;
@@ -45,6 +75,10 @@ export interface BusinessAdminUser {
   phone_number: string | null;
 }
 
+/**
+ * Business — GET /api/admin/employees/businesses/
+ * Confirmed against live response (not a swagger stub).
+ */
 export interface Business {
   id: number;
   business_name: string;
@@ -56,7 +90,11 @@ export interface Business {
   onboarding_complete: boolean;
   created_at: string;
   branches_count: number;
-  admin_user: BusinessAdminUser | null; // can be null — some rows in the sample had no admin_user
+  admin_user: {
+    id: number;
+    email: string;
+    phone_number: string;
+  } | null;
 }
 
 export interface AdminAppUser {
@@ -130,9 +168,19 @@ export interface DriverUser {
 
 export type OnboardingStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | string;
 
+/**
+ * Driver — GET /api/admin/employees/drivers/
+ * Confirmed against live response (not a swagger stub) — see appDataApi.ts.
+ */
 export interface Driver {
   id: number;
-  user: DriverUser;
+  user: {
+    id: number;
+    email: string;
+    phone_number: string;
+    is_active: boolean;
+    is_approved: boolean;
+  };
   first_name: string;
   last_name: string;
   gender: string;
@@ -140,12 +188,12 @@ export interface Driver {
   is_available: boolean;
   last_location_update: string | null;
   vehicle_make: string;
-  vehicle_type: string | null; // seen null on incomplete profiles
+  vehicle_type: string | null;
   vehicle_number: string | null;
   total_deliveries: number;
   avg_rating: number;
   created_at: string;
-  latest_onboarding_status: OnboardingStatus;
+  latest_onboarding_status: string;
   latest_onboarding_submitted_at: string | null;
   pending_documents_count: number;
   pending_onboarding_submissions_count: number;
@@ -260,4 +308,42 @@ export interface SendTicketMessagePayload {
                           // idempotency key (see note below). Optional until confirmed required.
   message: string;
   attachments: string[]; // attachment IDs, NOT raw files/URLs — see upload note below
+}
+
+
+
+/**
+ * GET /api/admin/coupons/wheel/all/ — list item shape.
+ * Confirmed real (non-stub) response. No `name` field exists on a wheel —
+ * the earlier "Spinwheel Name" UI field has always been a local-only label,
+ * never persisted to the backend.
+ */
+export interface SpinWheel {
+  id: number;
+  max_entries_amount: number;
+  is_active: boolean;
+}
+
+/**
+ * GET /api/admin/coupons/wheel/{id}/ — detail shape.
+ * ⚠️ Sample provided still has swagger-stub tells (int32-max placeholders,
+ * a negative discount_value, "string" placeholders) inside the nested
+ * coupons array, so treat the individual Coupon fields inside `coupons`
+ * with the same caution as elsewhere — but the STRUCTURE (full nested
+ * Coupon objects under `coupons`, not `coupon_ids`) is what matters here
+ * and is taken at face value.
+ */
+export interface SpinWheelDetail extends SpinWheel {
+  coupons: Coupon[];
+}
+
+/**
+ * POST /api/admin/coupons/wheel/create/ payload.
+ * max_entries_amount's exact semantics are still unconfirmed (only known
+ * to be a required integer). coupon_ids are Coupon.id values.
+ */
+export interface CreateSpinWheelPayload {
+  max_entries_amount: number;
+  is_active: boolean;
+  coupon_ids: number[];
 }
