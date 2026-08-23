@@ -1,5 +1,5 @@
 // screens/SignInScreen.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
@@ -12,6 +12,7 @@ import { IconSymbol } from "../components/ui/icon-symbol";
 import { PhoneInput } from "../components/FormInput";
 import { driverLogin } from "../services/signupApi";
 import { useAppData } from "../context/appDataContext";
+import { useTheme, ThemeColors } from "../context/ThemeContext";
 
 // ── DEV TOGGLE ───────────────────────────────────────────────────────────────
 // true  → skip API, jump straight to HomeScreen
@@ -22,6 +23,7 @@ type RootStackParamList = {
   Login_SignUp: undefined;
   SignIn:       undefined;
   HomeScreen:   undefined;
+  ForgotPassword: undefined;
 };
 
 type SignInNavProp = NativeStackNavigationProp<RootStackParamList, "SignIn">;
@@ -29,6 +31,8 @@ type SignInNavProp = NativeStackNavigationProp<RootStackParamList, "SignIn">;
 const SignIn = () => {
   const navigation      = useNavigation<SignInNavProp>();
   const { refresh }     = useAppData();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [fullPhone, setFullPhone]       = useState("");
   const [password, setPassword]         = useState("");
@@ -89,7 +93,7 @@ const SignIn = () => {
         onPress={() => navigation.goBack()}
         disabled={loading}
       >
-        <IconSymbol name="ArrowLeft" size={24} color="#000000" />
+        <IconSymbol name="ArrowLeft" size={24} color={colors.iconColor} />
       </TouchableOpacity>
 
       <Text style={styles.title}>Sign In</Text>
@@ -114,7 +118,7 @@ const SignIn = () => {
           <TextInput
             style={[styles.input, { flex: 1, marginBottom: 0 }]}
             placeholder="Password"
-            placeholderTextColor="#A0A0A0"
+            placeholderTextColor={colors.textMuted}
             secureTextEntry={!showPassword}
             value={password}
             onChangeText={setPassword}
@@ -126,15 +130,19 @@ const SignIn = () => {
             disabled={loading}
           >
             {showPassword
-              ? <IconSymbol name="EyeInvisibleIcon" size={24} color="#000000" />
-              : <IconSymbol name="EyeIcon"          size={24} color="#000000" />
+              ? <IconSymbol name="EyeInvisibleIcon" size={24} color={colors.iconColor} />
+              : <IconSymbol name="EyeIcon"          size={24} color={colors.iconColor} />
             }
           </TouchableOpacity>
         </View>
       </View>
 
-      <TouchableOpacity style={styles.forgotButton} disabled={loading}>
-        <Text style={styles.forgotText}>Forgot Password?</Text>
+      <TouchableOpacity
+         style={styles.forgotButton}
+         disabled={loading}
+         onPress={() => navigation.navigate("ForgotPassword")}
+      >
+      <Text style={styles.forgotText}>Forgot Password?</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -143,7 +151,7 @@ const SignIn = () => {
         disabled={loading}
       >
         {loading
-          ? <ActivityIndicator color="#000" />
+          ? <ActivityIndicator color={colors.textPrimary} />
           : <Text style={styles.buttonText}>
               {DEV_BYPASS_AUTH ? "Skip to Home (dev)" : "Sign In"}
             </Text>
@@ -155,12 +163,12 @@ const SignIn = () => {
 
 export default SignIn;
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
-    flex: 1, backgroundColor: "#F9F9FB", padding: 24, justifyContent: "center",
+    flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: "center",
   },
   backBtn: { marginBottom: 16 },
-  title: { fontSize: 32, fontWeight: "700", color: "#1B1B1F", marginBottom: 8 },
+  title: { fontSize: 32, fontWeight: "700", color: colors.textPrimary, marginBottom: 8 },
   devBadge: {
     alignSelf: "flex-start", backgroundColor: "#FFF3CD",
     borderWidth: 1, borderColor: "#FFCA28", borderRadius: 8,
@@ -169,24 +177,25 @@ const styles = StyleSheet.create({
   devBadgeText: { fontSize: 12, fontWeight: "600", color: "#7A5800" },
   inputContainer: { marginBottom: 24 },
   phoneWrapper: { marginBottom: 16 },
-  phoneLabel: { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 8 },
+  phoneLabel: { fontSize: 16, fontWeight: "600", color: colors.textPrimary, marginBottom: 8 },
   input: {
-    backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 14,
     borderRadius: 12, fontSize: 16, marginBottom: 16,
-    shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 4, elevation: 1, color: "#000",
+    shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    color: colors.textPrimary,
   },
   passwordWrapper: {
-    flexDirection: "row", alignItems: "center", backgroundColor: "#fff",
+    flexDirection: "row", alignItems: "center", backgroundColor: colors.card,
     borderRadius: 12, paddingRight: 8,
     shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   eyeButton: { paddingHorizontal: 8 },
   button: {
-    backgroundColor: "#efeded", paddingVertical: 16,
+    backgroundColor: colors.actionBtnBg, paddingVertical: 16,
     borderRadius: 50, alignItems: "center", marginBottom: 12,
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#000", fontSize: 16, fontWeight: "600" },
+  buttonText: { color: colors.textPrimary, fontSize: 16, fontWeight: "600" },
   forgotButton: { alignSelf: "flex-start", marginBottom: 24 },
-  forgotText: { color: "#D44C0C", fontSize: 14 },
+  forgotText: { color: colors.accentOrange, fontSize: 14 },
 });

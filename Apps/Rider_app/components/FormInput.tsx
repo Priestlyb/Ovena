@@ -481,6 +481,7 @@ export default function FormInput(props: FormInputProps) {
 
   // Phone type: delegate to PhoneInput — it owns its own digit state internally.
   // `value` seeds the initial digits; `onChange` receives the full number string.
+  // Phone type: delegate to PhoneInput — it owns its own digit state internally.
   if (type === "phone") {
     return (
       <View style={styles.wrapper}>
@@ -498,6 +499,11 @@ export default function FormInput(props: FormInputProps) {
       </View>
     );
   }
+
+  // Password type: adds a visibility-toggle eye icon
+  const [showPassword, setShowPassword] = useState(false);
+  const isPasswordField = type === "password";
+  const resolvedSecureText = isPasswordField ? !showPassword : secureText;
 
   return (
     <View style={styles.wrapper}>
@@ -526,11 +532,23 @@ export default function FormInput(props: FormInputProps) {
           value={value}
           onChangeText={onChange}
           keyboardType={keyboardMap[type]}
-          secureTextEntry={secureText || type === "password"}
+          secureTextEntry={resolvedSecureText}
           maxLength={maxLength}
           autoCapitalize={type === "email" ? "none" : "sentences"}
           autoCorrect={false}
         />
+        {isPasswordField && (
+          <TouchableOpacity
+            onPress={() => setShowPassword((v) => !v)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ paddingHorizontal: 4 }}
+          >
+            {showPassword
+              ? <IconSymbol name="EyeInvisibleIcon" size={20} color={colors.textMuted} />
+              : <IconSymbol name="EyeIcon" size={20} color={colors.textMuted} />
+            }
+          </TouchableOpacity>
+        )}
         {maxLength && (
           <Text style={[
             styles.counter,

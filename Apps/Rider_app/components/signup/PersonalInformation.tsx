@@ -61,12 +61,22 @@ const PersonalStep = forwardRef<PersonalStepRef, PersonalStepProps>(
   ({ personalInfo, setPersonalInfo }, ref) => {
     const { colors } = useTheme();
     const [errors, setErrors] = useState<ErrorMap>({});
+    const [confirmPassword, setConfirmPassword] = useState("");
 
     useImperativeHandle(ref, () => ({
       triggerValidation: () => {
         const errs = validatePersonalInfo(personalInfo);
-        setErrors(errs);
-        return isPersonalInfoValid(errs);
+
+        const confirmError =
+          confirmPassword.trim() === ""
+            ? "Please confirm your password."
+            : confirmPassword !== personalInfo.password
+            ? "Passwords do not match."
+            : "";
+
+        const allErrors = { ...errs, confirm_password: confirmError };
+        setErrors(allErrors);
+        return isPersonalInfoValid(errs) && !confirmError;
       },
     }));
 
@@ -74,6 +84,13 @@ const PersonalStep = forwardRef<PersonalStepRef, PersonalStepProps>(
     const handleChange = (field: string, value: string) => {
       setPersonalInfo({ ...personalInfo, [field]: value });
       if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
+    };
+
+    const handleConfirmPasswordChange = (value: string) => {
+      setConfirmPassword(value);
+      if (errors.confirm_password) {
+        setErrors((prev) => ({ ...prev, confirm_password: "" }));
+      }
     };
 
     const pickerItemStyle = { color: colors.textPrimary, backgroundColor: colors.card };
@@ -148,6 +165,17 @@ const PersonalStep = forwardRef<PersonalStepRef, PersonalStepProps>(
                 type="password"
                 minLength={6}
                 error={errors.password}
+              />
+
+              {/* ── Confirm Password ── */}
+              <FormInput
+                label="Confirm Password"
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={handleConfirmPasswordChange}
+                iconName={icons.password}
+                type="password"
+                error={errors.confirm_password}
               />
 
               {/* ── Gender ── */}

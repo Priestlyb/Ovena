@@ -18,6 +18,7 @@ import TermsScreen from "./screens/TermsScreen";
 import Signup from "./screens/SignupScreen";
 import Signin from "./screens/SigninScreen";
 import HomeScreen from "./screens/HomeScreen";
+import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
 
 // ── Navigation types ──────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ type RootStackParamList = {
   Signup:       undefined;
   SignIn:        undefined;
   HomeScreen:   undefined;
+  ForgotPassword: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -132,6 +134,7 @@ export default function App() {
               <Stack.Screen name="Signup"       component={Signup} />
               <Stack.Screen name="SignIn"       component={Signin} />
               <Stack.Screen name="HomeScreen"   component={HomeScreen} />
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </AppDataProvider>

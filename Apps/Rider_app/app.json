@@ -63,8 +63,7 @@
           "locationWhenInUsePermission": "Ovena Riders needs your location to show your position on the map."
         }
       ],
-      "expo-font",
-      "expo-router"
+      "expo-font"
     ],
     "owner": "oraelys"
   }
