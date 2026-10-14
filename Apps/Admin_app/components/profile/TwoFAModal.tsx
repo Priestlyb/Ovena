@@ -206,7 +206,7 @@ export function TwoFAModal({ visible, isActive, onToggle, onClose }: TwoFAModalP
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.60)',
   },
   sheet: {

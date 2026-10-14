@@ -2,83 +2,138 @@
  * app/(tabs)/index.tsx
  *
  * Home screen. Layout order:
- *   Header (topbar + greeting)
- *   StatsScrollStrip  (10 metrics, horizontal scroll)
- *   CouponWheelBanner (now includes Coupon Manager + Assign Spinwheel
- *     as glass buttons inside the banner — QuickActions row removed)
- *   LiveMapCard  (placeholder map + "view all active orders")
+ *   Header (topbar + greeting) — bell icon now opens /notifications
+ *   StatsScrollStrip  (built from the real WS `dashboard` snapshot — see
+ *     buildStatsFromDashboard below — not mock data)
+ *   Actions box        (Coupon Manager, Assign Spinwheel, Active Orders)
  *   LiveLogistics
  *   PanicProtocol
+ *
+ * Notification toasts do NOT live in this file — NotificationToast is
+ * mounted once at the app root (app/_layout.tsx) so it shows on every
+ * screen, positioned below the status bar via safe-area insets.
+ *
+ * ⚠️ STATS: the old mock array is gone — only what's confirmed in the
+ * `dashboard` WS payload is shown:
+ *   { active_by_status: { [status]: count, ... }, stuck_orders_count,
+ *     payment_failure_count, cancelled_today_count, generated_at }
+ * One dynamic card per status key PRESENT in active_by_status (a status
+ * with zero active orders doesn't appear as a key), plus a total and the
+ * three standalone counts. StatsScrollStrip shows skeletons until the
+ * first snapshot arrives.
  */
 
-import React from 'react';
-import { ScrollView, View, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { router } from "expo-router";
+import React from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 
-import ScreenWrapper                        from '@/components/ScreenWrapper';
-import { Header }                           from '@/components/home/Header';
-import { StatsScrollStrip, StatCardData }   from '@/components/home/StatsScrollStrip';
-import { CouponWheelBanner }                from '@/components/home/CouponWheelBanner';
-import { LiveMapCard }                      from '@/components/home/LiveMapCard';
-import { LiveLogistics, LogisticsItem }     from '@/components/home/LiveLogistics';
-import { PanicProtocol }                    from '@/components/home/PanicProtocol';
-import { useTheme }                         from '@/context/ThemeContext';
-import { Spacing }                          from '@/constants/theme';
-import { MOCK_MAP_MARKERS }                 from '@/data/mockDashboard';
+import ScreenWrapper from "@/components/ScreenWrapper";
+import { CouponWheelBanner } from "@/components/home/CouponWheelBanner";
+import { Header } from "@/components/home/Header";
+import { LiveLogistics, LogisticsItem } from "@/components/home/LiveLogistics";
+import { PanicProtocol } from "@/components/home/PanicProtocol";
+import {
+  StatCardData,
+  StatsScrollStrip,
+} from "@/components/home/StatsScrollStrip";
+import { Spacing } from "@/constants/theme";
+import { useAdminOrdersWS } from "@/context/AdminOrdersWebSocketContext";
+import { DashboardSnapshot } from "@/hooks/useAdminOrdersWebSocket";
+import { ORDER_STATUS_LABEL } from "@/types/dashboard";
 
 const LOGISTICS: LogisticsItem[] = [
   {
-    id:          '4402',
-    type:        'rider',
-    name:        'Rider ID #4402',
-    subtitle:    "Active Delivery • McDonald's",
-    eta:         '8m',
-    stk:         120,
-    leftBorder:  'lava',
+    id: "4402",
+    type: "rider",
+    name: "Rider ID #4402",
+    subtitle: "Active Delivery • McDonald's",
+    eta: "8m",
+    stk: 120,
+    leftBorder: "lava",
   },
   {
-    id:          'pasta',
-    type:        'store',
-    name:        'Store: Pasta Palace',
-    subtitle:    'Order Prep Overload',
-    delay:       '15m',
-    stk:         85,
-    leftBorder:  'error',
+    id: "pasta",
+    type: "store",
+    name: "Store: Pasta Palace",
+    subtitle: "Order Prep Overload",
+    delay: "15m",
+    stk: 85,
+    leftBorder: "error",
   },
   {
-    id:          'sarah',
-    type:        'client',
-    name:        'Client: Sarah J.',
-    subtitle:    'Support Request Pending',
-    leftBorder:  'none',
+    id: "sarah",
+    type: "client",
+    name: "Client: Sarah J.",
+    subtitle: "Support Request Pending",
+    leftBorder: "none",
   },
 ];
 
-// ⚠️ UNVERIFIED: values are mock/display-formatted until the real
-// dashboard-summary endpoint is confirmed.
-const STATS: StatCardData[] = [
-  { id: 'total-orders',   label: 'Total Orders Today',   value: '312',      icon: 'receipt-outline',          delta: '+12%', deltaPositive: true },
-  { id: 'in-progress',    label: 'Orders In Progress',   value: '124',      icon: 'sync-outline',              accent: 'lava' },
-  { id: 'completed',      label: 'Completed Orders',     value: '178',      icon: 'checkmark-circle-outline',  accent: 'success' },
-  { id: 'cancelled',      label: 'Cancelled Orders',     value: '10',       icon: 'close-circle-outline',      accent: 'error', delta: '-2%', deltaPositive: false },
-  { id: 'revenue',        label: 'Total Revenue Today',  value: '₦1.82M',   icon: 'cash-outline',              accent: 'lava' },
-  { id: 'delivery-fees',  label: 'Delivery Fees Earned', value: '₦248K',    icon: 'bicycle-outline' },
-  { id: 'service-fees',   label: 'Service Fees Earned',  value: '₦96K',     icon: 'construct-outline' },
-  { id: 'commissions',    label: 'Restaurant Commissions', value: '₦412K',  icon: 'storefront-outline' },
-  { id: 'active-riders',  label: 'Active Riders',        value: '47',       icon: 'people-outline' },
-  { id: 'online-restaurants', label: 'Online Restaurants', value: '63',     icon: 'restaurant-outline' },
-];
+function buildStatsFromDashboard(dashboard: DashboardSnapshot): StatCardData[] {
+  const totalActive = Object.values(dashboard.active_by_status).reduce(
+    (sum, n) => sum + n,
+    0,
+  );
+
+  const stats: StatCardData[] = [
+    {
+      id: "total-active",
+      label: "Total Active Orders",
+      value: String(totalActive),
+      icon: "receipt-outline",
+      accent: "lava",
+    },
+  ];
+
+  Object.entries(dashboard.active_by_status).forEach(([status, count]) => {
+    stats.push({
+      id: `active-${status}`,
+      label: ORDER_STATUS_LABEL[status] ?? status,
+      value: String(count),
+      icon: "sync-outline",
+    });
+  });
+
+  stats.push({
+    id: "stuck-orders",
+    label: "Stuck Orders",
+    value: String(dashboard.stuck_orders_count),
+    icon: "alert-circle-outline",
+    accent: dashboard.stuck_orders_count > 0 ? "error" : "default",
+  });
+
+  stats.push({
+    id: "payment-failures",
+    label: "Payment Failures",
+    value: String(dashboard.payment_failure_count),
+    icon: "card-outline",
+    accent: dashboard.payment_failure_count > 0 ? "error" : "default",
+  });
+
+  stats.push({
+    id: "cancelled-today",
+    label: "Cancelled Today",
+    value: String(dashboard.cancelled_today_count),
+    icon: "close-circle-outline",
+    accent: dashboard.cancelled_today_count > 0 ? "error" : "default",
+  });
+
+  return stats;
+}
 
 export default function HomeScreen() {
-  const { colors } = useTheme();
+  const { dashboard } = useAdminOrdersWS();
+
+  const statsLoading = dashboard === null;
+  const stats = dashboard ? buildStatsFromDashboard(dashboard) : [];
 
   return (
     <ScreenWrapper noPadding>
       <Header
         adminName="Smith"
         avatarUri="https://lh3.googleusercontent.com/aida-public/AB6AXuClnpuEkERs3otQ5_fyuuajmhWVukNk_qf5tdVUzM4GwH9X8mXMnQ8Bxf2uX0ISNLp6uMdN7GX7jD_mTMPkF61a2KnsUps7qjJpCzsvFj9xCSAbOIgyb3-jPPfaZ-wuPbvVGB7JZt9Pws3F1d3epAjUUMmYE13YLBraJ35RM1Ptyumlf1EMXVZ9Z89si3LOOnwSKoMn_DuVCCGF6AzPpqqXo5EpUStiKOXh5EIsKtmZPFYMFkBcVsuFCALw4C1mNhJuZQUobrzKQATy"
-        onNotificationPress={() => console.log('notifications')}
-        onAvatarPress={() => router.push('/profile')}
+        onNotificationPress={() => router.push("/notifications" as any)}
+        onAvatarPress={() => router.push("/profile")}
       />
 
       <ScrollView
@@ -86,24 +141,18 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Stats */}
-        <StatsScrollStrip stats={STATS} />
+        <StatsScrollStrip stats={stats} loading={statsLoading} />
 
-        {/* Promotion Engine — actions now live inside the banner */}
         <CouponWheelBanner
-          onCouponManager={()   => router.push('/coupons')}
-          onAssignSpinwheel={() => router.push('/spinwheel')}
+          onCouponManager={() => router.push("/coupons")}
+          onAssignSpinwheel={() => router.push("/spinwheel")}
+          onActiveOrders={() => router.push("/orders/active")}
         />
 
-        {/* Live map of active deliveries */}
-        <LiveMapCard markers={MOCK_MAP_MARKERS} />
-
-        {/* Live Logistics */}
         <LiveLogistics items={LOGISTICS} />
 
-        {/* Panic Protocol */}
         <View style={styles.panicSection}>
-          <PanicProtocol onActivate={() => console.log('panic')} />
+          <PanicProtocol onActivate={() => console.log("panic")} />
         </View>
 
         <View style={{ height: Spacing.xl }} />
@@ -117,7 +166,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    gap:           Spacing.lg,
+    gap: Spacing.lg,
     paddingBottom: Spacing.md,
   },
   panicSection: {

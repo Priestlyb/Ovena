@@ -8,39 +8,61 @@
  *  - Title: text-on-primary (dark brown #531f00)
  *  - Subtitle: text-on-primary/80
  *
- * Coupon Manager / Assign Spinwheel now render as two square, solid-surface
- * buttons side by side inside the banner — same bg/text treatment the old
- * "Launch Engine" pill used (colors.surface bg, colors.primaryContainer
- * text/icon), just split into two square tiles instead of one wide pill.
+ * Coupon Manager / Assign Spinwheel / Active Orders now render as three
+ * square, solid-surface buttons side by side inside the banner — same
+ * bg/text treatment the old "Launch Engine" pill used (colors.surface bg,
+ * colors.primaryContainer text/icon), just split into square tiles
+ * instead of one wide pill.
+ *
+ * This box is no longer coupon-wheel-specific — title/subtitle updated to
+ * reflect it as the general management-actions entry point (Active Orders
+ * added as the third tile, replacing the entry point that used to live on
+ * the now-removed LiveMapCard). Dice decoration kept since Assign
+ * Spinwheel still lives here; swap it if that reads wrong now that the
+ * box covers more than just the spinwheel.
  */
 
-import React, { useRef } from 'react';
+import { FontFamily, Radius, Spacing } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import React, { useRef } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
   Animated,
   StyleSheet,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/context/ThemeContext';
-import { Spacing, Radius, FontFamily } from '@/constants/theme';
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface CouponWheelBannerProps {
-  onCouponManager?:   () => void;
+  onCouponManager?: () => void;
   onAssignSpinwheel?: () => void;
+  onActiveOrders?: () => void;
 }
 
-export function CouponWheelBanner({ onCouponManager, onAssignSpinwheel }: CouponWheelBannerProps) {
+export function CouponWheelBanner({
+  onCouponManager,
+  onAssignSpinwheel,
+  onActiveOrders,
+}: CouponWheelBannerProps) {
   const { colors } = useTheme();
 
   // Casino icon hover scale (group-hover:scale-110 duration-700)
   const diceScale = useRef(new Animated.Value(1)).current;
-  const onBannerPressIn  = () =>
-    Animated.timing(diceScale, { toValue: 1.10, duration: 700, useNativeDriver: true }).start();
+  const onBannerPressIn = () =>
+    Animated.timing(diceScale, {
+      toValue: 1.1,
+      duration: 700,
+      useNativeDriver: true,
+    }).start();
   const onBannerPressOut = () =>
-    Animated.spring(diceScale, { toValue: 1, useNativeDriver: true, speed: 8, bounciness: 4 }).start();
+    Animated.spring(diceScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 8,
+      bounciness: 4,
+    }).start();
 
   return (
     <View style={styles.wrapper}>
@@ -51,12 +73,17 @@ export function CouponWheelBanner({ onCouponManager, onAssignSpinwheel }: Coupon
         style={styles.bannerOuter}
       >
         <LinearGradient
-          colors={['#f56e0f', '#ff3d00']}
+          colors={["#f56e0f", "#ff3d00"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#f56e0f', opacity: 0.15 }]} />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: "#f56e0f", opacity: 0.15 },
+          ]}
+        />
 
         {/* Decorative dice icon — bottom right */}
         <Animated.View
@@ -68,9 +95,9 @@ export function CouponWheelBanner({ onCouponManager, onAssignSpinwheel }: Coupon
 
         {/* Content */}
         <View style={styles.bannerContent}>
-          <Text style={styles.bannerTitle}>Create Coupon Wheel</Text>
+          <Text style={styles.bannerTitle}>Quick Actions</Text>
           <Text style={styles.bannerSubtitle}>
-            Design custom gamified rewards for seasonal campaigns.
+            Common management activities, one tap away.
           </Text>
 
           {/* Square action tiles, side by side */}
@@ -87,6 +114,12 @@ export function CouponWheelBanner({ onCouponManager, onAssignSpinwheel }: Coupon
               onPress={onAssignSpinwheel}
               colors={colors}
             />
+            <SquareActionButton
+              icon="receipt"
+              label="Active Orders"
+              onPress={onActiveOrders}
+              colors={colors}
+            />
           </View>
         </View>
       </TouchableOpacity>
@@ -95,16 +128,33 @@ export function CouponWheelBanner({ onCouponManager, onAssignSpinwheel }: Coupon
 }
 
 interface SquareActionButtonProps {
-  icon:    keyof typeof Ionicons.glyphMap;
-  label:   string;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
   onPress?: () => void;
-  colors:  ReturnType<typeof useTheme>['colors'];
+  colors: ReturnType<typeof useTheme>["colors"];
 }
 
-function SquareActionButton({ icon, label, onPress, colors }: SquareActionButtonProps) {
+function SquareActionButton({
+  icon,
+  label,
+  onPress,
+  colors,
+}: SquareActionButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
-  const onIn  = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
-  const onOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 20, bounciness: 6 }).start();
+  const onIn = () =>
+    Animated.spring(scale, {
+      toValue: 0.95,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  const onOut = () =>
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 6,
+    }).start();
 
   return (
     <Animated.View style={[styles.squareBtnWrap, { transform: [{ scale }] }]}>
@@ -133,70 +183,70 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.gutter,
   },
   bannerOuter: {
-    borderRadius:  40,   // rounded-[2.5rem]
-    overflow:      'hidden',
-    paddingVertical:   Spacing.lg,
+    borderRadius: 40, // rounded-[2.5rem]
+    overflow: "hidden",
+    paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xl,
-    minHeight:     180,
+    minHeight: 180,
   },
   diceDecor: {
-    position: 'absolute',
-    right:    -40,
-    bottom:   -40,
+    position: "absolute",
+    right: -40,
+    bottom: -40,
   },
   bannerContent: {
-    gap:      Spacing.xs,
-    position: 'relative',
-    zIndex:   10,
+    gap: Spacing.xs,
+    position: "relative",
+    zIndex: 10,
   },
   bannerTitle: {
-    fontFamily:    FontFamily.heading,
-    fontSize:      24,
-    fontWeight:    '600',
-    lineHeight:    32,
+    fontFamily: FontFamily.heading,
+    fontSize: 24,
+    fontWeight: "600",
+    lineHeight: 32,
     letterSpacing: -0.3,
-    color:         '#531f00',  // on-primary-container — fixed, design token
+    color: "#531f00", // on-primary-container — fixed, design token
   },
   bannerSubtitle: {
-    fontFamily:  FontFamily.body,
-    fontSize:    14,
-    lineHeight:  20,
-    fontWeight:  '400',
-    color:       'rgba(83,31,0,0.80)',
-    maxWidth:    200,
-    marginTop:   4,
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "400",
+    color: "rgba(83,31,0,0.80)",
+    maxWidth: 200,
+    marginTop: 4,
     marginBottom: Spacing.lg,
   },
 
   // Square action tiles, side by side
   actionsRow: {
-    flexDirection: 'row',
-    gap:           Spacing.sm,
+    flexDirection: "row",
+    gap: Spacing.sm,
   },
   squareBtnWrap: {
     flex: 1,
     maxWidth: 100, // keeps tiles roughly square rather than stretching wide
   },
   squareBtn: {
-    aspectRatio:       3/2,
-    borderRadius:      Radius.lg,   // squared corners, not full/pill
-    alignItems:        'center',
-    justifyContent:    'center',
-    gap:               6,
+    aspectRatio: 3 / 2,
+    borderRadius: Radius.lg, // squared corners, not full/pill
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
     paddingHorizontal: Spacing.xs,
-    paddingVertical:   Spacing.xs,
+    paddingVertical: Spacing.xs,
     // subtle elevation so the solid surface lifts off the gradient
-    shadowColor:   '#000',
-    shadowOffset:  { width: 0, height: 2 },
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
-    shadowRadius:  6,
-    elevation:     3,
+    shadowRadius: 6,
+    elevation: 3,
   },
   squareBtnText: {
-    fontFamily:   FontFamily.body,
-    fontSize:     11,
-    fontWeight:   '600',
-    textAlign:    'center',
-    lineHeight:   12,
+    fontFamily: FontFamily.body,
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 12,
   },
 });

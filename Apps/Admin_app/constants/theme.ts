@@ -83,6 +83,19 @@ export interface ThemeColors {
   tabBarInactive:             string;
 }
 
+export const Colors = {
+  light: {
+    text: '#11181C',
+    background: '#F2F4F7',
+    icon: '#687076',
+  },
+  dark: {
+    text: '#ECEDEE',
+    background: '#11181C',
+    icon: '#9BA1A6',
+  },
+} as const;
+
 // ─── Dark palette (default — "Dark Void" design) ─────────────────────────────
 export const DarkColors: ThemeColors = {
   background:                 '#141318',

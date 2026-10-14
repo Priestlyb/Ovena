@@ -1,69 +1,54 @@
 /**
  * types/dashboard.ts
  *
- * Shared shapes for the admin dashboard's order-tracking surfaces.
- *
- * OrderStatus now follows the confirmed flow:
- *   New Order → Restaurant Accepted → Preparing → Rider Assigned →
- *   Picked Up → On the Way → Delivered   (+ Cancelled as a terminal branch)
- *
- * ⚠️ UNVERIFIED: field names/shapes are placeholders. Confirm against the
- * live API before wiring real endpoints.
+ * ⚠️ OrderApiStatus reflects only statuses actually observed from a live
+ * GET /api/admin/orders/ response — more may exist server-side (string
+ * fallback included).
  */
 
-export type OrderStatus =
-  | 'new'
-  | 'restaurant_accepted'
+export type OrderApiStatus =
+  | 'pending'
+  | 'payment_pending'
+  | 'awaiting_payment_method'
+  | 'payment_initialization_failed'
   | 'preparing'
-  | 'rider_assigned'
-  | 'picked_up'
-  | 'on_the_way'
+  | 'ready'
   | 'delivered'
-  | 'cancelled';
+  | 'cancelled'
+  | string;
 
-export const ORDER_STATUS_FLOW: OrderStatus[] = [
-  'new',
-  'restaurant_accepted',
+// Per spec: ONLY these count as "active" for the Active Orders screen —
+// everything else is filtered out there by design.
+export const ACTIVE_ORDER_STATUSES: OrderApiStatus[] = [
+  'pending',
+  'payment_pending',
+  'ready',
+  'payment_initialization_failed',
   'preparing',
-  'rider_assigned',
-  'picked_up',
-  'on_the_way',
-  'delivered',
 ];
 
-export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
-  new: 'New Order',
-  restaurant_accepted: 'Restaurant Accepted',
+// Every status observed so far, for the Change Status picker on Order
+// Detail — includes ones outside ACTIVE_ORDER_STATUSES (delivered,
+// cancelled, awaiting_payment_method) since a manual force-status override
+// isn't limited to the "active" subset.
+export const ALL_ORDER_STATUSES: OrderApiStatus[] = [
+  'pending',
+  'payment_pending',
+  'awaiting_payment_method',
+  'payment_initialization_failed',
+  'preparing',
+  'ready',
+  'delivered',
+  'cancelled',
+];
+
+export const ORDER_STATUS_LABEL: Record<string, string> = {
+  pending: 'Pending',
+  payment_pending: 'Payment Pending',
+  awaiting_payment_method: 'Awaiting Payment',
+  payment_initialization_failed: 'Payment Failed',
   preparing: 'Preparing',
-  rider_assigned: 'Rider Assigned',
-  picked_up: 'Picked Up',
-  on_the_way: 'On the Way',
+  ready: 'Ready',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
-
-export interface ActiveOrderSummary {
-  orderId: string;
-  restaurantId: string;
-  restaurantName: string;
-  customerId: string;
-  customerName: string;
-  driverId: string | null;
-  driverName: string | null;
-  status: OrderStatus;
-  etaMinutes: number | null;
-  placedAt: string; // ISO timestamp
-}
-
-export interface OrderDetail extends ActiveOrderSummary {
-  driverPhone: string | null;
-  customerPhone: string;
-  restaurantPhone: string;
-  deliveryAddress: string;
-  items: { name: string; quantity: number }[];
-  subtotal: number;
-  deliveryFee: number;
-  serviceFee: number;
-  total: number;
-  statusHistory: { status: OrderStatus; timestamp: string }[];
-}

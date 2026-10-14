@@ -260,7 +260,7 @@ export function PasswordChangeModal({ visible, onClose, onSaved }: PasswordChang
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.60)',
   },
   kavWrapper: {

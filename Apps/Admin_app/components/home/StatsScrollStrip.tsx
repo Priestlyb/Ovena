@@ -2,8 +2,11 @@
  * components/home/StatsScrollStrip.tsx
  *
  * Horizontal-scrolling strip of compact stat cards for the admin home
- * screen. Replaces the old 2-box StatsRow — now needs to fit 10 metrics,
- * so each card is intentionally small.
+ * screen.
+ *
+ * `loading` renders skeleton placeholder cards (same dimensions as real
+ * cards) instead of mapping `stats` — used for the window before the WS
+ * `dashboard` snapshot has arrived (see app/(tabs)/index.tsx).
  *
  * ⚠️ UNVERIFIED: `StatCardData.value` is a pre-formatted display string
  * (e.g. "₦482,300", "124", "+12%") since we don't yet know whether the
@@ -16,6 +19,7 @@ import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/context/ThemeContext';
+import { Skeleton } from '@/components/Skeleton';
 import { Spacing, Radius, FontFamily } from '@/constants/theme';
 
 export type StatAccent = 'default' | 'lava' | 'success' | 'error';
@@ -32,18 +36,22 @@ export interface StatCardData {
 
 interface StatsScrollStripProps {
   stats: StatCardData[];
+  /** Shows skeleton cards instead of `stats` — e.g. before the first WS dashboard snapshot arrives. */
+  loading?: boolean;
+  /** How many skeleton cards to show while loading. Defaults to 5. */
+  skeletonCount?: number;
 }
 
-export function StatsScrollStrip({ stats }: StatsScrollStripProps) {
+export function StatsScrollStrip({ stats, loading, skeletonCount = 5 }: StatsScrollStripProps) {
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}
     >
-      {stats.map((stat) => (
-        <StatCard key={stat.id} stat={stat} />
-      ))}
+      {loading
+        ? Array.from({ length: skeletonCount }).map((_, i) => <StatCardSkeleton key={i} />)
+        : stats.map((stat) => <StatCard key={stat.id} stat={stat} />)}
     </ScrollView>
   );
 }
@@ -81,6 +89,24 @@ function StatCard({ stat }: { stat: StatCardData }) {
       <Text style={[styles.label, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
         {stat.label}
       </Text>
+    </View>
+  );
+}
+
+function StatCardSkeleton() {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.surfaceContainer, borderColor: colors.borderSubtle },
+      ]}
+    >
+      <View style={styles.cardHeader}>
+        <Skeleton width={22} height={22} borderRadius={Radius.full} />
+      </View>
+      <Skeleton width={48} height={16} style={{ marginTop: 4 }} />
+      <Skeleton width={72} height={11} style={{ marginTop: 4 }} />
     </View>
   );
 }

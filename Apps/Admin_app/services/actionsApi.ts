@@ -9,47 +9,49 @@
  * same convention, applied here as AppDataApiError (passive) vs.
  * SupportActionsApiError (active) so a failure's origin is identifiable
  * from its error class alone, not just its message.
+ *  
  *
  * Endpoints covered:
  *   GET  /api/admin/support/tickets/                 (paginated, limit+offset)
  *   GET  /api/admin/support/tickets/{id}/messages/    (paginated, limit+offset)
  *   POST /api/admin/support/tickets/{id}/messages/    (send message + attachments)
+ *  POST /api/admin/support/tickets/{id}/close/       (close ticket)
+ * POST /api/admin/support/tickets/{id}/reopen/      (reopen ticket)
+ *  POST /api/admin/change-password/                  (change admin password)
+ * POST /api/admin/logout/                           (server-side logout)
+ * 
  *
  * Same raw-text-first parsing + emoji-tagged console logging convention as
  * appDataApi.ts and authApi.ts, so Metro logs read consistently across files.
  */
 
 import {
-  SupportTicket,
-  PaginatedResponse,
-  TicketMessage,
-  TicketMessagesResponse,
-  SendTicketMessagePayload,
   Coupon,
   CreateCouponPayload,
-  UpdateCouponPayload,
   CreateSpinWheelPayload,
+  PaginatedResponse,
+  SendTicketMessagePayload,
   SpinWheel,
   SpinWheelDetail,
-} from '../types/appData';
+  SupportTicket,
+  TicketMessage,
+  TicketMessagesResponse,
+  UpdateCouponPayload,
+} from "../types/appData";
 
-import {
-  TicketStatus,
-  TicketPriority,
-  OwnerRole,
-} from '../types/appData';
+import { OwnerRole, TicketPriority, TicketStatus } from "../types/appData";
 
-const BASE_URL = 'https://ovena-backend-production.up.railway.app';
-const LOG_TAG  = '[supportActionsApi]';
+const BASE_URL = "https://ovena-backend-production.up.railway.app";
+const LOG_TAG = "[ActionsApi]";
 
 class SupportActionsApiError extends Error {
-  status:   number;
+  status: number;
   endpoint: string;
   constructor(message: string, status: number, endpoint: string) {
     super(message);
     this.status = status;
     this.endpoint = endpoint;
-    this.name = 'SupportActionsApiError';
+    this.name = "SupportActionsApiError";
   }
 }
 
@@ -67,7 +69,10 @@ async function getJSON<T>(endpoint: string, accessToken: string): Promise<T> {
   try {
     data = rawText ? JSON.parse(rawText) : {};
   } catch {
-    console.error(`${LOG_TAG} ❌ Non-JSON response body [${endpoint}]:`, rawText.slice(0, 300));
+    console.error(
+      `${LOG_TAG} ❌ Non-JSON response body [${endpoint}]:`,
+      rawText.slice(0, 300),
+    );
     throw new SupportActionsApiError(
       `Server returned a non-JSON response (HTTP ${res.status}) for ${endpoint}.`,
       res.status,
@@ -76,8 +81,14 @@ async function getJSON<T>(endpoint: string, accessToken: string): Promise<T> {
   }
 
   if (!res.ok) {
-    console.error(`${LOG_TAG} ❌ Backend error response [${endpoint}]:`, JSON.stringify(data, null, 2));
-    const message = data?.message ?? data?.detail ?? `Request failed (${res.status}) for ${endpoint}`;
+    console.error(
+      `${LOG_TAG} ❌ Backend error response [${endpoint}]:`,
+      JSON.stringify(data, null, 2),
+    );
+    const message =
+      data?.message ??
+      data?.detail ??
+      `Request failed (${res.status}) for ${endpoint}`;
     throw new SupportActionsApiError(message, res.status, endpoint);
   }
 
@@ -99,8 +110,13 @@ export async function fetchSupportTickets(
 ): Promise<PaginatedResponse<SupportTicket>> {
   const endpoint = `/api/admin/support/tickets/?limit=${limit}&offset=${offset}`;
   console.log(`${LOG_TAG} 🌐 GET →`, endpoint);
-  const data = await getJSON<PaginatedResponse<SupportTicket>>(endpoint, accessToken);
-  console.log(`${LOG_TAG} 🎫 tickets (${data.count} total, ${data.results.length} on this page)`);
+  const data = await getJSON<PaginatedResponse<SupportTicket>>(
+    endpoint,
+    accessToken,
+  );
+  console.log(
+    `${LOG_TAG} 🎫 tickets (${data.count} total, ${data.results.length} on this page)`,
+  );
   return data;
 }
 
@@ -117,17 +133,20 @@ export async function fetchTicketMessages(
   { limit, offset }: FetchTicketMessagesParams = {},
 ): Promise<TicketMessage[]> {
   const query = new URLSearchParams();
-  if (limit  !== undefined) query.set('limit', String(limit));
-  if (offset !== undefined) query.set('offset', String(offset));
+  if (limit !== undefined) query.set("limit", String(limit));
+  if (offset !== undefined) query.set("offset", String(offset));
   const qs = query.toString();
 
-  const endpoint = `/api/admin/support/tickets/${ticketId}/messages/${qs ? `?${qs}` : ''}`;
+  const endpoint = `/api/admin/support/tickets/${ticketId}/messages/${qs ? `?${qs}` : ""}`;
   console.log(`${LOG_TAG} 🌐 GET →`, endpoint);
 
   const data = await getJSON<TicketMessagesResponse>(endpoint, accessToken);
   const messages = data?.results?.data ?? [];
 
-  console.log(`${LOG_TAG} 💬 messages for ticket ${ticketId} (${data.count} total, ${messages.length} in payload):`, messages);
+  console.log(
+    `${LOG_TAG} 💬 messages for ticket ${ticketId} (${data.count} total, ${messages.length} in payload):`,
+    messages,
+  );
 
   return messages;
 }
@@ -165,10 +184,10 @@ export async function sendTicketMessage(
   console.log(`${LOG_TAG} 🌐 POST →`, endpoint, `[client id ${body.id}]`);
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
-    method: 'POST',
+    method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
   });
@@ -178,7 +197,10 @@ export async function sendTicketMessage(
   try {
     data = rawText ? JSON.parse(rawText) : {};
   } catch {
-    console.error(`${LOG_TAG} ❌ Non-JSON response body [POST ${endpoint}]:`, rawText.slice(0, 300));
+    console.error(
+      `${LOG_TAG} ❌ Non-JSON response body [POST ${endpoint}]:`,
+      rawText.slice(0, 300),
+    );
     throw new SupportActionsApiError(
       `Server returned a non-JSON response (HTTP ${res.status}) for ${endpoint}.`,
       res.status,
@@ -187,46 +209,57 @@ export async function sendTicketMessage(
   }
 
   if (!res.ok) {
-    console.error(`${LOG_TAG} ❌ Failed to send message [${endpoint}] — check if 'id' or 'attachments' failed validation:`, JSON.stringify(data, null, 2));
-    const message = data?.message ?? data?.detail ?? `Failed to send message (${res.status})`;
+    console.error(
+      `${LOG_TAG} ❌ Failed to send message [${endpoint}] — check if 'id' or 'attachments' failed validation:`,
+      JSON.stringify(data, null, 2),
+    );
+    const message =
+      data?.message ?? data?.detail ?? `Failed to send message (${res.status})`;
     throw new SupportActionsApiError(message, res.status, endpoint);
   }
 
   const saved: TicketMessage = data?.data ?? data;
-  console.log(`${LOG_TAG} ✅ Message sent [ticket ${ticketId}] — ⚠️ response shape unverified:`, saved);
+  console.log(
+    `${LOG_TAG} ✅ Message sent [ticket ${ticketId}] — ⚠️ response shape unverified:`,
+    saved,
+  );
   return saved;
 }
 
 export { SupportActionsApiError };
 
 class CouponsActionsApiError extends Error {
-  status:   number;
+  status: number;
   endpoint: string;
   constructor(message: string, status: number, endpoint: string) {
     super(message);
     this.status = status;
     this.endpoint = endpoint;
-    this.name = 'CouponsActionsApiError';
+    this.name = "CouponsActionsApiError";
   }
 }
 
-function buildCouponBody(payload: CreateCouponPayload): Record<string, unknown> {
+function buildCouponBody(
+  payload: CreateCouponPayload,
+): Record<string, unknown> {
   const body: Record<string, unknown> = {
-    code:           payload.code,
-    description:    payload.description,
-    coupon_type:    payload.coupon_type,
-    scope:          payload.scope,
-    discount_type:  payload.discount_type,
+    code: payload.code,
+    description: payload.description,
+    coupon_type: payload.coupon_type,
+    scope: payload.scope,
+    discount_type: payload.discount_type,
     discount_value: payload.discount_value,
-    max_uses:       payload.max_uses,
-    valid_from:     payload.valid_from,
-    valid_until:    payload.valid_until,
-    is_reward:      payload.is_reward ?? false,
+    max_uses: payload.max_uses,
+    valid_from: payload.valid_from,
+    valid_until: payload.valid_until,
+    is_reward: payload.is_reward ?? false,
   };
 
-  (['item', 'buy_amount', 'get_amount', 'buy_item', 'get_item'] as const).forEach((key) => {
+  (
+    ["item", "buy_amount", "get_amount", "buy_item", "get_item"] as const
+  ).forEach((key) => {
     const value = payload[key];
-    if (value !== undefined && value !== null && (value as any) !== '') {
+    if (value !== undefined && value !== null && (value as any) !== "") {
       body[key] = value;
     }
   });
@@ -235,18 +268,22 @@ function buildCouponBody(payload: CreateCouponPayload): Record<string, unknown> 
 }
 
 async function postOrPutJSON(
-  method: 'POST' | 'PUT',
+  method: "POST" | "PUT",
   endpoint: string,
   body: Record<string, unknown>,
   accessToken: string,
 ): Promise<any> {
-  console.log(`${LOG_TAG} 🌐 ${method} →`, endpoint, JSON.stringify(body, null, 2));
+  console.log(
+    `${LOG_TAG} 🌐 ${method} →`,
+    endpoint,
+    JSON.stringify(body, null, 2),
+  );
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     method,
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
   });
@@ -256,7 +293,10 @@ async function postOrPutJSON(
   try {
     data = rawText ? JSON.parse(rawText) : {};
   } catch {
-    console.error(`${LOG_TAG} ❌ Non-JSON response body [${method} ${endpoint}]:`, rawText.slice(0, 300));
+    console.error(
+      `${LOG_TAG} ❌ Non-JSON response body [${method} ${endpoint}]:`,
+      rawText.slice(0, 300),
+    );
     throw new CouponsActionsApiError(
       `Server returned a non-JSON response (HTTP ${res.status}) for ${endpoint}.`,
       res.status,
@@ -265,8 +305,14 @@ async function postOrPutJSON(
   }
 
   if (!res.ok) {
-    console.error(`${LOG_TAG} ❌ Failed [${method} ${endpoint}]:`, JSON.stringify(data, null, 2));
-    const message = data?.message ?? data?.detail ?? `Request failed (${res.status}) for ${endpoint}`;
+    console.error(
+      `${LOG_TAG} ❌ Failed [${method} ${endpoint}]:`,
+      JSON.stringify(data, null, 2),
+    );
+    const message =
+      data?.message ??
+      data?.detail ??
+      `Request failed (${res.status}) for ${endpoint}`;
     throw new CouponsActionsApiError(message, res.status, endpoint);
   }
 
@@ -277,7 +323,12 @@ export async function createCoupon(
   payload: CreateCouponPayload,
   accessToken: string,
 ): Promise<Coupon> {
-  const data = await postOrPutJSON('POST', '/api/admin/coupons/create/', buildCouponBody(payload), accessToken);
+  const data = await postOrPutJSON(
+    "POST",
+    "/api/admin/coupons/create/",
+    buildCouponBody(payload),
+    accessToken,
+  );
   console.log(`${LOG_TAG} ✅ Coupon created:`, data);
   return data as Coupon;
 }
@@ -287,17 +338,17 @@ export async function updateCoupon(
   payload: UpdateCouponPayload,
   accessToken: string,
 ): Promise<Coupon> {
-  const data = await postOrPutJSON('PUT', `/api/admin/coupons/update/${id}/`, buildCouponBody(payload), accessToken);
+  const data = await postOrPutJSON(
+    "PUT",
+    `/api/admin/coupons/update/${id}/`,
+    buildCouponBody(payload),
+    accessToken,
+  );
   console.log(`${LOG_TAG} ✅ Coupon updated [id ${id}]:`, data);
   return data as Coupon;
 }
 
 export { CouponsActionsApiError };
-
-
-
-
-
 
 // ... existing SupportActionsApiError, getJSON, fetchSupportTickets,
 // fetchTicketMessages, sendTicketMessage, CouponsActionsApiError,
@@ -307,10 +358,16 @@ export { CouponsActionsApiError };
 export async function fetchAllSpinWheels(
   accessToken: string,
 ): Promise<PaginatedResponse<SpinWheel>> {
-  const endpoint = '/api/admin/coupons/wheel/all/';
+  const endpoint = "/api/admin/coupons/wheel/all/";
   console.log(`${LOG_TAG} 🌐 GET →`, endpoint);
-  const data = await getJSON<PaginatedResponse<SpinWheel>>(endpoint, accessToken);
-  console.log(`${LOG_TAG} 🎡 wheels (${data.count} total, ${data.results.length} on this page):`, data);
+  const data = await getJSON<PaginatedResponse<SpinWheel>>(
+    endpoint,
+    accessToken,
+  );
+  console.log(
+    `${LOG_TAG} 🎡 wheels (${data.count} total, ${data.results.length} on this page):`,
+    data,
+  );
   return data;
 }
 
@@ -322,7 +379,10 @@ export async function fetchSpinWheelDetail(
   const endpoint = `/api/admin/coupons/wheel/${id}/`;
   console.log(`${LOG_TAG} 🌐 GET →`, endpoint);
   const data = await getJSON<SpinWheelDetail>(endpoint, accessToken);
-  console.log(`${LOG_TAG} 🎡 wheel detail [id ${id}] (${data.coupons?.length ?? 0} coupons):`, data);
+  console.log(
+    `${LOG_TAG} 🎡 wheel detail [id ${id}] (${data.coupons?.length ?? 0} coupons):`,
+    data,
+  );
   return data;
 }
 
@@ -337,7 +397,12 @@ export async function createSpinWheel(
     coupon_ids: payload.coupon_ids,
   };
 
-  const data = await postOrPutJSON('POST', '/api/admin/coupons/wheel/create/', body, accessToken);
+  const data = await postOrPutJSON(
+    "POST",
+    "/api/admin/coupons/wheel/create/",
+    body,
+    accessToken,
+  );
   console.log(`${LOG_TAG} ✅ Spinwheel created:`, data);
   return data as SpinWheel;
 }
@@ -385,7 +450,7 @@ function buildTicketActionBody(
     id: ticket.id,
     category: ticket.category,
     subject: ticket.subject,
-    description: '', // ⚠️ see header note — not available from the list endpoint
+    description: "", // ⚠️ see header note — not available from the list endpoint
     status,
     priority: ticket.priority,
     is_blocking: ticket.is_blocking,
@@ -399,8 +464,17 @@ export async function closeTicket(
   accessToken: string,
 ): Promise<SupportTicket> {
   const endpoint = `/api/admin/support/tickets/${ticket.id}/close/`;
-  const body = buildTicketActionBody(ticket, 'closed', new Date().toISOString());
-  const data = await postOrPutJSON('POST', endpoint, body as unknown as Record<string, unknown>, accessToken);
+  const body = buildTicketActionBody(
+    ticket,
+    "closed",
+    new Date().toISOString(),
+  );
+  const data = await postOrPutJSON(
+    "POST",
+    endpoint,
+    body as unknown as Record<string, unknown>,
+    accessToken,
+  );
   console.log(`${LOG_TAG} ✅ Ticket closed [id ${ticket.id}]:`, data);
   return (data?.data ?? data) as SupportTicket;
 }
@@ -410,16 +484,20 @@ export async function reopenTicket(
   accessToken: string,
 ): Promise<SupportTicket> {
   const endpoint = `/api/admin/support/tickets/${ticket.id}/reopen/`;
-  const body = buildTicketActionBody(ticket, 'open', null);
-  const data = await postOrPutJSON('POST', endpoint, body as unknown as Record<string, unknown>, accessToken);
+  const body = buildTicketActionBody(ticket, "open", null);
+  const data = await postOrPutJSON(
+    "POST",
+    endpoint,
+    body as unknown as Record<string, unknown>,
+    accessToken,
+  );
   console.log(`${LOG_TAG} ✅ Ticket reopened [id ${ticket.id}]:`, data);
   return (data?.data ?? data) as SupportTicket;
 }
 
-
 // ── POST /api/admin/change-password/ ────────────────────────────────────────
 export interface ChangePasswordPayload {
-  password:     string; // current password
+  password: string; // current password
   new_password: string;
 }
 
@@ -427,20 +505,28 @@ export async function changeAdminPassword(
   payload: ChangePasswordPayload,
   accessToken: string,
 ): Promise<void> {
-  const endpoint = '/api/admin/change-password/';
-  await postOrPutJSON('POST', endpoint, payload as unknown as Record<string, unknown>, accessToken);
+  const endpoint = "/api/admin/change-password/";
+  await postOrPutJSON(
+    "POST",
+    endpoint,
+    payload as unknown as Record<string, unknown>,
+    accessToken,
+  );
   console.log(`${LOG_TAG} ✅ Password changed`);
 }
 
 // ── POST /api/admin/logout/ ─────────────────────────────────────────────────
 export async function adminLogoutRequest(accessToken: string): Promise<void> {
-  const endpoint = '/api/admin/logout/';
+  const endpoint = "/api/admin/logout/";
   try {
-    await postOrPutJSON('POST', endpoint, {}, accessToken);
+    await postOrPutJSON("POST", endpoint, {}, accessToken);
     console.log(`${LOG_TAG} ✅ Server-side logout confirmed`);
   } catch (err) {
     // Don't let a failed network call trap the admin in a signed-in state —
     // local cleanup proceeds regardless.
-    console.warn(`${LOG_TAG} ⚠️ Server logout failed, proceeding with local cleanup anyway:`, err);
+    console.warn(
+      `${LOG_TAG} ⚠️ Server logout failed, proceeding with local cleanup anyway:`,
+      err,
+    );
   }
 }

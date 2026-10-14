@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
   },
   // Dropdown modal
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   dropdownMenu: {

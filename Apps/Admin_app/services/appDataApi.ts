@@ -26,31 +26,31 @@
  */
 
 import {
-  AllAppData,
-  DashboardStats,
-  Coupon,
-  PaginatedResponse,
-  Business,
   AdminAppUser,
-  SupportTicket,
-  Withdrawal,
+  AllAppData,
+  Business,
+  Coupon,
+  DashboardStats,
   Driver,
   Feature,
+  PaginatedResponse,
   Plan,
   ReferralPayout,
-} from '../types/appData';
+  SupportTicket,
+  Withdrawal,
+} from "../types/appData";
 
-const BASE_URL = 'https://ovena-backend-production.up.railway.app';
-const LOG_TAG  = '[appDataApi]';
+const BASE_URL = "https://ovena-backend-production.up.railway.app";
+const LOG_TAG = "[appDataApi]";
 
 class AppDataApiError extends Error {
-  status:   number;
+  status: number;
   endpoint: string;
   constructor(message: string, status: number, endpoint: string) {
     super(message);
     this.status = status;
     this.endpoint = endpoint;
-    this.name = 'AppDataApiError';
+    this.name = "AppDataApiError";
   }
 }
 
@@ -71,7 +71,10 @@ async function getJSON<T>(endpoint: string, accessToken: string): Promise<T> {
   try {
     data = rawText ? JSON.parse(rawText) : {};
   } catch {
-    console.error(`${LOG_TAG} ❌ Non-JSON response body [${endpoint}]:`, rawText.slice(0, 300));
+    console.error(
+      `${LOG_TAG} ❌ Non-JSON response body [${endpoint}]:`,
+      rawText.slice(0, 300),
+    );
     // Kept active (not commented): only fires on a genuine parse failure,
     // e.g. Django returning an HTML 404/500 page instead of JSON.
     throw new AppDataApiError(
@@ -82,11 +85,17 @@ async function getJSON<T>(endpoint: string, accessToken: string): Promise<T> {
   }
 
   if (!res.ok) {
-    console.error(`${LOG_TAG} ❌ Backend error response [${endpoint}]:`, JSON.stringify(data, null, 2));
+    console.error(
+      `${LOG_TAG} ❌ Backend error response [${endpoint}]:`,
+      JSON.stringify(data, null, 2),
+    );
     // Kept active: only fires on a non-2xx status with a valid JSON error
     // body, e.g. { "detail": "..." } — useful to see the exact backend
     // error message/shape when a request is rejected.
-    const message = data?.message ?? data?.detail ?? `Request failed (${res.status}) for ${endpoint}`;
+    const message =
+      data?.message ??
+      data?.detail ??
+      `Request failed (${res.status}) for ${endpoint}`;
     throw new AppDataApiError(message, res.status, endpoint);
   }
 
@@ -97,25 +106,50 @@ async function getJSON<T>(endpoint: string, accessToken: string): Promise<T> {
   return data as T;
 }
 
-export async function fetchAllAppData(accessToken: string): Promise<AllAppData> {
+export async function fetchAllAppData(
+  accessToken: string,
+): Promise<AllAppData> {
   const [
-    stats, coupons, businesses, users, supportTickets,
-    withdrawals, drivers, features, plans, referralPayouts,
+    stats,
+    coupons,
+    businesses,
+    users,
+    supportTickets,
+    withdrawals,
+    drivers,
+    features,
+    plans,
+    referralPayouts,
   ] = await Promise.all([
-    getJSON<DashboardStats>('/api/admin/dashboard/stats/', accessToken),
+    getJSON<DashboardStats>("/api/admin/dashboard/stats/", accessToken),
     // ?reward=all — without this the backend defaults to one coupon type only
     // (reward coupons used in spin wheels vs. marketing coupons used in
     // promo campaigns are the same model, filtered by is_reward on the
     // backend). This screen needs to see both, so request all explicitly.
-    getJSON<Coupon[]>('/api/admin/coupons/all/?reward=all', accessToken),
-    getJSON<PaginatedResponse<Business>>('/api/admin/employees/businesses/', accessToken),
-    getJSON<PaginatedResponse<AdminAppUser>>('/api/admin/users/', accessToken),
-    getJSON<PaginatedResponse<SupportTicket>>('/api/admin/support/tickets/', accessToken),
-    getJSON<PaginatedResponse<Withdrawal>>('/api/admin/withdrawals/', accessToken),
-    getJSON<PaginatedResponse<Driver>>('/api/admin/employees/drivers/', accessToken),
-    getJSON<PaginatedResponse<Feature>>('/api/admin/features/', accessToken),
-    getJSON<PaginatedResponse<Plan>>('/api/admin/plan/', accessToken),
-    getJSON<PaginatedResponse<ReferralPayout>>('/api/admin/referrals/payouts/', accessToken),
+    getJSON<Coupon[]>("/api/admin/coupons/all/?reward=all", accessToken),
+    getJSON<PaginatedResponse<Business>>(
+      "/api/admin/employees/businesses/",
+      accessToken,
+    ),
+    getJSON<PaginatedResponse<AdminAppUser>>("/api/admin/users/", accessToken),
+    getJSON<PaginatedResponse<SupportTicket>>(
+      "/api/admin/support/tickets/",
+      accessToken,
+    ),
+    getJSON<PaginatedResponse<Withdrawal>>(
+      "/api/admin/withdrawals/",
+      accessToken,
+    ),
+    getJSON<PaginatedResponse<Driver>>(
+      "/api/admin/employees/drivers/",
+      accessToken,
+    ),
+    getJSON<PaginatedResponse<Feature>>("/api/admin/features/", accessToken),
+    getJSON<PaginatedResponse<Plan>>("/api/admin/plan/", accessToken),
+    getJSON<PaginatedResponse<ReferralPayout>>(
+      "/api/admin/referrals/payouts/",
+      accessToken,
+    ),
   ]);
 
   // ... rest unchanged
@@ -139,12 +173,12 @@ export async function fetchAllAppData(accessToken: string): Promise<AllAppData> 
   // Prints: paginated AdminAppUser[] — id, email (nullable), phone_number
   // (nullable), is_active, is_staff, roles (string[]).
 
-  console.log(`${LOG_TAG} 🎫 supportTickets (${supportTickets.count} total, ${supportTickets.results.length} on this page):`, supportTickets);
-  // Prints: paginated SupportTicket[] — id (ULID), category, subject, status,
-  // priority, is_blocking, created_at, closed_at (nullable), owner_role,
-  // owner_id, owner_email.
+  // console.log(`${LOG_TAG} 🎫 supportTickets (${supportTickets.count} total, ${supportTickets.results.length} on this page):`, supportTickets);
+  // // Prints: paginated SupportTicket[] — id (ULID), category, subject, status,
+  // // priority, is_blocking, created_at, closed_at (nullable), owner_role,
+  // // owner_id, owner_email.
 
-  console.log(`${LOG_TAG} 💸 withdrawals (${withdrawals.count} total, ${withdrawals.results.length} on this page) — ⚠️ UNVERIFIED SHAPE, log kept active:`, withdrawals);
+  // console.log(`${LOG_TAG} 💸 withdrawals (${withdrawals.count} total, ${withdrawals.results.length} on this page) — ⚠️ UNVERIFIED SHAPE, log kept active:`, withdrawals);
   // Kept ACTIVE deliberately: this endpoint's type was inferred from a
   // Swagger example stub, not a confirmed real response. Comment this out
   // once you've confirmed the real shape matches.
@@ -164,17 +198,26 @@ export async function fetchAllAppData(accessToken: string): Promise<AllAppData> 
   // Prints: paginated Plan[] — id, name, amount (likely kobo), interval
   // ("monthly"), audience ("business"), description.
 
-  console.log(`${LOG_TAG} 🎁 referralPayouts (${referralPayouts.count} total, ${referralPayouts.results.length} on this page) — ⚠️ UNVERIFIED SHAPE, log kept active:`, referralPayouts);
+  // console.log(`${LOG_TAG} 🎁 referralPayouts (${referralPayouts.count} total, ${referralPayouts.results.length} on this page) — ⚠️ UNVERIFIED SHAPE, log kept active:`, referralPayouts);
   // Kept ACTIVE deliberately: this endpoint's type was inferred from a
   // Swagger example stub (example.org URLs, "string" id, int32-max
   // placeholders, a suspicious negative amount). Comment this out once
   // you've confirmed the real shape matches.
 
   return {
-    stats, coupons, businesses, users, supportTickets,
-    withdrawals, drivers, features, plans, referralPayouts,
+    stats,
+    coupons,
+    businesses,
+    users,
+    supportTickets,
+    withdrawals,
+    drivers,
+    features,
+    plans,
+    referralPayouts,
   };
 }
 
 export { AppDataApiError };
 export type { AllAppData };
+

@@ -125,18 +125,19 @@ interface LoginWireResponse {
 function decodeJwtExpiry(token: string): number {
   try {
     const payloadB64 = token.split('.')[1];
-    const json = JSON.parse(
-      // RN doesn't have atob in all environments; Buffer is available via
-      // the JS runtime polyfills Expo ships with.
-      Buffer.from(payloadB64, 'base64').toString('utf-8'),
+    const base64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const binary = typeof atob === 'function' ? atob(padded) : '';
+    const decoded = decodeURIComponent(
+      Array.from(binary, (char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`).join(''),
     );
+    const json = JSON.parse(decoded);
     if (typeof json.exp === 'number') {
-      return json.exp * 1000; // exp is in seconds → convert to ms
+      return json.exp * 1000;
     }
   } catch {
     // fall through to default below
   }
-  // Fallback: assume a 1 hour access token if we can't decode it
   return Date.now() + 60 * 60 * 1000;
 }
 

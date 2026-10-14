@@ -1,8 +1,12 @@
 /**
  * app/(tabs)/ops.tsx
  *
- * Operations tab landing screen. Three sections: Promotions, Push
+ * Operations tab landing screen. Four sections: Orders, Promotions, Push
  * Notifications, Banner Manager — each a card linking into app/ops/.
+ *
+ * Orders card added — links to app/ops/orders/index.tsx, the full
+ * (all-statuses) order management screen, as distinct from the Active
+ * Orders entry point on Home (which only shows the 5 "active" statuses).
  */
 
 import React from 'react';
@@ -38,12 +42,20 @@ export default function OpsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <OpsCard
+          icon="receipt-outline"
+          title="Orders"
+          subtitle="View and manage orders across every status"
+          onPress={() => router.push('/ops/orders' as any)}
+          colors={colors}
+          accent="lava"
+        />
+
+        <OpsCard
           icon="pricetag-outline"
           title="Promotions"
           subtitle="Coupons, referral bonuses, discounts & happy hour"
           onPress={() => router.push('/ops/promotions/create' as any)}
           colors={colors}
-          accent="lava"
         />
 
         <OpsCard
