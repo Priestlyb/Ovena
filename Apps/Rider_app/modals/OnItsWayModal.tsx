@@ -1,341 +1,430 @@
-import React, { useEffect, useState } from "react";
+// modals/OnItsWayModal.tsx
+//
+// NO <Modal> wrapper — rendered directly in the React tree so the Mapbox map
+// underneath stays fully interactive. The overlay uses pointerEvents="box-none"
+// (touches pass through to the map). Only the destStrip and sheet cards
+// are interactive (pointerEvents="auto").
+//
+// Layout:
+//   • Destination strip — pinned top, always visible
+//   • Bottom sheet     — collapsible via hamburger; contains all order detail,
+//     the accept-time order code, and the "Start delivery" button
+//
+// ── Order code vs delivery code ──────────────────────────────────────────
+// `orderCode` here is the code the backend returned when the driver hit
+// "accept" (see useDriverWebSocket.postDriverAction). It is DISPLAY ONLY —
+// shown so the driver can read it back to the customer or cross-check it.
+// It is NOT the same value that ultimately gets sent on "deliver": that one
+// is typed in fresh by the driver at the door, from whatever the customer
+// tells them, in a later delivery-confirmation screen.
+
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  Easing,
-  LayoutAnimation,
-  Platform,
-  UIManager,
+  View, Text, TouchableOpacity, StyleSheet,
+  Animated, Easing, ScrollView, Platform, Linking, Alert,
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
-import Separator from "../components/Separator ";
+import { useTheme } from "../context/ThemeContext";
+import { MockOrder } from "../data/mockOrders";
+import { RouteSummary } from "../components/DriverMapView";
 
-interface ConfirmPickupModalProps {
-  visible: boolean;
-  onClose: () => void;
+interface OnItsWayModalProps {
+  visible:         boolean;
+  onClose:         () => void;
+  onStartDelivery: () => void;
+  order:           MockOrder | null;
+  routeSummary:    RouteSummary | null;
+  /**
+   * The order_code returned by the backend on accept (see
+   * useDriverWebSocket.postDriverAction). Display-only — purely for the
+   * driver's reference. Pass null/undefined while it hasn't arrived yet.
+   */
+  orderCode?:      string | null;
 }
 
-// Enable LayoutAnimation on Android
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-const ConfirmPickupModal: React.FC<ConfirmPickupModalProps> = ({
-  visible,
-  onClose,
+const OnItsWayModal: React.FC<OnItsWayModalProps> = ({
+  visible, onClose, onStartDelivery, order, routeSummary, orderCode,
 }) => {
-  const [expanded, setExpanded] = useState(false);
+  const { colors } = useTheme();
 
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const slideAnim = React.useRef(new Animated.Value(40)).current;
+  const [expanded, setExpanded] = useState(true);
+
+  const slideAnim = useRef(new Animated.Value(400)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
+      setExpanded(true);
       Animated.parallel([
         Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
+          toValue: 1, duration: 220,
+          easing: Easing.out(Easing.ease), useNativeDriver: true,
         }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
+        Animated.spring(slideAnim, {
+          toValue: 0, friction: 9, tension: 70, useNativeDriver: true,
         }),
       ]).start();
     } else {
-      setExpanded(false);
+      // Reset so re-opening animates in cleanly
+      fadeAnim.setValue(0);
+      slideAnim.setValue(400);
+      setExpanded(true);
     }
   }, [visible]);
 
-  const toggleExpand = () => {
-    LayoutAnimation.configureNext(
-      LayoutAnimation.create(
-        300,
-        LayoutAnimation.Types.easeInEaseOut,
-        LayoutAnimation.Properties.scaleY,
-      ),
-    );
+  // Log whenever the modal opens with (or without) an order code, so the
+  // accept → display flow is traceable in the console.
+  useEffect(() => {
+    if (!visible || !order) return;
+    if (orderCode) {
+      console.log(`[OnItsWayModal] 📦 Displaying order code for order ${order.order_id}: "${orderCode}"`);
+    } else {
+      console.warn(`[OnItsWayModal] ⚠️  No order code available to display for order ${order.order_id} — accept response may not have included one yet.`);
+    }
+  }, [visible, order, orderCode]);
 
-    setExpanded((prev) => !prev);
-  };
+  // Nothing to render when not visible or no order
+  if (!visible || !order) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="none">
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        {/* Top Card */}
-        <Animated.View
-          style={[styles.cardOne, { transform: [{ translateY: slideAnim }] }]}
-        >
-          <IconSymbol name="LocationOutline" size={24} color="#000" />
+    // Fills the entire screen but passes all touches through to the map
+    // EXCEPT on the two interactive cards below (pointerEvents="auto")
+    <Animated.View
+      style={[styles.overlay, { opacity: fadeAnim }]}
+      pointerEvents="box-none"
+    >
 
-          <View style={styles.cardOneTextWrapper}>
-            <Text style={styles.destinationWay}>
-              KFC - Nottingham - Cross Street Retails Park
-            </Text>
-            <Text style={styles.address}>
-              Cross Street Retail Park, New Street, Long Eaton, Nottingham
-            </Text>
-          </View>
-        </Animated.View>
-
-        {/* Bottom Card */}
-        <Animated.View
-          style={[
-            styles.bottomCard,
-            { transform: [{ translateY: slideAnim }] },
-          ]}
-        >
-          {/* Always visible */}
-          <View style={styles.bottomCardContent}>
-            <Text style={styles.statusText}>On it's way</Text>
-            <Text style={styles.bottomAddress}>
-              KFC - Nottingham - Cross Street Retails Park
+      {/* ── Destination strip — top of screen ────────────────────────────── */}
+      <Animated.View
+        style={[
+          styles.destStrip,
+          { backgroundColor: colors.card, transform: [{ translateY: slideAnim }] },
+        ]}
+        pointerEvents="auto"
+      >
+ {/* Header row: title + dismiss (X) — collapse/expand hamburger lives
+            on the bottom sheet only; the strip doesn't have its own
+            expandable content, so it doesn't need one here too. */}
+     <View style={styles.destStripHeaderRow}>
+         <View style={{ flex: 1 }}>
+            <Text style={[styles.statusText, { color: colors.textPrimary }]}>On its way</Text>
+            <Text style={[styles.restaurantSmall, { color: colors.textSecondary }]} numberOfLines={1}>
+              {order.restaurantName}
+             {routeSummary ? `  ·  ${routeSummary.duration}  ·  ${routeSummary.distance}` : ""}
             </Text>
           </View>
 
-          {/* Expandable content */}
-          {expanded && (
-            <View style={styles.expandSection}>
-              <View style={{ alignItems: "flex-start", gap: 10 }}>
-                <Text style={styles.noteHeader}>Note from business</Text>
-                <Text style={styles.noteItems}>
-                  Please check the guidance on where to collect the orders from
-                  on the front door of the restaurant
-                </Text>
-              </View>
+          <TouchableOpacity
+           style={[styles.closeBtn, { backgroundColor: colors.inputBg }]}
+            onPress={onClose}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <IconSymbol name="XMarkIcon" size={18} color={colors.iconColor} />
+          </TouchableOpacity>
+        </View>
 
-              <Separator color="black" />
+        {/* Destination row: icon + name/address, stacked below the header */}
+        <View style={styles.destStripBodyRow}>
+          <View style={[styles.destIcon, { backgroundColor: colors.inputBg }]}>
+            <IconSymbol name="LocationOutline" size={18} color={colors.accentOrange} />
+                      </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={[styles.destName, { color: colors.textPrimary }]} numberOfLines={1}>
+              {order.restaurantName}
+            </Text>
+            <Text style={[styles.destAddr, { color: colors.textSecondary }]} numberOfLines={1}>
+              {order.restaurantAddress}
+            </Text>
+         </View>
+        </View>
+      </Animated.View>
 
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                  paddingHorizontal: 25,
-                }}
-              >
-                <IconSymbol name="Location" size={24} color="#000" />
-                <Text
-                  style={{ flex: 1, paddingHorizontal: 10, lineHeight: 20 }}
-                >
-                  KFC - Nottingham - Cross Street Retails Park, new Street, Long
-                  Eaton, Notttingham
-                </Text>
-              </View>
+      {/* ── Bottom sheet ──────────────────────────────────────────────────── */}
+      <Animated.View
+        style={[
+          styles.sheet,
+          { backgroundColor: colors.card, transform: [{ translateY: slideAnim }] },
+        ]}
+        pointerEvents="auto"
+      >
+        {/* Always-visible header row */}
+        <View style={styles.sheetHeaderRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.statusText, { color: colors.textPrimary }]}>On its way</Text>
+            <Text
+              style={[styles.restaurantSmall, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
+              {order.restaurantName}
+              {routeSummary ? `  ·  ${routeSummary.duration}  ·  ${routeSummary.distance}` : ""}
+            </Text>
+          </View>
 
-              <Text
-                style={{
-                  width: "100%",
-                  backgroundColor: "#FFDA71",
-                  color: "#000",
-                  padding: 10,
-                  borderRadius: 10,
-                  fontWeight: "bold",
-                  fontSize: 16,
-                }}
-              >
-                1 order from pick-up
+          {/* Hamburger — collapse / expand */}
+          <TouchableOpacity
+            style={[styles.hamburgerBtn, { backgroundColor: colors.inputBg }]}
+            onPress={() => setExpanded((v) => !v)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <IconSymbol name="NavListIcon" size={20} color={colors.iconColor} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Order code strip — always visible (even collapsed) when present */}
+        {orderCode && (
+          <View style={[styles.orderCodeRow, { backgroundColor: colors.inputBg }]}>
+            <IconSymbol name="ClockIcon" size={16} color={colors.accentOrange} />
+            <Text style={[styles.orderCodeLabel, { color: colors.textSecondary }]}>
+              Order code
+            </Text>
+            <Text style={[styles.orderCodeValue, { color: colors.textPrimary }]}>
+              {orderCode}
+            </Text>
+          </View>
+        )}
+
+        {/* Expandable detail content */}
+        {expanded && (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.expandContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Restaurant name + call button */}
+            <View style={styles.restaurantHeaderRow}>
+              <Text style={[styles.restaurantBig, { color: colors.textPrimary, flex: 1 }]}>
+                {order.restaurantName}
               </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  paddingHorizontal: 25,
+              <TouchableOpacity
+                style={[styles.callBtn, { backgroundColor: colors.accentOrange }]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  const phone = order.restaurantPhone;
+                  if (!phone) return;
+                  Linking.openURL(`tel:${phone}`).catch(() =>
+                    Alert.alert("Error", "Could not open the phone app.")
+                  );
                 }}
               >
-                <View>
-                  <Text style={{ fontWeight: "bold", fontSize: 20 }}>
-                    David D.
-                  </Text>
-                  <Text style={{ color: "#555" }}>4593C • 3 items</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {}}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 10,
-                    paddingHorizontal: 20,
-                    backgroundColor: "#D44C0C",
-                    borderRadius: 20,
-                  }}
-                >
-                  <Text style={{ color: "#fff", fontSize: 16 }}>Details</Text>
-                </TouchableOpacity>
-              </View>
+                <IconSymbol name="PhoneIcon" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
 
-              <View style={{ alignItems: "center", marginTop: 10, gap: 10 }}>
-                <Text style={{ fontWeight: "bold", fontSize: 18 }}>
-                  How did the pickup go?
+            {/* Note from business */}
+            <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>
+              Note from business
+            </Text>
+            <Text style={[styles.noteText, { color: colors.textSecondary }]}>
+              • Please check the guidance on where to collect the orders from on the front door of the restaurant
+            </Text>
+
+            <View style={[styles.divider, { backgroundColor: colors.separatorColor }]} />
+
+            {/* Full address */}
+            <View style={styles.addrRow}>
+              <IconSymbol name="Location" size={18} color={colors.accentOrange} />
+              <Text style={[styles.addrFull, { color: colors.textPrimary }]}>
+                {order.restaurantName}, {order.restaurantAddress}
+              </Text>
+            </View>
+
+            {/* Order count tag */}
+            <View style={[styles.orderTag, { backgroundColor: colors.accentYellow }]}>
+              <Text style={styles.orderTagText}>1 order from pick-up</Text>
+            </View>
+
+            {/* Customer row */}
+            <View style={styles.customerRow}>
+              <View>
+                <Text style={[styles.customerBig, { color: colors.textPrimary }]}>
+                  {order.customerName}
                 </Text>
-                <View style={{ flexDirection: "row", gap: 100, marginTop: 10 }}>
-                  <IconSymbol name="ThumbsUpIcon" size={24} color="#10AA08" />
-                  <IconSymbol name="ThumbsDownIcon" size={24} color="#F12100" />
-                </View>
+                <Text style={[styles.customerSub, { color: colors.textSecondary }]}>
+                  {order.order_id} • {order.itemCount} items
+                </Text>
               </View>
-
-              <View
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 20,
-                }}
+              <TouchableOpacity
+                style={[styles.detailsBtn, { backgroundColor: colors.accentOrange }]}
+                activeOpacity={0.8}
               >
-                <View
-                  style={{
-                    width: 100,
-                    height: 100,
-                    backgroundColor: "white",
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 3.84,
-                    elevation: 5,
-                  }}
-                >
-                  <IconSymbol name="Warning" size={24} color="#000" />
-                </View>
+                <Text style={styles.detailsBtnText}>Details</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Rating */}
+            <View style={styles.ratingSection}>
+              <Text style={[styles.ratingTitle, { color: colors.textPrimary }]}>
+                How did the pickup go?
+              </Text>
+              <View style={styles.ratingRow}>
                 <TouchableOpacity
-                  onPress={onClose}
-                  style={styles.confirmButton}
+                  style={[styles.ratingBtn, { backgroundColor: colors.actionBtnBg }]}
+                  activeOpacity={0.8}
                 >
-                  <IconSymbol
-                    name="ArrowRightLongIcon"
-                    size={18}
-                    color="#fff"
-                  />
-                  <Text style={styles.confirmText}>Start delivery</Text>
+                  <IconSymbol name="ThumbsUpIcon" size={28} color={colors.accentGreen} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.ratingBtn, { backgroundColor: colors.actionBtnBg }]}
+                  activeOpacity={0.8}
+                >
+                  <IconSymbol name="ThumbsDownIcon" size={28} color={colors.accentRed} />
                 </TouchableOpacity>
               </View>
             </View>
-          )}
 
-          {/* Expand Button */}
-          <TouchableOpacity onPress={toggleExpand} style={styles.closeButton}>
-            <IconSymbol name="NavListIcon" size={22} color="#000" />
-          </TouchableOpacity>
-        </Animated.View>
+            {/* Footer: warn button + start delivery */}
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.warnBtn, { backgroundColor: colors.inputBg }]}
+                activeOpacity={0.8}
+              >
+                <IconSymbol name="Warning" size={22} color="#f59e0b" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.startBtn, { backgroundColor: colors.accentOrange }]}
+                onPress={() => {
+                  console.log(`[OnItsWayModal] ▶️  Start delivery pressed for order ${order.order_id} — handing off to delivery-confirmation flow where driver will enter the customer's code.`);
+                  onStartDelivery();
+                }}
+                activeOpacity={0.85}
+              >
+                <IconSymbol name="ArrowRightLongIcon" size={18} color="#fff" />
+                <Text style={styles.startBtnText}>Start delivery</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        )}
       </Animated.View>
-    </Modal>
+    </Animated.View>
   );
 };
 
-export default ConfirmPickupModal;
+export default OnItsWayModal;
 
 const styles = StyleSheet.create({
+  // Covers the full screen but lets map touches through
   overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    // No background — map shows through completely
   },
 
-  /* Top Card */
-  cardOne: {
+  // ── Destination strip (top) ───────────────────────────────────────────────
+  destStrip: {
     position: "absolute",
-    top: "5%",
-    width: "90%",
+    top: Platform.OS === "ios" ? 60 : 48,
+    left: 16,
+    right: 16,
+    flexDirection: "column",
+    borderRadius: 16,
+    padding: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 10,
+  },
+    destStripHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
+    destStripBodyRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F4F9FD",
-    borderRadius: 20,
-    padding: 25,
-    borderWidth: 2,
-    borderColor: "#000",
   },
-  cardOneTextWrapper: {
-    flex: 1,
+    destIcon: {
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
+  },
+    destName: { fontSize: 14, fontWeight: "700" },
+    destAddr: { fontSize: 12, marginTop: 2 },
+
+  // ── Bottom sheet ──────────────────────────────────────────────────────────
+  sheet: {
+    position: "absolute",
+    bottom: 0, left: 0, right: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === "ios" ? 36 : 20,
+    maxHeight: "68%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    elevation: 20,
+  },
+
+  // Collapsed header
+  sheetHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 18,
+    paddingBottom: 12,
+  },
+  statusText:      { fontSize: 18, fontWeight: "700" },
+  restaurantSmall: { fontSize: 12, marginTop: 2 },
+  hamburgerBtn: {
+    width: 40, height: 40, borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
+  },
+
+  // ── Order code strip ─────────────────────────────────────────────────────
+  orderCodeRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
-    paddingHorizontal: 10,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
   },
-  destinationWay: {
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  address: {
-    color: "#555",
-  },
+  orderCodeLabel: { fontSize: 12, fontWeight: "500" },
+  orderCodeValue: { fontSize: 14, fontWeight: "700", marginLeft: "auto", letterSpacing: 1 },
 
-  /* Bottom Card */
-  bottomCard: {
-    position: "absolute",
-    bottom: "5%",
-    width: "90%",
-    backgroundColor: "#F4F9FD",
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: "#000",
-    padding: 20,
+  // Expanded content
+  expandContent:       { paddingBottom: 16 },
+  restaurantHeaderRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  restaurantBig:       { fontSize: 20, fontWeight: "700", lineHeight: 26 },
+  callBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: "center", justifyContent: "center",
+    marginLeft: 12,
   },
-  bottomCardContent: {
-    alignItems: "center",
-    gap: 18,
+  sectionLabel: { fontSize: 14, fontWeight: "700", marginBottom: 6 },
+  noteText:     { fontSize: 13, lineHeight: 20, marginBottom: 12 },
+  divider:      { height: StyleSheet.hairlineWidth, marginVertical: 12 },
+  addrRow:      { flexDirection: "row", gap: 10, alignItems: "flex-start", marginBottom: 12 },
+  addrFull:     { flex: 1, fontSize: 13, lineHeight: 20 },
+  orderTag: {
+    borderRadius: 8, paddingHorizontal: 14,
+    paddingVertical: 10, marginBottom: 14,
   },
-  statusText: {
-    fontWeight: "600",
-    fontSize: 18,
+  orderTagText:  { fontWeight: "700", fontSize: 14, color: "#1a1a1a" },
+  customerRow:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  customerBig:   { fontSize: 20, fontWeight: "700" },
+  customerSub:   { fontSize: 13, marginTop: 2 },
+  detailsBtn:    { borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20 },
+  detailsBtnText:{ color: "#fff", fontWeight: "600", fontSize: 14 },
+  ratingSection: { alignItems: "center", gap: 10, marginBottom: 16 },
+  ratingTitle:   { fontSize: 15, fontWeight: "600" },
+  ratingRow:     { flexDirection: "row", gap: 60 },
+  ratingBtn:     { padding: 14, borderRadius: 18 },
+  footer:        { flexDirection: "row", gap: 12, alignItems: "center" },
+  warnBtn:       { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  startBtn: {
+    flex: 1, flexDirection: "row",
+    alignItems: "center", justifyContent: "center",
+    gap: 10, borderRadius: 50, paddingVertical: 16,
   },
-  bottomAddress: {
-    textAlign: "center",
-  },
-
-  /* Expanded */
-  expandSection: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 20,
-    gap: 25,
-  },
-  noteHeader: {
-    color: "#333",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  noteItems: {
-    paddingHorizontal: 10,
-    color: "#333",
-    lineHeight: 20,
-  },
-
-  confirmButton: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 20,
-    marginTop: 10,
-    backgroundColor: "#D44C0C",
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 20,
-  },
-  confirmText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-
-  /* Button */
-  closeButton: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    padding: 10,
-  },
+  startBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  closeBtn: {
+  width: 40, height: 40, borderRadius: 10,
+  alignItems: "center", justifyContent: "center",
+  marginLeft: 8,
+},
 });

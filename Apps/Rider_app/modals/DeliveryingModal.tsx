@@ -1,341 +1,217 @@
-import React, { useEffect, useState } from "react";
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  Easing,
-  LayoutAnimation,
-  Platform,
-  UIManager,
+// modals/DeliveryingModal.tsx
+//
+// Compact bottom card — map fully interactive behind it.
+// Hamburger opens CustomerModal → TakePhotoModal → slide-to-complete.
+//
+// KEY: overlay uses pointerEvents="box-none" (passes touches through to map).
+//      card uses pointerEvents="auto" (NOT "box-only") so TouchableOpacity
+//      children inside the card receive touches correctly.
+
+import React, { useEffect, useRef, useState } from "react";
+import {  
+  View, Text, TouchableOpacity, StyleSheet,
+  Animated, Easing, Platform,
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
-import Separator from "../components/Separator ";
+import { useTheme } from "../context/ThemeContext";
+import { MockOrder } from "../data/mockOrders";
+import { RouteSummary } from "../components/DriverMapView";
+import CustomerModal from "./CustomerModal";
+import TakePhotoModal from "./TakePhotoModal";
 
 interface DeliveryingModalProps {
-  visible: boolean;
-  onClose: () => void;
-}
-
-// Enable LayoutAnimation on Android
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+  visible:            boolean;
+  order:              MockOrder | null;
+  routeSummary:       RouteSummary | null;
+  onDeliveryComplete: (orderCode: string) => void;
 }
 
 const DeliveryingModal: React.FC<DeliveryingModalProps> = ({
-  visible,
-  onClose,
+  visible, order, routeSummary, onDeliveryComplete,
 }) => {
-  const [expanded, setExpanded] = useState(false);
+  const { colors } = useTheme();
 
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const slideAnim = React.useRef(new Animated.Value(40)).current;
+  const slideAnim = useRef(new Animated.Value(200)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+
+  const [showCustomer,  setShowCustomer]  = useState(false);
+  const [showTakePhoto, setShowTakePhoto] = useState(false);
+  const [photoTaken,    setPhotoTaken]    = useState(false);
 
   useEffect(() => {
     if (visible) {
+      // Reset flow state every time this modal becomes visible
+      setPhotoTaken(false);
+      setShowCustomer(false);
+      setShowTakePhoto(false);
       Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
+        Animated.timing(fadeAnim,  {
+          toValue: 1, duration: 250,
+          easing: Easing.out(Easing.ease), useNativeDriver: true,
         }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
+        Animated.spring(slideAnim, {
+          toValue: 0, friction: 9, tension: 70, useNativeDriver: true,
         }),
       ]).start();
     } else {
-      setExpanded(false);
+      fadeAnim.setValue(0);
+      slideAnim.setValue(200);
     }
   }, [visible]);
 
-  const toggleExpand = () => {
-    LayoutAnimation.configureNext(
-      LayoutAnimation.create(
-        300,
-        LayoutAnimation.Types.easeInEaseOut,
-        LayoutAnimation.Properties.scaleY,
-      ),
-    );
+  if (!visible || !order) return null;
 
-    setExpanded((prev) => !prev);
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  // CustomerModal asks to open the camera
+  const handleTakePhoto = () => {
+    setShowCustomer(false);
+    setTimeout(() => setShowTakePhoto(true), 150);
+  };
+
+  // TakePhotoModal completed — note + photo are available
+  const handlePhotoDone = (_photoUri: string, _note: string) => {
+    // TODO: POST photoUri + note to backend here if desired
+    setPhotoTaken(true);
+    setShowTakePhoto(false);
+    setTimeout(() => setShowCustomer(true), 150);
+  };
+
+  // CustomerModal slide-to-complete finished — receives the code the driver typed
+  const handleCompleteDelivery = (code: string) => {
+    setShowCustomer(false);
+    setTimeout(() => onDeliveryComplete(code), 150);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="none">
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        {/* Top Card */}
-        <Animated.View
-          style={[styles.cardOne, { transform: [{ translateY: slideAnim }] }]}
-        >
-          <IconSymbol name="LocationOutline" size={24} color="#000" />
-
-          <View style={styles.cardOneTextWrapper}>
-            <Text style={styles.destinationWay}>
-              KFC - Nottingham - Cross Street Retails Park
-            </Text>
-            <Text style={styles.address}>
-              Cross Street Retail Park, New Street, Long Eaton, Nottingham
-            </Text>
-          </View>
-        </Animated.View>
-
-        {/* Bottom Card */}
+    <>
+      {/*
+        The Animated.View overlay is NOT inside a <Modal> — it sits directly
+        in the React tree so it renders above the map without stealing all
+        touch events. pointerEvents="box-none" lets touches through to the map
+        except where child Views handle them.
+      */}
+      <Animated.View
+        style={[styles.overlay, { opacity: fadeAnim }]}
+        pointerEvents="box-none"
+      >
+        {/*
+          pointerEvents="auto" (the default) is essential here.
+          "box-only" would intercept touches for the container but pass nothing
+          down to children — breaking every TouchableOpacity inside the card.
+        */}
         <Animated.View
           style={[
-            styles.bottomCard,
-            { transform: [{ translateY: slideAnim }] },
+            styles.card,
+            { backgroundColor: colors.card, transform: [{ translateY: slideAnim }] },
           ]}
+          pointerEvents="auto"
         >
-          {/* Always visible */}
-          <View style={styles.bottomCardContent}>
-            <Text style={styles.statusText}>On it's way</Text>
-            <Text style={styles.bottomAddress}>
-              KFC - Nottingham - Cross Street Retails Park
+          {/* ── Row 1: ETA · distance · hamburger ── */}
+          <View style={styles.topRow}>
+            <Text style={[styles.etaText, { color: colors.textPrimary }]}>
+              {routeSummary?.duration ?? "…"}
             </Text>
+            <IconSymbol name="Bicycle" size={18} color={colors.iconColor} />
+            <Text style={[styles.etaText, { color: colors.textPrimary }]}>
+              {routeSummary?.distance ?? ""}
+            </Text>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Hamburger — opens CustomerModal */}
+            <TouchableOpacity
+              style={[styles.hamburgerBtn, { backgroundColor: colors.inputBg }]}
+              onPress={() => setShowCustomer(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <IconSymbol name="NavListIcon" size={20} color={colors.iconColor} />
+            </TouchableOpacity>
           </View>
 
-          {/* Expandable content */}
-          {expanded && (
-            <View style={styles.expandSection}>
-              <View style={{ alignItems: "flex-start", gap: 10 }}>
-                <Text style={styles.noteHeader}>Note from business</Text>
-                <Text style={styles.noteItems}>
-                  Please check the guidance on where to collect the orders from
-                  on the front door of the restaurant
-                </Text>
-              </View>
-
-              <Separator color="black" />
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                  paddingHorizontal: 25,
-                }}
-              >
-                <IconSymbol name="Location" size={24} color="#000" />
-                <Text
-                  style={{ flex: 1, paddingHorizontal: 10, lineHeight: 20 }}
-                >
-                  KFC - Nottingham - Cross Street Retails Park, new Street, Long
-                  Eaton, Notttingham
-                </Text>
-              </View>
-
-              <Text
-                style={{
-                  width: "100%",
-                  backgroundColor: "#FFDA71",
-                  color: "#000",
-                  padding: 10,
-                  borderRadius: 10,
-                  fontWeight: "bold",
-                  fontSize: 16,
-                }}
-              >
-                1 order from pick-up
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  paddingHorizontal: 25,
-                }}
-              >
-                <View>
-                  <Text style={{ fontWeight: "bold", fontSize: 20 }}>
-                    David D.
-                  </Text>
-                  <Text style={{ color: "#555" }}>4593C • 3 items</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {}}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 10,
-                    paddingHorizontal: 20,
-                    backgroundColor: "#D44C0C",
-                    borderRadius: 20,
-                  }}
-                >
-                  <Text style={{ color: "#fff", fontSize: 16 }}>Details</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={{ alignItems: "center", marginTop: 10, gap: 10 }}>
-                <Text style={{ fontWeight: "bold", fontSize: 18 }}>
-                  How did the pickup go?
-                </Text>
-                <View style={{ flexDirection: "row", gap: 100, marginTop: 10 }}>
-                  <IconSymbol name="ThumbsUpIcon" size={24} color="#10AA08" />
-                  <IconSymbol name="ThumbsDownIcon" size={24} color="#F12100" />
-                </View>
-              </View>
-
-              <View
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 20,
-                }}
-              >
-                <View
-                  style={{
-                    width: 100,
-                    height: 100,
-                    backgroundColor: "white",
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 3.84,
-                    elevation: 5,
-                  }}
-                >
-                  <IconSymbol name="Warning" size={24} color="#000" />
-                </View>
-                <TouchableOpacity
-                  onPress={onClose}
-                  style={styles.confirmButton}
-                >
-                  <IconSymbol
-                    name="ArrowRightLongIcon"
-                    size={18}
-                    color="#fff"
-                  />
-                  <Text style={styles.confirmText}>Start delivery</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Expand Button */}
-          <TouchableOpacity onPress={toggleExpand} style={styles.closeButton}>
-            <IconSymbol name="NavListIcon" size={22} color="#000" />
-          </TouchableOpacity>
+          {/* ── Row 2: Deliver to customer ── */}
+          <Text style={[styles.deliverLabel, { color: colors.textSecondary }]}>
+            Deliver to{" "}
+            <Text style={{ fontWeight: "700", color: colors.textPrimary }}>
+              {order.customerName}
+            </Text>
+          </Text>
         </Animated.View>
       </Animated.View>
-    </Modal>
+
+      {/* ── CustomerModal (opened by hamburger) ── */}
+      <CustomerModal
+        visible={showCustomer}
+        onClose={() => setShowCustomer(false)}
+        onTakePhoto={handleTakePhoto}
+        onCompleteDelivery={handleCompleteDelivery}
+        photoTaken={photoTaken}
+        order={order}
+        routeSummary={routeSummary}
+      />
+
+      {/* ── TakePhotoModal (opened from CustomerModal) ── */}
+      <TakePhotoModal
+        visible={showTakePhoto}
+        onClose={() => {
+          setShowTakePhoto(false);
+          // Return to CustomerModal when user cancels photo
+          setTimeout(() => setShowCustomer(true), 150);
+        }}
+        onDone={handlePhotoDone}
+        order={order}
+      />
+    </>
   );
 };
 
 export default DeliveryingModal;
 
+const CARD_BOTTOM = Platform.OS === "ios" ? 90 : 72; // raised ~100% higher than before
+
 const styles = StyleSheet.create({
+  // Fills the screen but passes touches through to the map
   overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+    paddingBottom: CARD_BOTTOM,
+    paddingHorizontal: 12,
+    zIndex: 20,
+    // No background — map is fully visible
   },
 
-  /* Top Card */
-  cardOne: {
-    position: "absolute",
-    top: "5%",
-    width: "90%",
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F4F9FD",
+  card: {
     borderRadius: 20,
-    padding: 25,
-    borderWidth: 2,
-    borderColor: "#000",
-  },
-  cardOneTextWrapper: {
-    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     gap: 8,
-    paddingHorizontal: 10,
-  },
-  destinationWay: {
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  address: {
-    color: "#555",
+    // Shadow so card reads against the map
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 20,
   },
 
-  /* Bottom Card */
-  bottomCard: {
-    position: "absolute",
-    bottom: "5%",
-    width: "90%",
-    backgroundColor: "#F4F9FD",
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: "#000",
-    padding: 20,
-  },
-  bottomCardContent: {
-    alignItems: "center",
-    gap: 18,
-  },
-  statusText: {
-    fontWeight: "600",
-    fontSize: 18,
-  },
-  bottomAddress: {
-    textAlign: "center",
-  },
-
-  /* Expanded */
-  expandSection: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 20,
-    gap: 25,
-  },
-  noteHeader: {
-    color: "#333",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  noteItems: {
-    paddingHorizontal: 10,
-    color: "#333",
-    lineHeight: 20,
-  },
-
-  confirmButton: {
-    display: "flex",
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 20,
-    marginTop: 10,
-    backgroundColor: "#D44C0C",
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 20,
+    gap: 8,
   },
-  confirmText: {
-    color: "#fff",
-    fontWeight: "600",
+  etaText: {
     fontSize: 16,
+    fontWeight: "700",
   },
-
-  /* Button */
-  closeButton: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    padding: 10,
+  hamburgerBtn: {
+    width: 42, height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deliverLabel: {
+    fontSize: 14,
+    fontWeight: "400",
+    lineHeight: 20,
   },
 });

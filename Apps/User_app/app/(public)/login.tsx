@@ -139,7 +139,7 @@ export default function Login() {
               <Text style={styles.socialText}>Google</Text>
             </>
           )}
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {Platform.OS === "ios" && <AppleButton />}
 

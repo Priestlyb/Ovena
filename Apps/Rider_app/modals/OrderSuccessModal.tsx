@@ -1,5 +1,5 @@
 // modals/OrderSuccessModal.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Modal,
   View,
@@ -10,6 +10,7 @@ import {
   Easing,
 } from "react-native";
 import { IconSymbol } from "../components/ui/icon-symbol";
+import { useTheme } from "../context/ThemeContext";
 
 interface OrderSuccessModalProps {
   visible: boolean;
@@ -20,6 +21,8 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
   visible,
   onClose,
 }) => {
+  const { colors } = useTheme();
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
 
@@ -45,8 +48,7 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     }
   }, [visible]);
 
-  const handleRate = (rating: "up" | "down") => {
-    // Fade out then close
+  const handleRate = (_rating: "up" | "down") => {
     Animated.timing(fadeAnim, {
       toValue: 0,
       duration: 200,
@@ -56,35 +58,39 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="none">
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: colors.overlayBg }]}>
         <Animated.View
           style={[
             styles.card,
-            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+            {
+              backgroundColor: colors.card,
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
           ]}
         >
-          <IconSymbol name="BikeIcon" size={28} color="#333" />
+          <IconSymbol name="Bicycle" size={28} color={colors.iconColor} />
 
-          <Text style={styles.tripLabel}>Last Delivery trip</Text>
-          <Text style={styles.tripAmount}>₦ 1,000.00</Text>
-          <Text style={styles.cta}>THERE'S STILL MORE TO BE MADE!</Text>
-          <Text style={styles.ratingQuestion}>How did the delivery go?</Text>
+          <Text style={[styles.tripLabel, { color: colors.textSecondary }]}>Last Delivery trip</Text>
+          <Text style={[styles.tripAmount, { color: colors.accentGreen }]}>₦ 1,000.00</Text>
+          <Text style={[styles.cta, { color: colors.textPrimary }]}>THERE'S STILL MORE TO BE MADE!</Text>
+          <Text style={[styles.ratingQuestion, { color: colors.textSecondary }]}>How did the delivery go?</Text>
 
           <View style={styles.ratingRow}>
             <TouchableOpacity
-              style={styles.ratingBtn}
+              style={[styles.ratingBtn, { backgroundColor: colors.actionBtnBg, borderColor: colors.actionBtnBorder }]}
               onPress={() => handleRate("up")}
               activeOpacity={0.75}
             >
-              <IconSymbol name="ThumbsUpIcon" size={36} color="#10AA08" />
+              <IconSymbol name="ThumbsUpIcon" size={36} color={colors.accentGreen} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.ratingBtn}
+              style={[styles.ratingBtn, { backgroundColor: colors.actionBtnBg, borderColor: colors.actionBtnBorder }]}
               onPress={() => handleRate("down")}
               activeOpacity={0.75}
             >
-              <IconSymbol name="ThumbsDownIcon" size={36} color="#F12100" />
+              <IconSymbol name="ThumbsDownIcon" size={36} color={colors.accentRed} />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -98,15 +104,12 @@ export default OrderSuccessModal;
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
   },
-
   card: {
     width: "100%",
-    backgroundColor: "#fff",
     borderRadius: 24,
     paddingVertical: 36,
     paddingHorizontal: 28,
@@ -118,43 +121,14 @@ const styles = StyleSheet.create({
     shadowRadius: 28,
     elevation: 20,
   },
-
-  tripLabel: {
-    fontSize: 16,
-    color: "#555",
-    fontWeight: "500",
-    marginTop: 4,
-  },
-  tripAmount: {
-    fontSize: 30,
-    fontWeight: "800",
-    color: "#10AA08",
-    letterSpacing: -0.5,
-  },
-  cta: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#111",
-    letterSpacing: 0.3,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  ratingQuestion: {
-    fontSize: 15,
-    color: "#444",
-    marginTop: 8,
-  },
-
-  ratingRow: {
-    flexDirection: "row",
-    gap: 48,
-    marginTop: 12,
-  },
+  tripLabel: { fontSize: 16, fontWeight: "500", marginTop: 4 },
+  tripAmount: { fontSize: 30, fontWeight: "800", letterSpacing: -0.5 },
+  cta: { fontSize: 15, fontWeight: "800", letterSpacing: 0.3, marginTop: 4, textAlign: "center" },
+  ratingQuestion: { fontSize: 15, marginTop: 8 },
+  ratingRow: { flexDirection: "row", gap: 48, marginTop: 12 },
   ratingBtn: {
     padding: 16,
     borderRadius: 20,
-    backgroundColor: "#f5f5f5",
     borderWidth: 1.5,
-    borderColor: "#ebebeb",
   },
 });

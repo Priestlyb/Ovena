@@ -10,12 +10,19 @@ import AntDesignIcon from "@expo/vector-icons/AntDesign";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import Fontisto from "@expo/vector-icons/Fontisto";
 
+
 /* ======================================================
    ICON MAPS (GROUPED BY ICON FAMILY)
 ====================================================== */
 
 /* ---------- IONICONS (General UI) ---------- */
 export const IONICONS = {
+  ClipboardIcon: "clipboard-outline",
+  DocumentIcon: "document-text-outline",
+  PaymentIcon: "card-outline",
+  CameraIcon: "camera-outline",
+  PencilIcon: "create-outline",
+  LockIcon: "lock-closed-outline",
   HomeIcon: "home",
   SearchIcon: "search",
   FilterIcon: "options-outline",
@@ -26,6 +33,7 @@ export const IONICONS = {
   BellIcon: "notifications-outline",
   SettingsIcon: "settings-outline",
   CloseIcon: "close",
+  PassWordIcon: "lock-closed-outline",
   ChevronForwardIcon: "chevron-forward",
   BagOutline: "bag-outline",
   HeartOutline: "heart-outline",
@@ -35,7 +43,19 @@ export const IONICONS = {
   CardOutline: "card-outline",
   LogOutOutline: "log-out-outline",
   LocationOutline: "location-outline",
-  Location: "location"
+  Location: "location",
+  ArrowBack: "arrow-back-outline",
+  BankIcon: "cash-outline",
+  Bicycle: "bicycle-outline",
+  WhatsAppIcon: "logo-whatsapp",  
+  FacebookIcon: "logo-facebook",
+  InstagramIcon: "logo-instagram",
+  SnapchatIcon: "logo-snapchat",
+  MessageIcon: "chatbubble-outline",
+  ClockIcon: "time-outline",
+  ChevronDownIcon: "chevron-down-outline",
+  CheckmarkIcon: "checkmark-outline",
+  RetakeIcon: "camera-reverse-outline",
 } as const satisfies Record<
   string,
   ComponentProps<typeof Ionicons>["name"]
@@ -102,6 +122,13 @@ export const FONT_AWESOME_6_ICONS = {
     "person-walking-dashed-line-arrow-right",
   ClockIcon: "clock",
   LocationArrowIcon: "location-arrow",
+  Ticket: "ticket",
+  GmailIcon: "envelope",
+  SnapChatIcon: "snapchat",
+  Message: "comment",
+  TelegramIcon:"telegram",
+  XMarkIcon: "x",
+  InboxIcon: "inbox",
 } as const satisfies Record<
   string,
   ComponentProps<typeof FontAwesome6>["name"]

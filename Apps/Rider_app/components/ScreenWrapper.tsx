@@ -1,65 +1,66 @@
 // components/ScreenWrapper.tsx
+//
+// Wraps every screen with correct top padding so content never hides behind
+// the device status bar. Uses useSafeAreaInsets() which works correctly on
+// all Android and iOS devices including notched / punch-hole / Dynamic Island.
+//
+// Usage:
+//   import ScreenWrapper from "../components/ScreenWrapper";
+//
+//   const MyScreen = () => (
+//     <ScreenWrapper>
+//       {/* your screen content */}
+//     </ScreenWrapper>
+//   );
+//
+// Props:
+//   style       — extra ViewStyle applied to the outer container
+//   noPadding   — set to true to opt out of the safe-area top padding
+//                 (useful for screens whose header handles it manually)
+
 import React from "react";
-import {
-  View,
-  StyleSheet,
-  StatusBar,
-  ScrollView,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, StyleSheet, ViewStyle, StatusBar } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../context/ThemeContext";
 
 interface ScreenWrapperProps {
-  children: React.ReactNode;
-  backgroundColor?: string;
-  scrollable?: boolean;
+  children:   React.ReactNode;
+  style?:     ViewStyle;
+  /** Skip automatic top safe-area padding. Default: false */
   noPadding?: boolean;
-  statusBarStyle?: "dark-content" | "light-content";
 }
 
 const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
   children,
-  backgroundColor = "#fff",
-  scrollable = false,
+  style,
   noPadding = false,
-  statusBarStyle,
 }) => {
-  const barStyle =
-    statusBarStyle ?? (backgroundColor === "#fff" ? "dark-content" : "light-content");
+  const { colors } = useTheme();
+  const insets     = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor }]} edges={["top", "left", "right"]}>
-      <StatusBar barStyle={barStyle} backgroundColor={backgroundColor} translucent={false} />
-      {scrollable ? (
-        <ScrollView
-          style={{ flex: 1, backgroundColor }}
-          contentContainerStyle={[styles.scrollContent, noPadding && styles.noPadding]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={[styles.inner, { backgroundColor }, noPadding && styles.noPadding]}>
-          {children}
-        </View>
-      )}
-    </SafeAreaView>
+    <View
+      style={[
+        styles.base,
+        { backgroundColor: colors.background },
+        !noPadding && { paddingTop: insets.top },
+        style,
+      ]}
+    >
+      <StatusBar
+        barStyle={colors.statusBarStyle}
+        backgroundColor={colors.background}
+        translucent={false}
+      />
+      {children}
+    </View>
   );
 };
 
 export default ScreenWrapper;
 
 const styles = StyleSheet.create({
-  safe: {
+  base: {
     flex: 1,
-  },
-  inner: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  noPadding: {
-    paddingHorizontal: 0,
   },
 });
