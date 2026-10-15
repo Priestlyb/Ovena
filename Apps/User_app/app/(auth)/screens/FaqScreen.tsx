@@ -1,274 +1,393 @@
+// app/screens/FaqScreen.tsx
+
+import React from "react";
 import {
+  SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ScrollView,
 } from "react-native";
-import React, { useState } from "react";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+
 import { router } from "expo-router";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from "react-native-reanimated";
 
-// 📌 DATA
-const FAQ_SECTIONS = [
-  {
-    title: "HELP & SUPPORT",
-    data: [
-      {
-        id: 1,
-        question: "How can I contact support?",
-        answer:
-          "You can reach out to our support team via the help section in your profile.",
-      },
-      {
-        id: 2,
-        question: "What should I do if the app crashes?",
-        answer: "Try restarting the app or updating to the latest version.",
-      },
-    ],
-  },
-  {
-    title: "METHOD OF PAYMENTS AND INCIDENTS",
-    data: [
-      {
-        id: 3,
-        question: "What payment methods are accepted?",
-        answer:
-          "We accept cards, bank transfers, and other supported gateways.",
-      },
-      {
-        id: 4,
-        question: "I was charged but didn’t get service",
-        answer: "Contact support immediately with your transaction details.",
-      },
-    ],
-  },
-  {
-    title: "OTHER QUESTIONS",
-    data: [
-      {
-        id: 5,
-        question: "Can I change my account details?",
-        answer: "Yes, you can update your account details in your profile.",
-      },
-      {
-        id: 6,
-        question: "Is my data secure?",
-        answer: "Yes, we use encryption to protect all user data.",
-      },
-    ],
-  },
-];
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { FAQItem, FAQ_SECTIONS } from "@/data/faqData";
 
-// 🔥 ITEM
-const AccordionItem = ({
-  item,
-  isOpen,
-  onPress,
-}: {
-  item: any;
-  isOpen: boolean;
-  onPress: () => void;
-}) => {
-  const height = useSharedValue(0);
-  const opacity = useSharedValue(0);
-  const rotate = useSharedValue(0);
+import { useTheme, ThemeColors } from "@/constants/theme";
 
-  const [contentHeight, setContentHeight] = useState(0);
 
-  React.useEffect(() => {
-    height.value = withTiming(isOpen ? contentHeight : 0, { duration: 300 });
-    opacity.value = withTiming(isOpen ? 1 : 0, { duration: 200 });
-    rotate.value = withTiming(isOpen ? 90 : 0, { duration: 300 });
-  }, [isOpen, contentHeight]);
+type FaqRowProps = {
+  item: FAQItem;
+};
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    height: height.value,
-    opacity: opacity.value,
-  }));
 
-  const rotateStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotate.value}deg` }],
-  }));
+const FaqRow = ({ item }: FaqRowProps) => {
+  const theme = useTheme();
+  const styles = createStyles(theme);
 
   return (
-    <View
-      style={[
-        styles.card,
-        isOpen && { borderColor: "#eb7207", borderWidth: 1 },
-      ]}
+    <TouchableOpacity
+      activeOpacity={0.85}
+      style={styles.card}
+      onPress={() =>
+        router.push({
+          pathname: "/(auth)/screens/FaqDetails",
+          params: {
+            id: String(item.id),
+            question: item.question,
+            answer: item.answer,
+          },
+        })
+      }
     >
-      <TouchableOpacity
-        style={styles.questionRow}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
-        <Text
-          style={[
-            styles.question,
-            isOpen && { color: "#eb7207", fontWeight: "600" },
-          ]}
-        >
-          {item.question}
-        </Text>
+      <View style={styles.questionRow}>
+        <View style={styles.questionContent}>
+          <View style={styles.iconContainer}>
+            <IconSymbol
+              name="QuestionCircle"
+              size={18}
+              color={theme.primary}
+            />
+          </View>
 
-        <Animated.View style={rotateStyle}>
-          <IconSymbol name="ChevronRightIcon" size={20} color={"black"} />
-        </Animated.View>
-      </TouchableOpacity>
+          <Text style={styles.question}>
+            {item.question}
+          </Text>
+        </View>
 
-      {/* HIDDEN MEASURE VIEW */}
-      <View
-        style={styles.hidden}
-        onLayout={(e) => {
-          if (contentHeight === 0) {
-            setContentHeight(e.nativeEvent.layout.height);
-          }
-        }}
-      >
-        <Text style={styles.answer}>{item.answer}</Text>
+        <IconSymbol
+          name="ChevronRightIcon"
+          size={18}
+          color={theme.textSecondary}
+        />
       </View>
-
-      {/* ANIMATED VIEW */}
-      <Animated.View style={[styles.answerContainer, animatedStyle]}>
-        <Text style={styles.answer}>{item.answer}</Text>
-      </Animated.View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
-export default function FaqScreen() {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const toggleItem = (id: number) => {
-    setActiveIndex(activeIndex === id ? null : id);
-  };
+export default function FaqScreen() {
+  const theme = useTheme();
+  const styles = createStyles(theme);
 
   return (
-    <View style={styles.container}>
-      {/* HEADER */}
-      <View
-        style={{
-          width: "100%",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          gap: 50,
-          alignItems: "center",
-          marginBottom: 20,
-          paddingHorizontal: 20,
-          paddingVertical: 10,
-        }}
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
       >
-        <TouchableOpacity
-          onPress={() => router.replace("/(tabs)/profile")}
-          style={{
-            padding: 10,
-            borderColor: "#000",
-            borderWidth: 1,
-            borderRadius: 50,
-          }}
-        >
-          <IconSymbol name="ArrowLeftIcon" size={22} color={"#000"} />
-        </TouchableOpacity>
+        {/* Header */}
 
-        <Text style={{ fontSize: 24, fontWeight: "bold" }}>FAQs</Text>
-        <View style={{ width: 34 }} />
-      </View>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            activeOpacity={0.8}
+            onPress={() => router.replace("/(tabs)/profile")}
+          >
+            <IconSymbol
+              name="ArrowLeftIcon"
+              size={20}
+              color={theme.icon}
+            />
+          </TouchableOpacity>
 
-      {/* CONTENT */}
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {FAQ_SECTIONS.map((section, index) => (
-          <View key={index}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+
+          <View style={styles.headerText}>
+            <Text style={styles.title}>
+              Frequently Asked Questions
+            </Text>
+
+            <Text style={styles.subtitle}>
+              Everything you need to know about ordering,
+              payments and using Ovena.
+            </Text>
+          </View>
+        </View>
+
+
+        {/* Help Card */}
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroIcon}>
+            <IconSymbol
+              name="HelpCircleOutline"
+              size={30}
+              color={theme.primary}
+            />
+          </View>
+
+
+          <View style={styles.heroTextContainer}>
+            <Text style={styles.heroTitle}>
+              Need Help?
+            </Text>
+
+            <Text style={styles.heroSubtitle}>
+              Browse our frequently asked questions below.
+              Tap any question to view the full answer.
+            </Text>
+          </View>
+        </View>
+
+
+        {/* FAQ Sections */}
+
+        {FAQ_SECTIONS.map((section) => (
+          <View
+            key={section.title}
+            style={styles.section}
+          >
+            <Text style={styles.sectionTitle}>
+              {section.title}
+            </Text>
+
 
             {section.data.map((item) => (
-              <AccordionItem
+              <FaqRow
                 key={item.id}
                 item={item}
-                isOpen={activeIndex === item.id}
-                onPress={() => toggleItem(item.id)}
               />
             ))}
           </View>
         ))}
+
+
+        {/* Contact Support */}
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.supportCard}
+          onPress={() => {
+            router.push("/(auth)/screens/SupportPage");
+          }}
+        >
+          <View style={styles.supportIcon}>
+            <IconSymbol
+              name="HelpCircleOutline"
+              size={24}
+              color="#FFFFFF"
+            />
+          </View>
+
+
+          <View style={styles.supportContent}>
+            <Text style={styles.supportTitle}>
+              Still need help?
+            </Text>
+
+            <Text style={styles.supportSubtitle}>
+              Contact our support team and we'll be happy
+              to assist you.
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+
+        <View style={{ height: 40 }} />
+
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 55,
-  },
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
 
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginLeft: 10,
-  },
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
 
-  scrollContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 40,
-  },
+    container: {
+      flex: 1,
+      paddingTop: 25,
+      backgroundColor: theme.background,
+    },
 
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#888",
-    marginTop: 20,
-    marginBottom: 8,
-  },
 
-  card: {
-    backgroundColor: "#f7f7f7",
-    borderRadius: 12,
-    marginBottom: 12,
-    overflow: "hidden",
-  },
+    content: {
+      padding: 20,
+      paddingTop: 60,
+    },
 
-  questionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-  },
 
-  question: {
-    fontSize: 16,
-    flex: 1,
-    marginRight: 10,
-  },
+    header: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      marginBottom: 24,
+    },
 
-  answerContainer: {
-    paddingHorizontal: 16,
-  },
 
-  answer: {
-    fontSize: 14,
-    color: "#555",
-    lineHeight: 20,
-  },
+    backButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 14,
+    },
 
-  hidden: {
-    position: "absolute",
-    opacity: 0,
-    zIndex: -1,
-    left: 0,
-    right: 0,
-  },
-});
+
+    headerText: {
+      flex: 1,
+    },
+
+
+    title: {
+      fontSize: 24,
+      fontWeight: "800",
+      color: theme.textPrimary,
+    },
+
+
+    subtitle: {
+      marginTop: 8,
+      fontSize: 14,
+      lineHeight: 21,
+      color: theme.textSecondary,
+    },
+
+
+    heroCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.primary + "15",
+      borderRadius: 22,
+      padding: 18,
+      marginBottom: 30,
+    },
+
+
+    heroIcon: {
+      width: 62,
+      height: 62,
+      borderRadius: 31,
+      backgroundColor: theme.surface,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 16,
+    },
+
+
+    heroTextContainer: {
+      flex: 1,
+    },
+
+
+    heroTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.textPrimary,
+    },
+
+
+    heroSubtitle: {
+      marginTop: 6,
+      fontSize: 14,
+      lineHeight: 20,
+      color: theme.textSecondary,
+    },
+
+
+    section: {
+      marginBottom: 24,
+    },
+
+
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.textPrimary,
+      marginBottom: 14,
+    },
+
+
+    card: {
+      backgroundColor: theme.surface,
+      borderRadius: 18,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+
+
+    questionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+
+
+    questionContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+      paddingRight: 12,
+    },
+
+
+    iconContainer: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: theme.primary + "20",
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
+
+
+    question: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.textPrimary,
+      lineHeight: 21,
+    },
+
+
+    supportCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.primary,
+      borderRadius: 22,
+      padding: 18,
+      marginTop: 10,
+    },
+
+
+    supportIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: "rgba(255,255,255,0.2)",
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 14,
+    },
+
+
+    supportContent: {
+      flex: 1,
+    },
+
+
+    supportTitle: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+
+
+    supportSubtitle: {
+      marginTop: 5,
+      fontSize: 13,
+      lineHeight: 18,
+      color: "#FFFFFF",
+      opacity: 0.9,
+    },
+
+  });

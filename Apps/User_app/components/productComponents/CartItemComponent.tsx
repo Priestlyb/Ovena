@@ -1,84 +1,105 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { Counter } from './Counter';
-import { CartItem } from '@/app/types';
+import React from "react";
+
+import { View, Text, TouchableOpacity, Image } from "react-native";
+
+import { Counter } from "./Counter";
+import { CartItem } from "@/src/types";
+import { IconSymbol } from "../ui/icon-symbol";
+
+import { createStyles } from "@/constants/styles/CartItemComponent.styles";
+
+import { useTheme } from "@/constants/theme";
 
 interface CartItemComponentProps {
   item: CartItem;
-  onIncrement: (id: string) => void;
-  onDecrement: (id: string) => void;
-  onDelete: (id: string) => void;
+  onPress: () => void;
+  onIncrement: () => void;
+  onDecrement: () => void;
+  onDelete: () => void;
 }
 
-export const CartItemComponent: React.FC<CartItemComponentProps> = ({ 
-  item, 
-  onIncrement, 
-  onDecrement, 
-  onDelete 
-}) => (
-  <View style={styles.cartItemContainer}>
-    <View style={styles.cartItemContent}>
-      <View style={styles.cartItemImage} />
-      <View style={styles.cartItemDetails}>
-        <Text style={styles.cartItemName}>{item.name}</Text>
-        <Text style={styles.cartItemRestaurant}>{item.restaurant}</Text>
+export const CartItemComponent: React.FC<CartItemComponentProps> = ({
+  item,
+  onPress,
+  onIncrement,
+  onDecrement,
+  onDelete,
+}) => {
+  const theme = useTheme();
+
+  const styles = createStyles(theme);
+
+  const itemName = item.product_name || "Unnamed item";
+
+  const restaurantName = item.business_name || "Restaurant";
+
+  const lineTotal = Number(item.line_total || 0);
+
+  const image = item.image;
+
+  return (
+    <View style={styles.cartItemContainer}>
+      {/* ITEM CONTENT */}
+
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onPress}
+        style={styles.cartItemContent}
+      >
+        {/* IMAGE */}
+
+        {image ? (
+          <Image
+            source={{
+              uri: image,
+            }}
+            style={styles.cartItemImage}
+          />
+        ) : (
+          <View style={styles.cartItemImage} />
+        )}
+
+        {/* DETAILS */}
+
+        <View style={styles.cartItemDetails}>
+          <Text style={styles.cartItemName}>{itemName}</Text>
+
+          <Text style={styles.cartItemRestaurant}>{restaurantName}</Text>
+
+          {(item.variants?.length ?? 0) > 0 && (
+            <Text style={styles.optionText}>
+              {item.variants!.map((v) => v.name).join(", ")}
+            </Text>
+          )}
+
+          {(item.addons?.length ?? 0) > 0 && (
+            <Text style={styles.optionText}>
+              + {item.addons!.map((a) => a.name).join(", ")}
+            </Text>
+          )}
+
+          <Text style={styles.lineTotal}>
+            ₦{lineTotal.toLocaleString("en-NG")}
+          </Text>
+        </View>
+
+        {/* DELETE */}
+
+        <TouchableOpacity onPress={onDelete} style={styles.deleteIconButton}>
+          <IconSymbol name="TrashOutline" size={22} color={theme.error} />
+        </TouchableOpacity>
+      </TouchableOpacity>
+
+      {/* QUANTITY */}
+
+      <View style={styles.cartItemActions}>
+        <Counter
+          value={item.quantity}
+          onIncrement={onIncrement}
+          onDecrement={onDecrement}
+          minValue={1}
+        />
       </View>
     </View>
-    <View style={styles.cartItemActions}>
-      <Counter 
-        value={item.quantity} 
-        onIncrement={() => onIncrement(item.id)}
-        onDecrement={() => onDecrement(item.id)}
-        minValue={1}
-      />
-      <TouchableOpacity onPress={() => onDelete(item.id)} style={styles.deleteIconButton}>
-        <Text style={styles.deleteIconText}>🗑️</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
-
-const styles = StyleSheet.create({
-  cartItemContainer: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
-  },
-  cartItemContent: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  cartItemImage: {
-    width: 60,
-    height: 60,
-    backgroundColor: '#e8e8e8',
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  cartItemDetails: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  cartItemName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 4,
-  },
-  cartItemRestaurant: {
-    fontSize: 12,
-    color: '#666',
-  },
-  cartItemActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  deleteIconButton: {
-    padding: 8,
-    marginLeft: 12,
-  },
-  deleteIconText: {
-    fontSize: 18,
-  },
-}); 
+  );
+};

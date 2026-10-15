@@ -1,211 +1,382 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { CustomButton } from '@/components/productComponents/Button';
-import { CartItemComponent } from '@/components/productComponents/CartItemComponent';
-import { CartItem } from '@/app/types';
+import React, { useEffect, useMemo, useState } from "react";
 
-interface OrderSummary {
-  products: number;
-  delivery: number;
-  discount: number;
-}
+import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 
-interface CartScreenProps {
-  cartItems: CartItem[];
-  orderSummary: OrderSummary;
-  onIncrement: (id: string) => void;
-  onDecrement: (id: string) => void;
-  onDeleteItem: (id: string) => void;
-  onCheckout: () => void;
-  onBack?: () => void;
-  onClearCart?: () => void;
-}
+import { useLocalSearchParams, useRouter } from "expo-router";
 
-const CartScreen: React.FC<CartScreenProps> = ({
-  cartItems,
-  orderSummary,
-  onIncrement,
-  onDecrement,
-  onDeleteItem,
-  onCheckout,
-  onBack,
-  onClearCart,
-}) => {
-  const calculateTotal = (): number => {
-    return orderSummary.products + orderSummary.delivery - orderSummary.discount;
+import { CustomButton } from "@/components/productComponents/Button";
+import { CartItemComponent } from "@/components/productComponents/CartItemComponent";
+import { useCartStore } from "@/src/store/cartStore";
+
+import { IconSymbol } from "@/components/ui/icon-symbol";
+
+import useOrderCalculations from "@/hooks/orders/useOrderCalculations";
+import { useDeviceLocation } from "@/hooks/Location/useDeviceLocation";
+
+import { useTheme } from "@/constants/theme";
+
+import { createStyles } from "@/constants/styles/CartScreen.styles";
+
+const CartScreen = () => {
+  const router = useRouter();
+
+  const theme = useTheme();
+
+  const styles = createStyles(theme);
+
+  const { branchId } = useLocalSearchParams<{
+    branchId: string;
+  }>();
+
+  const carts = useCartStore((s) => s.carts);
+
+  const clearBranch = useCartStore((s) => s.clearBranch);
+
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+
+  const removeItem = useCartStore((s) => s.removeItem);
+
+  const [showBreakdown, setShowBreakdown] = useState(true);
+
+  const { coords } = useDeviceLocation();
+
+  const {
+    calculateOrder,
+    calculationData,
+    loading: calculatingOrder,
+  } = useOrderCalculations();
+
+  const cartItems = useMemo(() => {
+    if (!branchId) return [];
+
+    return carts?.[Number(branchId)] || [];
+  }, [carts, branchId]);
+
+  useEffect(() => {
+    if (!branchId || !coords || cartItems.length === 0) {
+      return;
+    }
+
+    calculateOrder(
+      {
+        branch_id: Number(branchId),
+        lat: coords.lat,
+        long: coords.lng,
+      },
+      cartItems,
+    );
+  }, [branchId, coords, cartItems]);
+
+  const totalItems = useMemo(() => {
+    return cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  }, [cartItems]);
+
+  const totalPrice = useMemo(() => {
+    return cartItems.reduce(
+      (sum, item) => sum + Number(item.line_total || 0),
+      0,
+    );
+  }, [cartItems]);
+
+  const deliveryAmount = calculationData?.delivery_price ?? 0;
+
+  const serviceAmount = calculationData?.service_fee ?? 0;
+
+  const subtotalAmount = calculationData?.subtotal ?? totalPrice;
+
+  const totalAmount =
+    calculationData?.grand_total ?? totalPrice + deliveryAmount + serviceAmount;
+
+  const restaurantName =
+    cartItems?.[0]?.business_name ||
+    cartItems?.[0]?.product_name ||
+    `Branch #${branchId}`;
+
+  const handleIncrement = (itemKey: string) => {
+    const item = cartItems.find((i) => i.key === itemKey);
+
+    if (!item || !branchId) {
+      return;
+    }
+
+    updateQuantity(Number(branchId), itemKey, item.quantity + 1);
   };
 
-  const restaurantName = cartItems[0]?.restaurant || '';
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const handleDecrement = (itemKey: string) => {
+    const item = cartItems.find((i) => i.key === itemKey);
+
+    if (!item || !branchId) {
+      return;
+    }
+
+    if (item.quantity <= 1) {
+      removeItem(Number(branchId), itemKey);
+
+      return;
+    }
+
+    updateQuantity(Number(branchId), itemKey, item.quantity - 1);
+  };
+
+  const handleDeleteItem = (itemKey: string) => {
+    if (!branchId) return;
+
+    removeItem(Number(branchId), itemKey);
+  };
+
+  const handleClearCart = () => {
+    if (!branchId) return;
+
+    clearBranch(Number(branchId));
+
+    router.back();
+  };
+
+  const handleCheckout = () => {
+    router.push({
+      pathname: "/screens/CheckoutScreen",
+
+      params: {
+        branchId,
+
+        deliveryFee: String(deliveryAmount),
+
+        serviceFee: String(calculationData?.service_fee_percent ?? 0),
+
+        subtotal: String(subtotalAmount),
+
+        grandTotal: String(totalAmount),
+      },
+    });
+  };
+
+  if (!branchId) {
+    return (
+      <View style={styles.container}>
+        <Text>Invalid branch</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
+      {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton} onPress={onBack}>
-          <Text style={styles.iconButtonText}>←</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <IconSymbol name="ArrowLeftIcon" size={22} color={theme.icon} />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Carts</Text>
+        <Text style={styles.title}>Meal's Cart</Text>
 
-        <TouchableOpacity style={styles.iconButton} onPress={onClearCart}>
-          <Text style={styles.iconButtonText}>🗑️</Text>
+        <TouchableOpacity onPress={handleClearCart} style={styles.deleteBtn}>
+          <IconSymbol name="TrashOutline" size={22} color={theme.error} />
         </TouchableOpacity>
       </View>
 
+      {/* SUBHEADER */}
       <Text style={styles.cartSubheader}>
-        {totalItems} Product from {restaurantName}
+        {totalItems} items from {restaurantName}
       </Text>
 
-      <ScrollView style={styles.cartListContainer}>
-        {cartItems.map((item) => (
+      {/* ITEMS */}
+      <ScrollView
+        style={styles.cartListContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {cartItems.map((item, index) => (
           <CartItemComponent
-            key={item.id}
+            key={item.key || `${item.menu_item_id}-${index}`}
+
             item={item}
-            onIncrement={onIncrement}
-            onDecrement={onDecrement}
-            onDelete={onDeleteItem}
+
+            onPress={() => {
+              router.push({
+                pathname: "/(auth)/screens/CartProductDetailScreen",
+
+                params: {
+                  businessId: String(item.business_id),
+
+                  branchId: String(branchId),
+
+                  menuItemId: String(item.menu_item_id),
+
+                  editCartKey: item.key,
+                },
+              });
+            }}
+
+            onIncrement={() => item.key && handleIncrement(item.key)}
+
+            onDecrement={() => item.key && handleDecrement(item.key)}
+
+            onDelete={() => item.key && handleDeleteItem(item.key)}
           />
         ))}
 
-        <TouchableOpacity style={styles.addMoreItemsButton}>
+        <TouchableOpacity
+          style={styles.addMoreItemsButton}
+          onPress={() =>
+            router.push({
+              pathname: "/screens/RestaurantsPage",
+              params: {
+                id: String(cartItems[0]?.business_id),
+              },
+            })
+          }
+        >
           <Text style={styles.addMoreItemsText}>Add more items</Text>
         </TouchableOpacity>
       </ScrollView>
 
+      {/* SUMMARY */}
       <View style={styles.orderSummaryCard}>
-        <Text style={styles.orderSummaryTitle}>Order Summary</Text>
+        {/* SUMMARY HEADER */}
+        <TouchableOpacity
+          onPress={() => setShowBreakdown((prev) => !prev)}
+          style={styles.orderSummaryHeader}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.orderSummaryTitle}>Order Summary</Text>
 
-        <View style={styles.summaryLine}>
-          <Text style={styles.summaryLineLabel}>Products</Text>
-          <Text style={styles.summaryLineValue}>
-            ${orderSummary.products.toFixed(2)}
-          </Text>
-        </View>
+          <View style={styles.summaryHeaderRight}>
+            <Text style={styles.summaryHeaderTotal}>
+              ₦{totalAmount.toLocaleString("en-NG")}
+            </Text>
 
-        <View style={styles.summaryLine}>
-          <Text style={styles.summaryLineLabel}>Delivery</Text>
-          <Text style={styles.summaryLineValue}>
-            ${orderSummary.delivery.toFixed(2)}
-          </Text>
-        </View>
+            <IconSymbol
+              name={showBreakdown ? "ChevronUpIcon" : "ChevronDownIcon"}
+              size={20}
+              color={theme.icon}
+            />
+          </View>
+        </TouchableOpacity>
 
-        <View style={styles.summaryLine}>
-          <Text style={styles.summaryLineLabel}>Discount</Text>
-          <Text style={styles.summaryLineValue}>
-            ${orderSummary.discount.toFixed(2)}
-          </Text>
-        </View>
+        {/* COLLAPSIBLE CONTENT */}
+        {showBreakdown && (
+          <View style={styles.summaryContent}>
+            {/* PRODUCTS */}
+            <TouchableOpacity
+              onPress={() => setShowBreakdown((prev) => !prev)}
+              style={styles.summaryLine}
+            >
+              <Text style={styles.summaryLineLabel}>
+                Products ({cartItems.length})
+              </Text>
 
-        <View style={styles.summaryDivider} />
+              <Text style={styles.summaryLineValue}>
+                ₦{subtotalAmount.toLocaleString("en-NG")}
+              </Text>
+            </TouchableOpacity>
 
-        <View style={styles.summaryLine}>
-          <Text style={styles.summaryTotalLabel}>Total Payment</Text>
-          <Text style={styles.summaryTotalValue}>
-            ${calculateTotal().toFixed(2)}
-          </Text>
-        </View>
+            {/* PRODUCT BREAKDOWN */}
+            <View style={styles.breakdownContainer}>
+              {cartItems.map((item) => (
+                <View
+                  key={item.key || item.menu_item_id}
+                  style={styles.breakdownItem}
+                >
+                  <Text style={styles.breakdownTitle}>
+                    {item.product_name} × {item.quantity}
+                  </Text>
+
+                  {(item.variants ?? []).map((v, idx) => (
+                    <Text key={idx} style={styles.breakdownText}>
+                      • {v.group}: {v.name} (+₦
+                      {Number(v.price).toLocaleString("en-NG")})
+                    </Text>
+                  ))}
+
+                  {(item.addons ?? []).map((a, idx) => (
+                    <Text key={idx} style={styles.breakdownText}>
+                      • {a.name} × {a.qty} (+₦
+                      {Number(a.total).toLocaleString("en-NG")})
+                    </Text>
+                  ))}
+
+                  <Text style={styles.breakdownSubtotal}>
+                    Subtotal: ₦
+                    {Number(item.line_total || 0).toLocaleString("en-NG")}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.summaryDivider} />
+
+            {/* SUBTOTAL */}
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryTotalLabel}>SubTotal:</Text>
+
+              <Text style={styles.summaryTotalValue}>
+                ₦{subtotalAmount.toLocaleString("en-NG")}
+              </Text>
+            </View>
+
+            <View style={styles.summaryDivider} />
+
+            {/* DELIVERY */}
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryLineLabel}>Delivery</Text>
+
+              <Text style={styles.summaryLineValue}>
+                ₦{deliveryAmount.toLocaleString("en-NG")}
+              </Text>
+            </View>
+
+            {/* SERVICE FEE */}
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryLineLabel}>Service Fee</Text>
+
+              <Text style={styles.summaryLineValue}>
+                ₦{serviceAmount.toLocaleString("en-NG")}
+              </Text>
+            </View>
+
+            {/* DISCOUNT */}
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryLineLabel}>Discount</Text>
+
+              <Text style={styles.summaryLineValue}>
+                ₦
+                {(calculationData?.discount_total ?? 0).toLocaleString("en-NG")}
+              </Text>
+            </View>
+
+            <View style={styles.summaryDivider} />
+
+            {/* TOTAL */}
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryTotalLabel}>Total</Text>
+
+              <Text style={styles.summaryTotalValue}>
+                ₦{totalAmount.toLocaleString("en-NG")}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* COLLAPSED TOTAL */}
+        {!showBreakdown && (
+          <View style={styles.collapsedTotalRow}>
+            <Text style={styles.summaryTotalLabel}>Total</Text>
+
+            <Text style={styles.summaryTotalValue}>
+              ₦{totalAmount.toLocaleString("en-NG")}
+            </Text>
+          </View>
+        )}
       </View>
 
+      {/* CHECKOUT */}
       <View style={styles.bottomButtonContainer}>
-        <CustomButton title="Checkout Now" onPress={onCheckout} />
+        <CustomButton
+          title={calculatingOrder ? "Updating..." : "Checkout Now"}
+
+          onPress={handleCheckout}
+        />
       </View>
     </View>
   );
 };
 
 export default CartScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconButtonText: {
-    fontSize: 18,
-    color: '#333',
-  },
-  cartSubheader: {
-    padding: 16,
-    fontSize: 13,
-    color: '#666',
-    backgroundColor: '#fafafa',
-  },
-  cartListContainer: {
-    flex: 1,
-  },
-  addMoreItemsButton: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  addMoreItemsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ff6347',
-  },
-  orderSummaryCard: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    backgroundColor: '#fff',
-  },
-  orderSummaryTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 16,
-  },
-  summaryLine: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  summaryLineLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  summaryLineValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000',
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: '#f0f0f0',
-    marginVertical: 12,
-  },
-  summaryTotalLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  summaryTotalValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  bottomButtonContainer: {
-    padding: 16,
-    paddingBottom: 24,
-  },
-});

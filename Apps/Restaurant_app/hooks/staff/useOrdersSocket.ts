@@ -300,8 +300,6 @@ export const useOrdersSocket = ({
                 };
 
                 socket.onmessage = async (event) => {
-                    console.log("📩 Raw WebSocket message:");
-                    console.log(event.data);
 
                     try {
                         const parsed = JSON.parse(event.data);

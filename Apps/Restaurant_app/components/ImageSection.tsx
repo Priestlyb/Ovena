@@ -8,7 +8,12 @@ import {
   View,
 } from "react-native";
 
-import { CheckCircle2, ImagePlus, Trash2 } from "lucide-react-native";
+import {
+  CheckCircle2,
+  ImagePlus,
+  RefreshCcw,
+  XCircle,
+} from "lucide-react-native";
 
 /* ================================
    TYPES
@@ -22,7 +27,8 @@ type ImageSectionProps = {
   productImage: ImageType | null;
   uploadProgress: number;
   handleImageUpload: () => void;
-  removeImage: () => void;
+  hasPendingImageChange: boolean;
+  cancelImageChange: () => void;
   isUploading?: boolean;
 };
 
@@ -33,7 +39,8 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
   productImage,
   uploadProgress,
   handleImageUpload,
-  removeImage,
+  hasPendingImageChange,
+  cancelImageChange,
   isUploading = false,
 }) => {
   /* ================================
@@ -94,7 +101,9 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
     <View style={styles.container}>
       <View style={styles.imageWrapper}>
         <Image
-          source={{ uri: productImage.uri || "" }}
+          source={{
+            uri: productImage.uri || "",
+          }}
           style={styles.image}
           resizeMode="cover"
         />
@@ -102,19 +111,49 @@ export const ImageSection: React.FC<ImageSectionProps> = ({
         <View style={styles.successBadge}>
           <CheckCircle2 size={18} color="#ffb47e" />
 
-          <Text style={styles.successText}>Uploaded</Text>
+          <Text style={styles.successText}>
+            {hasPendingImageChange ? "New Image" : "Current Image"}
+          </Text>
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={removeImage}
-        activeOpacity={0.85}
-      >
-        <Trash2 size={18} color="#FFFFFF" />
+      {/* ================================
+          ACTION BUTTONS
+      ================================= */}
+      <View style={styles.actionsRow}>
+        {/* CHANGE IMAGE */}
+        <TouchableOpacity
+          style={styles.changeButton}
+          onPress={handleImageUpload}
+          activeOpacity={0.85}
+          disabled={isUploading}
+        >
+          <RefreshCcw size={18} color="#FFFFFF" />
 
-        <Text style={styles.removeText}>Remove Image</Text>
-      </TouchableOpacity>
+          <Text style={styles.changeText}>Change Image</Text>
+        </TouchableOpacity>
+
+        {/* CANCEL CHANGE */}
+        {hasPendingImageChange && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={cancelImageChange}
+            activeOpacity={0.85}
+            disabled={isUploading}
+          >
+            <XCircle size={18} color="#FFFFFF" />
+
+            <Text style={styles.cancelText}>Cancel Change</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* INFO TEXT */}
+      {hasPendingImageChange && (
+        <Text style={styles.pendingText}>
+          The new image will be uploaded when you tap "Update Menu".
+        </Text>
+      )}
     </View>
   );
 };
@@ -234,10 +273,33 @@ const styles = StyleSheet.create({
   },
 
   /* ================================
-     REMOVE BUTTON
+     ACTION BUTTONS
   ================================ */
-  removeButton: {
+  actionsRow: {
+    flexDirection: "row",
+    gap: 12,
     marginTop: 18,
+  },
+
+  changeButton: {
+    flex: 1,
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: "#101828",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+
+  changeText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  cancelButton: {
+    flex: 1,
     height: 54,
     borderRadius: 16,
     backgroundColor: "#F84E10",
@@ -245,19 +307,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    shadowColor: "#F84E10",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 4,
   },
 
-  removeText: {
+  cancelText: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
+  },
+
+  pendingText: {
+    marginTop: 14,
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#667085",
+    textAlign: "center",
   },
 });

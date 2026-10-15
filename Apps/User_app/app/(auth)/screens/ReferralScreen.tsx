@@ -1,17 +1,14 @@
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   FlatList,
   Image,
   ScrollView,
-  Alert,
+  Share,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import * as Linking from "expo-linking";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -21,24 +18,69 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { router } from "expo-router/build/exports";
+import { router } from "expo-router";
+
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import FeedbackModal from "@/components/FeedbackModal";
+import { createStyles } from "@/constants/styles/ReferralScreen.styles";
+import { useTheme, ThemeColors } from "@/constants/theme";
+
+import { useGenerateReferralLink } from "@/hooks/referralService/useGenerateReferralLink";
+import { useMyReferralList } from "@/hooks/referralService/useMyReferralList";
 
 const TABS = ["Your Referrals", "Invited friends"];
-const REFERRAL_CODE = "SUJITH08617";
-
-const dummyUsers = Array.from({ length: 8 }).map((_, i) => ({
-  id: i.toString(),
-  name: "Ife Dunnie",
-  date: i % 2 === 0 ? "Joined Today" : "Joined August 24",
-  points: 1000,
-}));
 
 export default function ReferralScreen() {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
   const [activeTab, setActiveTab] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+
   const scale = useSharedValue(1);
   const tabTranslate = useSharedValue(0);
 
-  const totalPoints = dummyUsers.reduce((acc, u) => acc + u.points, 0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalVariant, setModalVariant] = useState<
+    "success" | "error" | "warning" | "info"
+  >("info");
+
+  /* =========================
+     API HOOKS
+  ========================= */
+
+  const { generateLink, loading, data } = useGenerateReferralLink();
+
+  const {
+    fetchReferrals,
+    data: referralList,
+    loading: listLoading,
+  } = useMyReferralList();
+
+  useEffect(() => {
+    generateLink();
+    fetchReferrals();
+  }, [generateLink, fetchReferrals]);
+
+  const referralCode = data?.code;
+  const referralLink = data?.referral_link;
+
+  const users =
+    referralList?.map((item: any, index: number) => ({
+      id: item.id?.toString() || index.toString(),
+      name: item.referee_user_name || "Unknown User",
+      date: item.date || "Joined recently",
+      points: item.points || 0,
+    })) || [];
+
+  const totalPoints = users.reduce((acc, u) => acc + u.points, 0);
+
+  const horizontalPadding = 8;
+
+  const tabWidth =
+    containerWidth > 0 ? (containerWidth - horizontalPadding) / TABS.length : 0;
 
   const buttonAnim = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -50,18 +92,58 @@ export default function ReferralScreen() {
 
   const handleTabPress = (index: number) => {
     setActiveTab(index);
-    tabTranslate.value = withTiming(index * 160); // adjust if needed
+
+    if (tabWidth > 0) {
+      tabTranslate.value = withTiming(index * tabWidth);
+    }
+  };
+
+  const showModal = (
+    title: string,
+    message: string,
+    variant: "success" | "error" | "warning" | "info" = "info",
+  ) => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setModalVariant(variant);
+    setModalVisible(true);
   };
 
   const handleCopy = async () => {
-    await Clipboard.setStringAsync(REFERRAL_CODE);
-    Alert.alert("Copied!", "Referral code copied to clipboard");
+    if (!referralCode) {
+      showModal("Referral unavailable", "Referral code not ready yet", "error");
+      return;
+    }
+
+    await Clipboard.setStringAsync(referralCode);
+
+    showModal("Copied!", "Referral code copied to clipboard", "success");
   };
 
-  const handleWhatsAppShare = () => {
-    const message = `Join this app and earn rewards! Use my referral code: ${REFERRAL_CODE}`;
-    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    Linking.openURL(url);
+  const handleShare = async () => {
+    if (!referralLink) {
+      showModal("Referral unavailable", "Referral link not ready yet", "error");
+      return;
+    }
+
+    const message = `You're invited to join Ovena! Use my referral code: ${referralCode} Or join directly using my referral link: ${referralLink}
+
+See you on Ovena!`;
+
+    try {
+      await Share.share({
+        message,
+        title: "Invite Friends",
+      });
+    } catch (error) {
+      console.log(error);
+
+      showModal(
+        "Share Failed",
+        "Unable to open the share dialog. Please try again.",
+        "error",
+      );
+    }
   };
 
   const handlePressIn = () => {
@@ -73,45 +155,110 @@ export default function ReferralScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.background,
+        },
+      ]}
+    >
       {/* HEADER */}
-      <View
-        style={{
-          width: "100%",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          gap: 50,
-          alignItems: "center",
-          marginBottom: 20,
-          paddingHorizontal: 20,
-          paddingVertical: 10,
-        }}
-      >
+
+      <View style={styles.headerContainer}>
         <TouchableOpacity
           onPress={() => router.replace("/(tabs)/profile")}
-          style={{
-            padding: 10,
-            borderColor: "#000",
-            borderWidth: 1,
-            borderRadius: 50,
-          }}
+          style={[
+            styles.backButton,
+            {
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+              borderWidth: 1,
+            },
+          ]}
         >
-          <IconSymbol name="ArrowLeftIcon" size={22} color={"#000"} />
+          <IconSymbol
+            name="ArrowLeftIcon"
+            size={22}
+            color={theme.textPrimary}
+          />
         </TouchableOpacity>
 
-        <Text style={{ fontSize: 24, fontWeight: "bold" }}>Invite friends</Text>
+        <Text
+          style={[
+            styles.headerTitle,
+            {
+              color: theme.textPrimary,
+            },
+          ]}
+        >
+          Invite friends
+        </Text>
+
         <View style={{ width: 34 }} />
       </View>
 
-      {/* POINTS SUMMARY */}
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Total Points</Text>
-        <Text style={styles.summaryPoints}>{totalPoints.toLocaleString()}</Text>
+      {/* POINTS SUMMARY 
+
+      <View
+        style={[
+          styles.summaryCard,
+          {
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+            borderWidth: 1,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.summaryTitle,
+            {
+              color: theme.textSecondary,
+            },
+          ]}
+        >
+          Total Points
+        </Text>
+
+        <Text
+          style={[
+            styles.summaryPoints,
+            {
+              color: theme.primary,
+            },
+          ]}
+        >
+          {totalPoints.toLocaleString()}
+        </Text>
       </View>
+      */}
 
       {/* TABS */}
-      <View style={styles.tabContainer}>
-        <Animated.View style={[styles.indicator, indicatorAnim]} />
+
+      <View
+        style={[
+          styles.tabContainer,
+          {
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+            borderWidth: 1,
+          },
+        ]}
+        onLayout={(e) => {
+          setContainerWidth(e.nativeEvent.layout.width);
+        }}
+      >
+        <Animated.View
+          style={[
+            styles.indicator,
+            {
+              width: tabWidth,
+              backgroundColor: theme.primary,
+            },
+            indicatorAnim,
+          ]}
+        />
 
         {TABS.map((tab, index) => (
           <TouchableOpacity
@@ -122,7 +269,9 @@ export default function ReferralScreen() {
             <Text
               style={[
                 styles.tabText,
-                activeTab === index && styles.activeTabText,
+                {
+                  color: activeTab === index ? "#FFFFFF" : theme.textSecondary,
+                },
               ]}
             >
               {tab}
@@ -132,6 +281,7 @@ export default function ReferralScreen() {
       </View>
 
       {/* CONTENT */}
+
       <Animated.View
         key={activeTab}
         entering={FadeIn.duration(300)}
@@ -140,29 +290,75 @@ export default function ReferralScreen() {
         style={{ flex: 1 }}
       >
         {activeTab === 0 ? (
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <ReferralEmpty onCopy={handleCopy} />
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingBottom: 10,
+            }}
+          >
+            <ReferralEmpty
+              onCopy={handleCopy}
+              code={referralCode}
+              loading={loading}
+              theme={theme}
+            />
           </ScrollView>
         ) : (
           <FlatList
-            data={dummyUsers}
+            data={users}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <UserItem item={item} />}
-            contentContainerStyle={{ paddingBottom: 140 }}
+            renderItem={({ item }) => <UserItem item={item} theme={theme} />}
+            contentContainerStyle={{
+              paddingBottom: 0,
+            }}
             showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              listLoading ? (
+                <Text
+                  style={{
+                    textAlign: "center",
+                    marginTop: 20,
+                    color: theme.textSecondary,
+                  }}
+                >
+                  Loading referrals...
+                </Text>
+              ) : (
+                <Text
+                  style={{
+                    textAlign: "center",
+                    marginTop: 20,
+                    color: theme.textSecondary,
+                  }}
+                >
+                  No referrals yet
+                </Text>
+              )
+            }
           />
         )}
       </Animated.View>
 
       {/* CTA BUTTON */}
-      <View style={{ marginTop: 20, marginBottom: 40 }}>
+
+      <View
+        style={{
+          marginTop: 20,
+          marginBottom: 40,
+        }}
+      >
         <Animated.View style={buttonAnim}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
-            onPress={handleWhatsAppShare}
-            style={styles.button}
+            onPress={handleShare}
+            style={[
+              styles.button,
+              {
+                backgroundColor: theme.primary,
+              },
+            ]}
           >
             <Text style={styles.buttonText}>
               <IconSymbol name="ShareAltIcon" size={18} color="#FFBC44" /> Share
@@ -171,51 +367,193 @@ export default function ReferralScreen() {
           </TouchableOpacity>
         </Animated.View>
       </View>
+
+      <FeedbackModal
+        visible={modalVisible}
+        title={modalTitle}
+        message={modalMessage}
+        variant={modalVariant}
+        onClose={() => setModalVisible(false)}
+      />
     </View>
   );
 }
 
 /* ---------------- COMPONENTS ---------------- */
 
-const ReferralEmpty = ({ onCopy }: any) => {
+const ReferralEmpty = ({
+  onCopy,
+  code,
+  loading,
+  theme,
+}: {
+  onCopy: () => void;
+  code?: string;
+  loading?: boolean;
+  theme: ThemeColors;
+}) => {
+  const styles = createStyles(theme);
   return (
     <View style={styles.emptyContainer}>
       <Image
         source={require("../../../assets/images/referralImage.png")}
-        style={{ width: "85%" }}
+        style={{
+          width: "85%",
+          height: 260,
+          resizeMode: "contain",
+          marginBottom: 16,
+        }}
       />
 
-      <Text style={styles.title}>
+      <Text
+        style={[
+          styles.title,
+          {
+            color: theme.textPrimary,
+          },
+        ]}
+      >
         Invite friends, {"\n"}Get 1,000 Points per friend!
       </Text>
 
-      {/* CODE BOX */}
-      <TouchableOpacity style={styles.codeBox} onPress={onCopy}>
-        <Text style={styles.codeLabel}>Your Referral Code</Text>
-        <Text style={styles.code}>SUJITH08617</Text>
-        <Text style={{ fontSize: 12, color: "#888", marginTop: 5 }}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={[
+          styles.codeBox,
+          {
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+            borderWidth: 1,
+          },
+        ]}
+        onPress={onCopy}
+      >
+        <Text
+          style={[
+            styles.codeLabel,
+            {
+              color: theme.textSecondary,
+            },
+          ]}
+        >
+          Your Referral Code
+        </Text>
+
+        <Text
+          style={[
+            styles.code,
+            {
+              color: theme.primary,
+            },
+          ]}
+        >
+          {loading ? "Generating..." : code || "N/A"}
+        </Text>
+
+        <Text
+          style={{
+            fontSize: 12,
+            color: theme.textSecondary,
+            marginTop: 6,
+          }}
+        >
           Tap to copy
         </Text>
       </TouchableOpacity>
 
-      {/* INFO */}
-      <View style={styles.info}>
+      <View
+        style={[
+          styles.info,
+          {
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+            borderWidth: 1,
+            borderRadius: 20,
+            paddingHorizontal: 18,
+            paddingVertical: 8,
+          },
+        ]}
+      >
         <View style={styles.infoRow}>
           <IconSymbol name="StarIcon" size={20} color="#EEC234" />
-          <View>
-            <Text style={styles.infoTitle}>Invite your friends</Text>
-            <Text style={styles.infoText}>
-              Send your friends your personal link.
+
+          <View style={{ flex: 1 }}>
+            <Text
+              style={[
+                styles.infoTitle,
+                {
+                  color: theme.textPrimary,
+                },
+              ]}
+            >
+              Invite your friends
+            </Text>
+
+            <Text
+              style={[
+                styles.infoText,
+                {
+                  color: theme.textSecondary,
+                },
+              ]}
+            >
+              Send your friends your personal referral code or referral link.
             </Text>
           </View>
         </View>
 
         <View style={styles.infoRow}>
           <IconSymbol name="StarIcon" size={20} color="#EEC234" />
-          <View>
-            <Text style={styles.infoTitle}>You get free points</Text>
-            <Text style={styles.infoText}>
-              When they join, you can unlock points per friend.
+
+          <View style={{ flex: 1 }}>
+            <Text
+              style={[
+                styles.infoTitle,
+                {
+                  color: theme.textPrimary,
+                },
+              ]}
+            >
+              They sign up
+            </Text>
+
+            <Text
+              style={[
+                styles.infoText,
+                {
+                  color: theme.textSecondary,
+                },
+              ]}
+            >
+              Your friend creates an Ovena account using your referral.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.infoRow}>
+          <IconSymbol name="StarIcon" size={20} color="#EEC234" />
+
+          <View style={{ flex: 1 }}>
+            <Text
+              style={[
+                styles.infoTitle,
+                {
+                  color: theme.textPrimary,
+                },
+              ]}
+            >
+              Earn rewards
+            </Text>
+
+            <Text
+              style={[
+                styles.infoText,
+                {
+                  color: theme.textSecondary,
+                },
+              ]}
+            >
+              Receive 1,000 reward points for every successful referral.
             </Text>
           </View>
         </View>
@@ -224,177 +562,75 @@ const ReferralEmpty = ({ onCopy }: any) => {
   );
 };
 
-const UserItem = ({ item }: any) => {
+const UserItem = ({ item, theme }: { item: any; theme: ThemeColors }) => {
+  const styles = createStyles(theme);
   return (
-    <Animated.View entering={FadeIn.delay(50)} style={styles.userItem}>
-      <View style={styles.avatar} />
-
-      <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.sub}>{item.date}</Text>
+    <Animated.View
+      entering={FadeIn.delay(50)}
+      style={[
+        styles.userItem,
+        {
+          backgroundColor: theme.surface,
+          borderColor: theme.border,
+          borderWidth: 1,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.avatar,
+          {
+            backgroundColor: theme.decorCircle,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
+        <Text
+          style={{
+            color: theme.primary,
+            fontSize: 18,
+            fontWeight: "700",
+          }}
+        >
+          {item.name?.charAt(0).toUpperCase() ?? "U"}
+        </Text>
       </View>
 
-      <Text style={styles.points}>{item.points.toLocaleString()} pts</Text>
+      <View style={{ flex: 1 }}>
+        <Text
+          style={[
+            styles.name,
+            {
+              color: theme.textPrimary,
+            },
+          ]}
+        >
+          {item.name}
+        </Text>
+
+        <Text
+          style={[
+            styles.sub,
+            {
+              color: theme.textSecondary,
+            },
+          ]}
+        >
+          {item.date}
+        </Text>
+      </View>
+
+      <Text
+        style={[
+          styles.points,
+          {
+            color: theme.primary,
+          },
+        ]}
+      >
+        {item.points.toLocaleString()} pts
+      </Text>
     </Animated.View>
   );
 };
-
-/* ---------------- STYLES ---------------- */
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    marginTop: 55,
-    backgroundColor: "#f7f7f7",
-  },
-
-  header: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-
-  summaryCard: {
-    backgroundColor: "#D9502E",
-    padding: 15,
-    borderRadius: 15,
-    marginBottom: 20,
-  },
-
-  summaryTitle: {
-    color: "#fff",
-    fontSize: 12,
-  },
-
-  summaryPoints: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "700",
-  },
-
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#eee",
-    borderRadius: 10,
-    marginBottom: 20,
-    overflow: "hidden",
-  },
-
-  indicator: {
-    position: "absolute",
-    width: "50%",
-    height: "100%",
-    backgroundColor: "#D9502E",
-    borderRadius: 10,
-  },
-
-  tab: {
-    flex: 1,
-    padding: 12,
-    alignItems: "center",
-    zIndex: 2,
-  },
-
-  tabText: {
-    color: "#555",
-    fontWeight: "600",
-  },
-
-  activeTabText: {
-    color: "#fff",
-  },
-
-  emptyContainer: {
-    alignItems: "center",
-    marginTop: 20,
-  },
-
-  title: {
-    textAlign: "center",
-    fontSize: 16,
-    lineHeight: 28,
-    fontWeight: "600",
-    marginBottom: 20,
-  },
-
-  codeBox: {
-    width: "85%",
-    backgroundColor: "#eaeaea",
-    padding: 20,
-    borderRadius: 20,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-
-  codeLabel: {
-    fontSize: 12,
-    color: "#666",
-  },
-
-  code: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#D9502E",
-  },
-
-  info: {
-    width: "100%",
-  },
-
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 20,
-    gap: 10,
-  },
-
-  infoTitle: {
-    fontWeight: "600",
-  },
-
-  infoText: {
-    color: "#777",
-    fontSize: 12,
-  },
-
-  userItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-    borderBottomWidth: 0.5,
-    borderColor: "#ddd",
-  },
-
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#ccc",
-    marginRight: 10,
-  },
-
-  name: {
-    fontWeight: "600",
-  },
-
-  sub: {
-    fontSize: 12,
-    color: "#777",
-  },
-
-  points: {
-    fontWeight: "600",
-  },
-
-  button: {
-    backgroundColor: "#F63607",
-    padding: 15,
-    borderRadius: 30,
-    alignItems: "center",
-  },
-
-  buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-});

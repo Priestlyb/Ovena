@@ -7,22 +7,49 @@ import * as ImagePicker from "expo-image-picker";
 
 type FeedbackFn = (
   message: string,
-  variant: "success" | "error" | "warning" | "info",
+  variant: "success" | "error" | "warning" | "info"
 ) => void;
 
-type ImageType = {
+export type ImageType = {
   uri: string;
   uploadedUrl?: string;
 };
 
-/* =========================================
-   REUSABLE IMAGE UPLOADER
-========================================= */
 export const useEditImageUploader = (
-  showFeedback?: FeedbackFn,
+  showFeedback?: FeedbackFn
 ) => {
+  /**
+   * Image currently displayed in the UI.
+   *
+   * Existing image:
+   * {
+   *   uri: "https://...",
+   *   uploadedUrl: "https://..."
+   * }
+   *
+   * Newly picked image:
+   * {
+   *   uri: "file:///..."
+   * }
+   */
   const [productImage, setProductImage] =
     useState<ImageType | null>(null);
+
+  /**
+   * Original image loaded from the API.
+   * Used when the user presses "Cancel Change".
+   */
+  const [originalImage, setOriginalImage] =
+    useState<ImageType | null>(null);
+
+  /**
+   * Whether the user selected a new image
+   * that hasn't been uploaded yet.
+   */
+  const [
+    hasPendingImageChange,
+    setHasPendingImageChange,
+  ] = useState(false);
 
   const [uploadProgress, setUploadProgress] =
     useState(0);
@@ -33,26 +60,27 @@ export const useEditImageUploader = (
       | "success"
       | "error"
       | "warning"
-      | "info",
+      | "info"
   ) => {
-    if (showFeedback) {
-      showFeedback(message, variant);
-    }
+    showFeedback?.(message, variant);
   };
 
+  /**
+   * ================================
+   * PICK IMAGE ONLY
+   * (No upload happens here anymore)
+   * ================================
+   */
   const handleImageUpload = async () => {
     try {
-      setUploadProgress(10);
-
       const permission =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (!permission.granted) {
         showMessage(
           "Gallery permission is required to upload images.",
-          "warning",
+          "warning"
         );
-
         return null;
       }
 
@@ -64,8 +92,6 @@ export const useEditImageUploader = (
         });
 
       if (result.canceled) {
-        setUploadProgress(0);
-
         return null;
       }
 
@@ -74,28 +100,68 @@ export const useEditImageUploader = (
       if (!asset?.uri) {
         showMessage(
           "Invalid image selected.",
-          "error",
+          "error"
         );
-
-        setUploadProgress(0);
-
         return null;
       }
 
-      setUploadProgress(25);
+      const image: ImageType = {
+        uri: asset.uri,
+      };
+
+      setProductImage(image);
+      setHasPendingImageChange(true);
+
+      return image;
+    } catch (error: any) {
+      console.log(
+        "Image picker error:",
+        error
+      );
+
+      showMessage(
+        error?.message ||
+        "Failed to select image.",
+        "error"
+      );
+
+      return null;
+    }
+  };
+
+  /**
+   * ================================
+   * UPLOAD IMAGE TO R2
+   * Called ONLY when Update Menu is pressed.
+   * ================================
+   */
+  const uploadImage = async () => {
+    if (!productImage) return null;
+
+    /**
+     * Already uploaded
+     */
+    if (productImage.uploadedUrl) {
+      return productImage;
+    }
+
+    try {
+      setUploadProgress(10);
 
       const fileInfo =
-        await FileSystem.getInfoAsync(asset.uri);
+        await FileSystem.getInfoAsync(
+          productImage.uri
+        );
 
       if (!fileInfo.exists) {
         throw new Error(
-          "Selected image not found.",
+          "Selected image not found."
         );
       }
 
       const fileSize = fileInfo.size || 0;
 
-      setUploadProgress(40);
+      setUploadProgress(25);
 
       const response = await api.post(
         "/accounts/onboard/batch-gen-url/",
@@ -107,7 +173,7 @@ export const useEditImageUploader = (
               file_size: fileSize,
             },
           ],
-        },
+        }
       );
 
       const uploadData =
@@ -115,14 +181,14 @@ export const useEditImageUploader = (
 
       if (!uploadData?.upload_url) {
         throw new Error(
-          "Unable to generate upload URL.",
+          "Unable to generate upload URL."
         );
       }
 
-      setUploadProgress(60);
+      setUploadProgress(50);
 
       const imageResponse = await fetch(
-        asset.uri,
+        productImage.uri
       );
 
       const blob =
@@ -137,54 +203,50 @@ export const useEditImageUploader = (
               "image/jpeg",
           },
           body: blob,
-        },
+        }
       );
 
       if (!uploadRes.ok) {
         throw new Error(
-          "Image upload failed.",
+          "Image upload failed."
         );
       }
 
       setUploadProgress(90);
 
-      const finalUrl =
-        uploadData.public_url || asset.uri;
-
-      console.log("UPLOAD SUCCESS:");
-      console.log(
-        "uploadData:",
-        uploadData,
-      );
-      console.log(
-        "finalUrl:",
-        finalUrl,
-      );
-
-      const imageObject: ImageType = {
-        uri: finalUrl,
-        uploadedUrl: finalUrl,
+      const uploaded: ImageType = {
+        uri: uploadData.public_url,
+        uploadedUrl:
+          uploadData.public_url,
       };
 
-      setProductImage(imageObject);
+      console.log(
+        "UPLOAD SUCCESS:",
+        uploaded
+      );
+
+      setProductImage(uploaded);
+      setOriginalImage(uploaded);
+      setHasPendingImageChange(false);
 
       setUploadProgress(100);
 
       showMessage(
         "Image uploaded successfully.",
-        "success",
+        "success"
       );
 
-      return imageObject;
+      return uploaded;
     } catch (error: any) {
       console.log(
         "Image upload error:",
-        error,
+        error
       );
 
       showMessage(
-        error?.message || "Upload failed",
-        "error",
+        error?.message ||
+        "Upload failed.",
+        "error"
       );
 
       return null;
@@ -195,35 +257,55 @@ export const useEditImageUploader = (
     }
   };
 
-  const removeImage = () => {
-    setProductImage(null);
+  /**
+   * ================================
+   * CANCEL IMAGE CHANGE
+   * Restores original server image.
+   * ================================
+   */
+  const cancelImageChange = () => {
+    setProductImage(originalImage);
+    setHasPendingImageChange(false);
   };
 
+  /**
+   * ================================
+   * LOAD EXISTING IMAGE
+   * ================================
+   */
   const setExistingImage = (
-    imageUrl: string | null,
+    imageUrl: string | null
   ) => {
     if (!imageUrl) {
       setProductImage(null);
+      setOriginalImage(null);
+      setHasPendingImageChange(false);
       return;
     }
 
-    setProductImage({
+    const image = {
       uri: imageUrl,
       uploadedUrl: imageUrl,
-    });
+    };
+
+    setProductImage(image);
+    setOriginalImage(image);
+    setHasPendingImageChange(false);
   };
 
   return {
     productImage,
-
     setProductImage,
-
-    setExistingImage,
 
     uploadProgress,
 
-    handleImageUpload,
+    hasPendingImageChange,
 
-    removeImage,
+    handleImageUpload,
+    uploadImage,
+
+    cancelImageChange,
+
+    setExistingImage,
   };
 };

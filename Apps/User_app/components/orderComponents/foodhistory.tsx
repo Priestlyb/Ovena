@@ -1,136 +1,149 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React from "react";
+import { View, Text, TouchableOpacity, Image } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-interface FoodOrder {
-  name: string;
-  description: string;
-  extras: string;
-  rating: string;
-  price: string;
-  location: string;
+import { createFoodHistoryStyles } from "@/constants/styles/ordersStyles";
+import { useTheme } from "@/constants/theme";
+import { IconSymbol } from "../ui/icon-symbol";
+
+/* =========================================
+   TYPES
+========================================= */
+
+export interface FoodOrder {
+  id?: string | number;
+
+  product_name?: string | null;
+
+  product_image?: string | null;
+
+  grand_total?: string | number;
+
+  branch?: string | null;
+
+  status?: string;
+  created_at?: string;
+
+  // Optional future field from your API
+  is_rated?: boolean;
 }
+
+/* =========================================
+   PROPS
+========================================= */
 
 interface FoodHistoryCardProps {
   order: FoodOrder;
+
+  onRate?: (order: FoodOrder) => void;
+  onReOrder?: (order: FoodOrder) => void;
+
+  // NEW
+  reordering?: boolean;
 }
 
-const FoodHistoryCard: React.FC<FoodHistoryCardProps> = ({ order }) => (
-  <View style={styles.foodCardRed}>
-    <Text style={styles.cardTitleWhite}>{order.name}</Text>
-    <Text style={styles.cardDescriptionWhite}>{order.description}</Text>
-    <Text style={styles.cardDescriptionWhite}>{order.extras}</Text>
-    
-    <View style={styles.ratingPriceRow}>
-      <View style={styles.ratingContainer}>
-        <Ionicons name="star" size={14} color="#F6D44F" />
-        <Text style={styles.ratingTextWhite}>{order.rating}</Text>
-      </View>
-      <Text style={styles.priceTextWhite}>${order.price}</Text>
-    </View>
-    
-    <View style={styles.locationRow}>
-      <Ionicons name="location" size={14} color="#fff" />
-      <Text style={styles.locationTextWhite}>{order.location}</Text>
-    </View>
-    
-    <View style={styles.buttonRow}>
-      <TouchableOpacity style={styles.rateButton}>
-        <Text style={styles.rateButtonText}>Rate</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.reOrderButton}>
-        <Text style={styles.reOrderButtonText}>Re-Order</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
+/* =========================================
+   COMPONENT
+========================================= */
 
-const styles = StyleSheet.create({
-  foodCardRed: {
-    backgroundColor: '#D9502E',
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardTitleWhite: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#fff',
-  },
-  cardDescriptionWhite: {
-    fontSize: 14,
-    color: '#fff',
-    opacity: 0.9,
-    marginBottom: 4,
-  },
-  ratingPriceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ratingTextWhite: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  priceTextWhite: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 16,
-  },
-  locationTextWhite: {
-    fontSize: 12,
-    color: '#fff',
-    opacity: 0.9,
-    flex: 1,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  rateButton: {
-    flex: 1,
-    backgroundColor: '#8B1E0F',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  rateButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  reOrderButton: {
-    flex: 1,
-    backgroundColor: '#F6D44F',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  reOrderButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
+const FoodHistoryCard: React.FC<FoodHistoryCardProps> = ({
+  order,
+  onRate,
+  onReOrder,
+  reordering = false,
+}) => {
+  const theme = useTheme();
+  const styles = createFoodHistoryStyles(theme);
+  const formattedDate = order.created_at
+    ? new Date(order.created_at).toLocaleString()
+    : "";
+
+  const formattedPrice = Number(order.grand_total ?? 0).toLocaleString();
+
+  const imageUrl = order.product_image ?? null;
+
+  const canRate =
+    String(order.status).toUpperCase() === "DELIVERED" && !order.is_rated;
+
+  return (
+    <View style={styles.foodCardRed}>
+      {/* STATUS */}
+      {order.status ? (
+        <View style={styles.statusBadge}>
+          <Text style={styles.statusText}>{order.status.toUpperCase()}</Text>
+        </View>
+      ) : null}
+
+      {/* CONTENT */}
+      <View style={styles.contentRow}>
+        {/* IMAGE */}
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.productImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <IconSymbol
+              name="FastFoodIcon"
+              size={36}
+              color={theme.background}
+            />
+          </View>
+        )}
+
+        {/* DETAILS */}
+        <View style={styles.detailsContainer}>
+          {/* <Text style={styles.cardTitleWhite} numberOfLines={2}>
+            {order.product_name || "Food Order"}
+          </Text> */}
+
+          <View style={styles.locationRow}>
+            <Ionicons name="location" size={14} color={"#ffffff"} />
+            <Text style={styles.locationTextWhite} numberOfLines={1}>
+              {order.branch || ""}
+            </Text>
+          </View>
+
+          {!!formattedDate && (
+            <Text style={styles.cardDescriptionWhite}>{formattedDate}</Text>
+          )}
+
+          <Text style={styles.priceTextWhite}>₦{formattedPrice}</Text>
+        </View>
+      </View>
+
+      {/* ACTIONS */}
+      <View style={styles.buttonRow}>
+        {canRate && onRate && (
+          <TouchableOpacity
+            style={styles.rateButton}
+            onPress={() => onRate(order)}
+            disabled={reordering}
+          >
+            <Text style={styles.rateButtonText}>Rate</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={[
+            styles.reOrderButton,
+            reordering && {
+              opacity: 0.6,
+            },
+          ]}
+          onPress={() => onReOrder?.(order)}
+          disabled={reordering}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.reOrderButtonText}>
+            {reordering ? "Reordering..." : "Re-Order"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
 
 export default FoodHistoryCard;

@@ -252,7 +252,11 @@ export default function ProfileTab() {
                   <MetricCard
                     icon={<Star size={18} color="#F59E0B" />}
                     title="Rating"
-                    value={userProfile.avg_rating}
+                    value={
+                      userProfile.avg_rating != null
+                        ? Number(userProfile.avg_rating).toFixed(1)
+                        : "-"
+                    }
                   />
 
                   <MetricCard
@@ -372,6 +376,12 @@ export default function ProfileTab() {
 
           {/* App Settings */}
           <CollapsibleSection title="App Settings" defaultExpanded>
+            <ProfileMenuItem
+              icon="Chaticon"
+              label="Supports"
+              onPress={() => router.push("/screens/SupportPage")}
+            />
+
             <ProfileMenuItem
               icon="ShieldIcon"
               label="Privacy"

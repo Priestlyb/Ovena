@@ -60,6 +60,8 @@ export default function Index() {
       case 2:
         return "/superForm2/menu-items";
       case 3:
+        return "/screens/business-verification";
+      case 4:
         return "/(tabs)";
       default:
         return "/";
@@ -476,6 +478,7 @@ const styles = StyleSheet.create({
   },
 
   loginText: {
+    marginTop: 20,
     color: "rgba(255,255,255,0.95)",
     fontWeight: "500",
   },

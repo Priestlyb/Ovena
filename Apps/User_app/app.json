@@ -1,59 +1,57 @@
 {
   "expo": {
-    "name": "Ovena_app",
-    "slug": "Ovena_app",
+    "name": "Ovena",
+    "slug": "ovena",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-
     "scheme": "ovena",
-
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ovena.userapp",
-      "googleServicesFile": "./GoogleService-Info.plist",
-      "config": {
-        "googleSignIn": {
-          "reservedClientId": "com.googleusercontent.apps.456377512712-xxxxxxx"
-        }
-      }
+      "bundleIdentifier": "com.ovena.userapp"
     },
-
     "android": {
       "package": "com.ovena.userapp",
       "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "googleServicesFile": "./google-services.json",
-      "config": {
-        "googleSignIn": {
-          "certificateHash": "55:46:72:00:48:8E:4F:6C:01:4C:E3:9C:6E:92:C9:23:FE:1C:8A:E3"
-        }
       }
     },
-
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-web-browser",
-      ["@react-native-google-signin/google-signin",
-      {
-        "iosUrlScheme": "com.googleusercontent.apps.759419359264-2540h17bf79g058j39fkte6qu48dgri5"
-      }]
+      "@react-native-firebase/app/app.plugin.js",
+      "@react-native-firebase/messaging/app.plugin.js",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.759419359264-2540h17bf79g058j39fkte6qu48dgri5"
+        }
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-splash-screen",
+      "expo-status-bar"
     ],
-
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "af31e993-2991-46cd-b4ca-21d9586bebce"
+        "projectId": "d51dde63-e2e2-481d-9d29-b4e2381e9888"
       }
-    }
+    },
+    "owner": "thisispriestly007"
   }
 }

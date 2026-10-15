@@ -1,5 +1,4 @@
 import { FilterChips } from "@/components/FilterChips";
-import { FloatingChatButton } from "@/components/FloatingChatButton";
 import { OrdersHeader } from "@/components/staff/OrdersHeader";
 import { OrdersList } from "@/components/staff/OrdersList";
 import { TabSelector } from "@/components/TabSelector";
@@ -16,7 +15,6 @@ import { useStaffOrderHistory } from "@/hooks/staff/useStaffOrderHistory";
 
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { MessageCircle } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Animated,
@@ -59,6 +57,12 @@ export default function OrdersScreen() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const [pickupCode, setPickupCode] = useState("");
+
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+
+  const [feedbackTitle, setFeedbackTitle] = useState("");
+
+  const [feedbackMessage, setFeedbackMessage] = useState("");
 
   const bounceAnim = useState(new Animated.Value(0))[0];
   const fadeAnim = useState(new Animated.Value(1))[0];
@@ -121,29 +125,25 @@ export default function OrdersScreen() {
 
   const { handleOrderAction } = useOrderActions(setOrders);
 
-  const onOrderAction = (
+  const onOrderAction = async (
     orderId: string,
     action: "accept" | "cancel" | "made" | "complete" | "pickup",
-    pickupCode?: string,
   ) => {
     const order = orders.find((o) => o.id === orderId);
 
-    if (!order) {
-      console.log("Order not found:", orderId);
-      return;
-    }
+    if (!order) return;
 
-    /**
-     * Ready action:
-     * Ask staff whether this is delivery or customer pickup
-     */
     if (action === "pickup" || action === "complete") {
       setSelectedOrder(order);
       setFulfillmentModalVisible(true);
       return;
     }
 
-    handleOrderAction(order, action, pickupCode);
+    const result = await handleOrderAction(order, action);
+
+    setFeedbackTitle(result.success ? "Success" : "Error");
+    setFeedbackMessage(result.message);
+    setFeedbackVisible(true);
   };
 
   const handleFulfillmentChoice = (type: "delivery" | "pickup") => {
@@ -161,19 +161,28 @@ export default function OrdersScreen() {
     setPickupModalVisible(true);
   };
 
-  const handlePickupSubmit = () => {
+  const handlePickupSubmit = async () => {
     const code = pickupCode.trim();
 
     if (!code || !selectedOrder) {
       return;
     }
 
-    handleOrderAction(selectedOrder, pendingAction, code);
+    const result = await handleOrderAction(selectedOrder, pendingAction, code);
 
     setPickupModalVisible(false);
+
     setPickupCode("");
+
     setSelectedOrder(null);
+
     setPendingAction("pickup");
+
+    setFeedbackTitle(result.success ? "Success" : "Error");
+
+    setFeedbackMessage(result.message);
+
+    setFeedbackVisible(true);
   };
 
   const handlePickupCancel = () => {
@@ -259,25 +268,56 @@ export default function OrdersScreen() {
     if (!dateString) return "";
 
     const date = new Date(dateString);
+    const now = new Date();
 
     if (isNaN(date.getTime())) return "";
 
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
+    const isToday = date.toDateString() === now.toDateString();
+
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const diffDays = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (isToday) {
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+
+    if (isYesterday) {
+      return "Yesterday";
+    }
+
+    if (diffDays < 7) {
+      return date.toLocaleDateString("en-US", {
+        weekday: "long",
+      });
+    }
+
+    if (date.getFullYear() === now.getFullYear()) {
+      return date.toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "short",
+      });
+    }
+
+    return date.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
     });
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ flexGrow: 1 }}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
-        }
-      >
+      <View style={styles.container}>
         <OrdersHeader search={search} onSearchChange={setSearch} />
 
         <View style={styles.typeTabsContainer}>
@@ -354,19 +394,20 @@ export default function OrdersScreen() {
             />
           </View>
         )}
-
-        <OrdersList
-          loading={currentLoading}
-          orders={displayedOrders}
-          formatTime={formatTime}
-          onAction={onOrderAction}
-          showFulfillmentBadge={statusFilter !== "history"}
-        />
-
-        <FloatingChatButton
-          icon={<MessageCircle size={28} color="#fff" />}
-          onPress={() => router.push("/screens/staffs/SupportPage")}
-        />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
+          }
+        >
+          <OrdersList
+            loading={currentLoading}
+            orders={displayedOrders}
+            formatTime={formatTime}
+            onAction={onOrderAction}
+            showFulfillmentBadge={statusFilter !== "history"}
+          />
+        </ScrollView>
 
         <Modal
           visible={pickupModalVisible}
@@ -485,7 +526,29 @@ export default function OrdersScreen() {
             </View>
           </View>
         </Modal>
-      </ScrollView>
+
+        <Modal
+          visible={feedbackVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setFeedbackVisible(false)}
+        >
+          <View style={modalStyles.overlay}>
+            <View style={modalStyles.container}>
+              <Text style={modalStyles.title}>{feedbackTitle}</Text>
+
+              <Text style={modalStyles.subtitle}>{feedbackMessage}</Text>
+
+              <TouchableOpacity
+                style={modalStyles.confirmButton}
+                onPress={() => setFeedbackVisible(false)}
+              >
+                <Text style={modalStyles.confirmButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
     </SafeAreaView>
   );
 }

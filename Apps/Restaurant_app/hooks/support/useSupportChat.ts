@@ -17,6 +17,15 @@ interface SendTicketParams {
     onSuccess?: () => void;
 }
 
+const getTodayLabel = () => {
+    return new Date().toLocaleDateString([], {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+    });
+};
+
 export const useSupportChat = () => {
     const [loading, setLoading] = useState(false);
 
@@ -25,12 +34,12 @@ export const useSupportChat = () => {
             id: "1",
             type: "system",
             text: "{recent_date}",
-            timestamp: new Date().toLocaleDateString(),
+            timestamp: getTodayLabel(),
             attachments: [],
         },
         {
             id: "2",
-            type: "bot",
+            type: "agent",
             text: "Hi! Welcome to Ovena Support. How can we help?",
             timestamp: new Date().toISOString(),
             attachments: [],

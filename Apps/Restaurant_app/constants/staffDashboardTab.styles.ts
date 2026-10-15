@@ -56,7 +56,7 @@ export const styles = StyleSheet.create({
         flexWrap: "wrap",
         paddingHorizontal: 16,
         marginBottom: 16,
-        gap: 8,
+        gap: 15,
     },
     periodChip: {
         paddingVertical: 8,
@@ -64,6 +64,7 @@ export const styles = StyleSheet.create({
         borderRadius: 20,
         backgroundColor: "#F5F5F5",
         borderWidth: 1,
+        marginVertical: 20,
         borderColor: "#E5E7EB",
     },
     activePeriodChip: {

@@ -7,11 +7,21 @@ type FeedbackFn = (
   variant: "success" | "error" | "warning" | "info",
 ) => void;
 
+export type PickedImage = {
+  uri: string;
+  width?: number;
+  height?: number;
+  mimeType?: string;
+};
+
 /* =========================================
-   REUSABLE IMAGE UPLOADER
+   REUSABLE IMAGE PICKER + UPLOADER
 ========================================= */
 export const useImageUploader = (showFeedback: FeedbackFn) => {
-  const uploadImage = async (): Promise<string | null> => {
+  /* =========================================
+     PICK IMAGE ONLY
+  ========================================= */
+  const pickImage = async (): Promise<PickedImage | null> => {
     try {
       const permission =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -24,23 +34,47 @@ export const useImageUploader = (showFeedback: FeedbackFn) => {
         return null;
       }
 
-      const result =
-        await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ["images"],
-          allowsEditing: true,
-          quality: 0.8,
-        });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.8,
+      });
 
       if (result.canceled) return null;
 
-      const asset = result.assets[0];
+      const asset = result.assets?.[0];
 
       if (!asset?.uri) {
         showFeedback("Invalid image selected.", "error");
         return null;
       }
 
-      const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+      return {
+        uri: asset.uri,
+        width: asset.width,
+        height: asset.height,
+        mimeType: asset.mimeType,
+      };
+    } catch (error: any) {
+      console.log("Image picker error:", error);
+
+      showFeedback(
+        error?.message || "Unable to select image.",
+        "error",
+      );
+
+      return null;
+    }
+  };
+
+  /* =========================================
+     UPLOAD EXISTING IMAGE
+  ========================================= */
+  const uploadImage = async (
+    imageUri: string,
+  ): Promise<string | null> => {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(imageUri);
 
       if (!fileInfo.exists) {
         throw new Error("Selected image not found.");
@@ -67,7 +101,8 @@ export const useImageUploader = (showFeedback: FeedbackFn) => {
         throw new Error("Unable to generate upload URL.");
       }
 
-      const imageResponse = await fetch(asset.uri);
+      const imageResponse = await fetch(imageUri);
+
       const blob = await imageResponse.blob();
 
       const uploadRes = await fetch(uploadData.upload_url, {
@@ -82,23 +117,27 @@ export const useImageUploader = (showFeedback: FeedbackFn) => {
         throw new Error("Image upload failed.");
       }
 
-      const finalUrl = uploadData.public_url || asset.uri;
+      const finalUrl = uploadData.public_url;
 
-      console.log("UPLOAD SUCCESS:");
-      console.log("uploadData:", uploadData);
-      console.log("finalUrl:", finalUrl);
-
-      showFeedback("Image uploaded successfully.", "success");
+      console.log("UPLOAD SUCCESS");
+      console.log("Upload Data:", uploadData);
+      console.log("Public URL:", finalUrl);
 
       return finalUrl;
     } catch (error: any) {
       console.log("Image upload error:", error);
 
-      showFeedback(error?.message || "Upload failed", "error");
+      showFeedback(
+        error?.message || "Image upload failed.",
+        "error",
+      );
 
       return null;
     }
   };
 
-  return { uploadImage };
+  return {
+    pickImage,
+    uploadImage,
+  };
 };

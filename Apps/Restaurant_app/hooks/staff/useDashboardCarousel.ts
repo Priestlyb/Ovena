@@ -14,28 +14,7 @@ export default function useDashboardCarousel() {
 
     const [showSales, setShowSales] = useState(true);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
-    const [selectedPeriod, setSelectedPeriod] = useState("Today");
-
-    const getData = (period: string) => {
-        switch (period) {
-            case "Today":
-                return { revenue: 12000, orders: 8, shipments: 5 };
-
-            case "7 Days":
-                return { revenue: 45000, orders: 30, shipments: 18 };
-
-            case "30 Days":
-                return { revenue: 120000, orders: 75, shipments: 50 };
-
-            case "12 Months":
-                return { revenue: 850000, orders: 420, shipments: 310 };
-
-            default:
-                return { revenue: 0, orders: 0, shipments: 0 };
-        }
-    };
-
-    const data = getData(selectedPeriod);
+    const [selectedPeriod, setSelectedPeriod] = useState("today");
 
     const handleScroll = (
         event: NativeSyntheticEvent<NativeScrollEvent>
@@ -64,6 +43,5 @@ export default function useDashboardCarousel() {
         setSelectedPeriod,
         handleScroll,
         scrollToCard,
-        data,
     };
 }

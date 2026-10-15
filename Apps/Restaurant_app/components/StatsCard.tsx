@@ -1,7 +1,12 @@
 // components/StatsCard.tsx - Stats card with dynamic icons
-import { View, Text, StyleSheet } from 'react-native';
-import { ReactNode } from 'react';
-import { Package, ShoppingCart, DollarSign, CheckCircle } from 'lucide-react-native';
+import {
+  CheckCircle,
+  DollarSign,
+  Package,
+  ShoppingCart,
+} from "lucide-react-native";
+import { ReactNode } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 interface StatsCardProps {
   title: string;
@@ -9,7 +14,8 @@ interface StatsCardProps {
   subtitle?: string;
   subtitleValue?: string | number;
   icon?: ReactNode;
-  iconName?: 'shipment' | 'order' | 'revenue' | 'delivered';
+  iconName?: "shipment" | "order" | "revenue" | "delivered";
+  masked?: boolean;
 }
 
 export function StatsCard({
@@ -19,20 +25,21 @@ export function StatsCard({
   subtitleValue,
   icon,
   iconName,
+  masked = false,
 }: StatsCardProps) {
   const getIcon = () => {
     if (icon) return icon;
 
-    const iconProps = { color: '#FF6B35', size: 28 };
+    const iconProps = { color: "#FF6B35", size: 28 };
 
     switch (iconName) {
-      case 'shipment':
+      case "shipment":
         return <Package {...iconProps} />;
-      case 'order':
+      case "order":
         return <ShoppingCart {...iconProps} />;
-      case 'revenue':
+      case "revenue":
         return <DollarSign {...iconProps} />;
-      case 'delivered':
+      case "delivered":
         return <CheckCircle {...iconProps} />;
       default:
         return null;
@@ -45,11 +52,13 @@ export function StatsCard({
         <Text style={styles.title}>{title}</Text>
         {getIcon()}
       </View>
-      <Text style={styles.value}>{value}</Text>
+      <Text style={styles.value}>{masked ? "****" : value}</Text>
       {subtitle && (
         <View style={styles.subtitleContainer}>
           <Text style={styles.subtitle}>{subtitle}</Text>
-          <Text style={styles.subtitleValue}>{subtitleValue}</Text>
+          <Text style={styles.subtitleValue}>
+            {masked ? "****" : subtitleValue}
+          </Text>
         </View>
       )}
     </View>
@@ -58,12 +67,12 @@ export function StatsCard({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFF',
+    backgroundColor: "#FFF",
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -71,22 +80,22 @@ const styles = StyleSheet.create({
     minHeight: 160,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   title: {
     fontSize: 14,
-    color: '#666',
-    textTransform: 'uppercase',
+    color: "#666",
+    textTransform: "uppercase",
     letterSpacing: 0.5,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   value: {
     fontSize: 32,
-    fontWeight: '700',
-    color: '#000',
+    fontWeight: "700",
+    color: "#000",
     marginBottom: 8,
   },
   subtitleContainer: {
@@ -94,14 +103,14 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginBottom: 4,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   subtitleValue: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#000',
+    fontWeight: "600",
+    color: "#000",
   },
 });

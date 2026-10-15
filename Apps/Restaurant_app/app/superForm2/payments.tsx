@@ -39,7 +39,7 @@ export default function PaymentsPage() {
   const { data: banks = [], isLoading: banksLoading } = useBanks();
 
   const bankOptions = banks.map((bank) => bank.name);
-  const [bvn, setBvn] = useState(phase2Data.payment?.bvn ?? "");
+  const [bvn, setBvn] = useState(phase2Data.payment?.bvn ?? "12345678901");
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({
@@ -194,6 +194,7 @@ export default function PaymentsPage() {
               </Text>
             </View>
 
+            {/* BVN Input */}
             <View style={styles.inputWrapper}>
               <CustomInput
                 placeholder="e.g 12345678901"

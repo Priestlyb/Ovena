@@ -70,6 +70,7 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
       });
 
       setModalVisible(true);
+
       return false;
     }
 
@@ -92,19 +93,23 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
         otp,
       });
 
+      // Verify the OTP with the backend
       await verifyEmailOtp({
         email,
         otp_code: otp,
       });
 
-      setModalConfig({
-        message: "Email verified successfully.",
-        variant: "success",
-      });
+      console.log("✅ Email verification successful");
 
-      setModalVisible(true);
+      /*
+       * Automatically move to the next page after
+       * successful verification.
+       *
+       * No success modal is shown.
+       */
+      onNext(otp);
     } catch (err) {
-      console.error("Email Verification Error:", err);
+      console.error("❌ Email Verification Error:", err);
 
       setModalConfig({
         message: "Failed to verify the verification code.",
@@ -132,6 +137,8 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
         email,
       });
 
+      console.log("✅ New OTP sent successfully");
+
       setModalConfig({
         message: "A new verification code has been sent to your email.",
         variant: "info",
@@ -139,7 +146,7 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
 
       setModalVisible(true);
     } catch (err) {
-      console.error("Resend OTP Error:", err);
+      console.error("❌ Resend OTP Error:", err);
 
       setModalConfig({
         message: "Failed to resend the verification code.",
@@ -152,6 +159,9 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
     }
   };
 
+  /* =========================================================
+     RENDER
+  ========================================================= */
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -159,12 +169,16 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.container}>
-          {/* Back Button */}
+          {/* =====================================================
+              BACK BUTTON
+          ===================================================== */}
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
             <ArrowLeft size={22} />
           </TouchableOpacity>
 
-          {/* OTP Content */}
+          {/* =====================================================
+              OTP CONTENT
+          ===================================================== */}
           <View style={styles.centeredContent}>
             <Text style={styles.pageTitle}>Confirm Your Email Address</Text>
 
@@ -176,10 +190,16 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
 
             <OTPInput value={otp} onChange={setOTP} />
 
+            {/* =================================================
+                RESEND OTP
+            ================================================= */}
             <View style={styles.resendSection}>
               <Text style={styles.resendText}>Didn't receive the code?</Text>
 
-              <TouchableOpacity onPress={handleResendOTP} disabled={sendingOtp}>
+              <TouchableOpacity
+                onPress={handleResendOTP}
+                disabled={sendingOtp || loading}
+              >
                 <Text style={styles.resendLink}>
                   {sendingOtp ? "Sending..." : "Tap to resend OTP"}
                 </Text>
@@ -187,33 +207,44 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({
             </View>
           </View>
 
-          {/* Verify Button */}
+          {/* =====================================================
+              VERIFY BUTTON
+          ===================================================== */}
           <TouchableOpacity
             style={styles.continueBtn}
             onPress={handleVerify}
-            disabled={loading}
+            disabled={loading || sendingOtp}
           >
             <Text style={styles.continueBtnText}>
               {loading ? "Verifying..." : "Verify Email"}
             </Text>
           </TouchableOpacity>
 
+          {/* =====================================================
+              LOADING INDICATOR
+          ===================================================== */}
           {(loading || sendingOtp) && (
             <ActivityIndicator size="small" style={{ marginTop: 10 }} />
           )}
         </View>
 
-        {/* Feedback Modal */}
+        {/* =======================================================
+            FEEDBACK MODAL
+
+            Used only for:
+            - Validation errors
+            - Verification errors
+            - OTP resend success
+            - OTP resend errors
+
+            Successful verification does NOT use this modal.
+        ======================================================= */}
         <FeedbackModal
           visible={modalVisible}
           message={modalConfig.message}
           variant={modalConfig.variant}
           onClose={() => {
             setModalVisible(false);
-
-            if (modalConfig.variant === "success") {
-              onNext(otp);
-            }
           }}
         />
       </KeyboardAvoidingView>

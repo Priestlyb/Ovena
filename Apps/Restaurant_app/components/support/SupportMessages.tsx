@@ -90,7 +90,7 @@ export default function SupportMessages({ messages }: SupportMessagesProps) {
           {/* SYSTEM DATE */}
           {message.type === "system" && (
             <View style={styles.systemContainer}>
-              <Badge label={message.text} variant="neutral" size="small" />
+              <Badge label={message.timestamp} variant="neutral" size="small" />
             </View>
           )}
 

@@ -1,5 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+
+import { useTheme } from "@/constants/theme";
 
 interface NutritionInfoProps {
   label: string;
@@ -7,25 +9,42 @@ interface NutritionInfoProps {
   unit: string;
 }
 
-export const NutritionInfo: React.FC<NutritionInfoProps> = ({ label, value, unit }) => (
-  <View style={styles.nutritionItem}>
-    <Text style={styles.nutritionValue}>{value}{unit}</Text>
-    <Text style={styles.nutritionLabel}>{label}</Text>
-  </View>
-);
+export const NutritionInfo: React.FC<NutritionInfoProps> = ({
+  label,
+  value,
+  unit,
+}) => {
+  const theme = useTheme();
 
-const styles = StyleSheet.create({
-  nutritionItem: {
-    alignItems: 'center',
-  },
-  nutritionValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 4,
-  },
-  nutritionLabel: {
-    fontSize: 11,
-    color: '#666',
-  },
-});
+  const styles = createStyles(theme);
+
+  return (
+    <View style={styles.nutritionItem}>
+      <Text style={styles.nutritionValue}>
+        {value}
+        {unit}
+      </Text>
+
+      <Text style={styles.nutritionLabel}>{label}</Text>
+    </View>
+  );
+};
+
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    nutritionItem: {
+      alignItems: "center",
+    },
+
+    nutritionValue: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: theme.textPrimary,
+      marginBottom: 4,
+    },
+
+    nutritionLabel: {
+      fontSize: 11,
+      color: theme.textSecondary,
+    },
+  });

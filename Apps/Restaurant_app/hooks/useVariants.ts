@@ -1,11 +1,13 @@
 import { useState } from "react";
 
 export type VariantOption = {
+  id?: number;
   name: string;
   price_diff: string;
 };
 
 export type VariantGroup = {
+  id?: number;
   name: string;
   is_required: boolean;
   options: VariantOption[];

@@ -32,14 +32,14 @@ export const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 10,
+    marginBottom: 25,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 25,
     lineHeight: 20,
   },
 

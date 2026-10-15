@@ -1,113 +1,75 @@
 import {
-  StyleSheet,
   Text,
-  TouchableOpacity,
   View,
+  TouchableOpacity,
   TextInput,
   TouchableWithoutFeedback,
   Keyboard,
   Animated,
-  Easing,
-  ToastAndroid,
-  Platform,
+  ActivityIndicator,
 } from "react-native";
-import React, { useEffect, useRef, useState } from "react";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { router } from "expo-router/build/exports";
-import { useAuth } from "@/context/AuthContext";
 
-const BASE_URL = "https://ovena-backend-production.up.railway.app/api";
+import React, { useEffect, useState } from "react";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { router } from "expo-router";
+
+import { createStyles } from "@/constants/styles/account.styles";
+import { useTheme } from "@/constants/theme";
+
+import { useAccountAnimations } from "@/services/Account/account.animations";
+import FeedbackModal from "@/components/FeedbackModal";
+
+import { useProfile } from "@/hooks/account/useProfile";
+import { useUpdateUsername } from "@/hooks/account/useUpdateUsername";
+import { DeleteAccountButton } from "@/components/homepage/DeleteAccountButton";
 
 export default function AccountScreen() {
-  const { accessToken } = useAuth();
+  const theme = useTheme();
+  const styles = createStyles(theme);
+  const { data, isLoading: loading } = useProfile();
+  const updateUsernameMutation = useUpdateUsername();
 
   const [username, setUsername] = useState("");
   const [originalUsername, setOriginalUsername] = useState("");
   const [email, setEmail] = useState("");
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [updating, setUpdating] = useState(false);
 
-  // 🔥 Animation
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const underlineAnim = useRef(new Animated.Value(0)).current;
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalVariant, setModalVariant] = useState<
+    "success" | "error" | "warning" | "info"
+  >("info");
 
-  const animateFocus = () => {
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 1.03,
-        duration: 200,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(underlineAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-    ]).start();
+  const updating = updateUsernameMutation.isPending;
+  const hasChanges = username.trim() !== originalUsername.trim();
+
+  const profile = data?.profile;
+  const user = data?.user;
+
+  // Animations
+  const { scaleAnim, underlineAnim, animateFocus, animateBlur } =
+    useAccountAnimations();
+
+  const showToast = (
+    message: string,
+    variant: "success" | "error" | "warning" | "info" = "info",
+  ) => {
+    setModalMessage(message);
+    setModalVariant(variant);
+    setModalVisible(true);
   };
 
-  const animateBlur = () => {
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(underlineAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  };
-
-  // 🔹 Toast helper
-  const showToast = (message: string) => {
-    if (Platform.OS === "android") {
-      ToastAndroid.show(message, ToastAndroid.SHORT);
-    } else {
-      console.log(message);
-    }
-  };
-
-  // 🔹 Fetch Profile
-  const fetchProfile = async () => {
-    if (!accessToken) return;
-
-    try {
-      setLoading(true);
-
-      const response = await fetch(`${BASE_URL}/accounts/profile/`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const name = data?.user?.name || "";
-        const emailFetched = data?.user?.email || "";
-
-        setUsername(name);
-        setOriginalUsername(name);
-        setEmail(emailFetched);
-      } else {
-        showToast("Failed to fetch profile");
-      }
-    } catch (error) {
-      showToast("Network error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Sync local state with React Query
   useEffect(() => {
-    fetchProfile();
-  }, [accessToken]);
+    if (!editing) {
+      const name = profile?.name ?? "";
+      const emailAddress = user?.email ?? "";
+
+      setUsername(name);
+      setOriginalUsername(name);
+      setEmail(emailAddress);
+    }
+  }, [profile, user, editing]);
 
   const handleCancelEdit = () => {
     setUsername(originalUsername);
@@ -117,233 +79,204 @@ export default function AccountScreen() {
   };
 
   const handleUpdateUsername = async () => {
-    if (!accessToken) return;
+    if (!username.trim()) {
+      showToast("Username cannot be empty", "warning");
+      return;
+    }
 
-    try {
-      setUpdating(true);
-
-      const response = await fetch(
-        `${BASE_URL}/accounts/customer/update/`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ name: username }),
-        }
-      );
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.log("Update error:", text);
-        showToast("Update failed");
-        return;
-      }
-
-      setOriginalUsername(username);
+    if (!hasChanges) {
       setEditing(false);
       animateBlur();
       Keyboard.dismiss();
+      return;
+    }
 
-      showToast("Username updated ✅");
+    try {
+      await updateUsernameMutation.mutateAsync(username.trim());
+
+      setOriginalUsername(username.trim());
+      setEditing(false);
+
+      animateBlur();
+      Keyboard.dismiss();
+
+      showToast("Username updated successfully", "success");
     } catch (error) {
       console.log(error);
-      showToast("Something went wrong");
-    } finally {
-      setUpdating(false);
+      showToast("Update failed", "error");
     }
   };
 
   return (
     <TouchableWithoutFeedback onPress={handleCancelEdit}>
       <View style={styles.container}>
+        <FeedbackModal
+          visible={modalVisible}
+          message={modalMessage}
+          variant={modalVariant}
+          onClose={() => setModalVisible(false)}
+        />
+
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.replace("/(tabs)/profile")}
             style={styles.backButton}
           >
-            <IconSymbol name="ArrowLeftIcon" size={22} color="#000" />
+            <IconSymbol
+              name="ArrowLeftIcon"
+              size={22}
+              color={theme.textPrimary}
+            />
           </TouchableOpacity>
 
           <Text style={styles.headerTitle}>Account</Text>
+
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Username */}
-        <View style={styles.row}>
-          <IconSymbol name="UserIcon" size={20} color="#000" />
+        <View style={styles.accountContainer}>
+          {/* Username */}
+          <View style={styles.row}>
+            <IconSymbol name="UserIcon" size={20} color={theme.textPrimary} />
 
-          {loading ? (
-            <Animated.View style={styles.blurPlaceholder} />
-          ) : editing ? (
-            <Animated.View
-              style={{
-                flex: 1,
-                transform: [{ scale: scaleAnim }],
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <TextInput
-                  value={username}
-                  onChangeText={setUsername}
-                  style={styles.input}
-                  autoFocus
-                  onFocus={animateFocus}
-                  onBlur={animateBlur}
-                />
-                <TouchableOpacity
-                  onPress={handleUpdateUsername}
-                  disabled={updating}
-                >
-                  {updating ? (
-                    <Animated.View
-                      style={[styles.blurPlaceholder, { width: 22, height: 22 }]}
-                    />
-                  ) : (
-                    <IconSymbol name="CheckIcon" size={22} color="green" />
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleCancelEdit}>
-                  <IconSymbol name="CloseIcon" size={22} color="red" />
-                </TouchableOpacity>
-              </View>
+            {loading ? (
+              <Animated.View style={styles.blurPlaceholder} />
+            ) : editing ? (
               <Animated.View
                 style={{
-                  height: 2,
-                  backgroundColor: "black",
-                  width: underlineAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ["0%", "100%"],
-                  }),
+                  flex: 1,
+                  transform: [{ scale: scaleAnim }],
                 }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <TextInput
+                    value={username}
+                    onChangeText={setUsername}
+                    style={styles.input}
+                    autoFocus
+                    onFocus={animateFocus}
+                    onBlur={animateBlur}
+                  />
+
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.confirmButton]}
+                      onPress={handleUpdateUsername}
+                      disabled={updating || !hasChanges}
+                    >
+                      {updating ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={theme.background}
+                        />
+                      ) : (
+                        <IconSymbol
+                          name="CheckIcon"
+                          size={20}
+                          color={theme.background}
+                        />
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.cancelButton]}
+                      onPress={handleCancelEdit}
+                    >
+                      <IconSymbol
+                        name="CloseIcon"
+                        size={20}
+                        color={theme.background}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Animated.View
+                  style={{
+                    height: 2,
+                    backgroundColor: theme.primary,
+                    width: underlineAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ["0%", "100%"],
+                    }),
+                  }}
+                />
+              </Animated.View>
+            ) : (
+              <TouchableOpacity
+                style={styles.usernameWrapper}
+                onPress={() => setEditing(true)}
+              >
+                <Text style={styles.rowText}>
+                  {username || "Tap to set name"}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.row}>
+            <IconSymbol name="EmailIcon" size={20} color={theme.textPrimary} />
+
+            {loading ? (
+              <Animated.View style={styles.blurPlaceholder} />
+            ) : (
+              <Text style={styles.rowText}>{email || "No email set"}</Text>
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/screens/PaymentDetailsScreen")}
+          >
+            <View style={styles.row}>
+              <IconSymbol
+                name="CreditCardIcon"
+                size={20}
+                color={theme.textPrimary}
               />
-            </Animated.View>
-          ) : (
-            <TouchableOpacity
-              style={styles.usernameWrapper}
-              onPress={() => setEditing(true)}
-            >
-              <Text style={styles.rowText}>
-                {username || "Tap to set name"}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+              <Text style={styles.rowText}>Payment Method</Text>
+            </View>
+          </TouchableOpacity>
 
-        {/* Email */}
-        <View style={styles.row}>
-          <IconSymbol name="EmailIcon" size={20} color="#000" />
-          {loading ? (
-            <Animated.View style={styles.blurPlaceholder} />
-          ) : (
-            <Text style={styles.rowText}>{email || "No email set"}</Text>
-          )}
-        </View>
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/screens/ChangePhoneNumber")}
+          >
+            <View style={styles.row}>
+              <IconSymbol
+                name="LockClosedOutline"
+                size={20}
+                color={theme.textPrimary}
+              />
+              <Text style={styles.rowText}>Change Phone Number</Text>
+            </View>
+          </TouchableOpacity>
 
-        {/* Change Phone */}
-        <TouchableOpacity
-          onPress={() =>
-            router.replace("/(auth)/screens/ChangePhoneNumber")
-          }
-        >
-          <View style={styles.row}>
-            <IconSymbol name="LockClosedOutline" size={20} color="#000" />
-            <Text style={styles.rowText}>Change Phone Number</Text>
-          </View>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/screens/ManagePrivacy")}
+          >
+            <View style={styles.row}>
+              <IconSymbol
+                name="PrivateConnectivityIcon"
+                size={20}
+                color={theme.textPrimary}
+              />
+              <Text style={styles.rowText}>Manage Privacy</Text>
+            </View>
+          </TouchableOpacity>
 
-        {/* Payment */}
-        <TouchableOpacity
-          onPress={() =>
-            router.replace("/(auth)/screens/PaymentMethodScreen")
-          }
-        >
-          <View style={styles.row}>
-            <IconSymbol name="CreditCardIcon" size={20} color="#000" />
-            <Text style={styles.rowText}>Payment Method</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Privacy */}
-        <TouchableOpacity
-          onPress={() =>
-            router.replace("/(auth)/screens/ManagePrivacy")
-          }
-        >
-          <View style={styles.row}>
-            <IconSymbol
-              name="PrivateConnectivityIcon"
-              size={20}
-              color="#000"
-            />
-            <Text style={styles.rowText}>Manage Privacy</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Delete */}
+          {/* Delete Account Button 
         <View style={styles.row}>
           <IconSymbol name="TrashOutline" size={20} color="#000" />
-          <Text style={styles.rowText}>Delete my account</Text>
+          <DeleteAccountButton />
+        </View>
+        */}
         </View>
       </View>
     </TouchableWithoutFeedback>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    marginTop: 55,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    padding: 10,
-    borderWidth: 1,
-    borderRadius: 50,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-  headerSpacer: {
-    width: 34,
-  },
-  row: {
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  rowText: {
-    fontSize: 18,
-  },
-  usernameWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  input: {
-    borderBottomWidth: 1,
-    borderColor: "#ccc",
-    fontSize: 18,
-    flex: 1,
-    paddingVertical: 4,
-    marginRight: 10,
-  },
-  blurPlaceholder: {
-    flex: 1,
-    height: 18,
-    borderRadius: 4,
-    backgroundColor: "#ccc",
-    opacity: 0.3,
-  },
-});

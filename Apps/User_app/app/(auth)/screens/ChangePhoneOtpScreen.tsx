@@ -42,7 +42,7 @@ export default function ChangePhoneOtpScreen() {
       }
 
       Toast.show({ type: "success", text1: "Phone number updated 🎉" });
-      router.replace("/(tabs)/profile");
+      router.back();
     } catch (error) {
       Toast.show({ type: "error", text1: "Something went wrong" });
     }

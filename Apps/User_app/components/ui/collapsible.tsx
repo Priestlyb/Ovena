@@ -4,18 +4,19 @@ import { StyleSheet, TouchableOpacity } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTheme } from "@/constants/theme";
 
 export function Collapsible({
   children,
   title,
-}: PropsWithChildren & { title: string }) {
+}: PropsWithChildren<{ title: string }>) {
   const [isOpen, setIsOpen] = useState(false);
-  const theme = useColorScheme(); // "light" | "dark"
+
+  const theme = useTheme();
+  const styles = createStyles(theme);
 
   return (
-    <ThemedView>
+    <ThemedView style={styles.container}>
       <TouchableOpacity
         style={styles.heading}
         onPress={() => setIsOpen((prev) => !prev)}
@@ -24,32 +25,42 @@ export function Collapsible({
         <IconSymbol
           name="ChevronRightIcon"
           size={18}
-          color={Colors[theme].icon}
+          color={theme.icon}
           style={{
             transform: [{ rotate: isOpen ? "90deg" : "0deg" }],
           }}
         />
 
-        <ThemedText type="defaultSemiBold">{title}</ThemedText>
+        <ThemedText type="defaultSemiBold" style={styles.title}>
+          {title}
+        </ThemedText>
       </TouchableOpacity>
 
-      {isOpen && (
-        <ThemedView style={styles.content}>
-          {children}
-        </ThemedView>
-      )}
+      {isOpen && <ThemedView style={styles.content}>{children}</ThemedView>}
     </ThemedView>
   );
 }
 
-const styles = StyleSheet.create({
-  heading: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  content: {
-    marginTop: 6,
-    marginLeft: 24,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: "transparent",
+    },
+
+    heading: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 4,
+    },
+
+    title: {
+      color: theme.textPrimary,
+    },
+
+    content: {
+      marginTop: 6,
+      marginLeft: 24,
+      backgroundColor: "transparent",
+    },
+  });

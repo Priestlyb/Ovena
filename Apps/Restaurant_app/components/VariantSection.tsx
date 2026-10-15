@@ -9,11 +9,13 @@ import { Text, TouchableOpacity, View } from "react-native";
    TYPES
 ================================ */
 type VariantOption = {
+  id?: number;
   name: string;
   price_diff: string;
 };
 
 type VariantGroup = {
+  id?: number;
   name: string;
   is_required: boolean;
   options: VariantOption[];
@@ -22,6 +24,10 @@ type VariantGroup = {
 type VariantSectionProps = {
   variantGroups: VariantGroup[];
   setVariantGroups: React.Dispatch<React.SetStateAction<VariantGroup[]>>;
+  deleteVariantOption: (
+    groupIndex: number,
+    optionIndex: number,
+  ) => void | Promise<void>;
   addVariantGroup: () => void;
   addVariantOption: (index: number) => void;
   formatPrice: (value: string) => string;
@@ -35,31 +41,19 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
   setVariantGroups,
   addVariantGroup,
   addVariantOption,
+  deleteVariantOption,
   formatPrice,
 }) => {
   /* ================================
-     DELETE HANDLERS (SAFE)
+     DELETE GROUP (LOCAL ONLY)
   ================================= */
 
   const deleteVariantGroup = (index: number) => {
     setVariantGroups((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const deleteVariantOption = (groupIndex: number, optionIndex: number) => {
-    setVariantGroups((prev) =>
-      prev.map((group, i) => {
-        if (i !== groupIndex) return group;
-
-        return {
-          ...group,
-          options: group.options.filter((_, j) => j !== optionIndex),
-        };
-      }),
-    );
-  };
-
   /* ================================
-     UPDATE HELPERS (SAFE)
+     UPDATE HELPERS
   ================================= */
 
   const updateGroupField = <K extends keyof VariantGroup>(
@@ -99,7 +93,7 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
       <Text style={[styles.pageTitle, { marginTop: 50 }]}>Variants</Text>
 
       {variantGroups.map((group, i) => (
-        <View key={i}>
+        <View key={group.id ?? i}>
           {/* HEADER */}
           <View
             style={{
@@ -149,7 +143,7 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
           {/* OPTIONS */}
           {group.options.map((opt, j) => (
             <View
-              key={j}
+              key={opt.id ?? j}
               style={{
                 flexDirection: "row",
                 gap: 10,
@@ -190,7 +184,7 @@ export const VariantSection: React.FC<VariantSectionProps> = ({
           <TouchableOpacity onPress={() => addVariantOption(i)}>
             <Text
               style={{
-                marginVertical: 30,
+                marginVertical: 50,
                 fontWeight: "600",
                 fontSize: 16,
               }}

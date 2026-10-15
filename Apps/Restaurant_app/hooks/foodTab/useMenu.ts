@@ -12,8 +12,13 @@ export const useMenu = () => {
 
         queryFn: async () => {
             const response = await getMenu();
+            //console.log(
+              //  "First Menu:\n",
+                //JSON.stringify(response.data[0], null, 2)
+            //);
             return response.data;
         },
+
 
         staleTime: 1000 * 60 * 10,
         gcTime: 1000 * 60 * 30,

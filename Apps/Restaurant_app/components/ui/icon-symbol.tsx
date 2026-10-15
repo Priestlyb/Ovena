@@ -78,6 +78,7 @@ export const COMMUNITY_ICONS = {
   SwimmerIcon: "swim",
   GymIcon: "dumbbell",
   WifiIcon: "wifi",
+  ImagePlusIcon: "image-plus-outline",
   DotsHorizontalIcon: "dots-horizontal",
   StoreClockIcon: "store-clock-outline",
   BriefcaseOutlineIcon: "briefcase-variant-outline",
@@ -88,6 +89,7 @@ export const COMMUNITY_ICONS = {
 
 /* ---------- FONT AWESOME 6 ICONS ---------- */
 export const FONT_AWESOME_6_ICONS = {
+  ArrowRotateIcon: "arrow-rotate-left",
   FileClipboardIcon: "file-clipboard",
   FileIcon: "file-pdf",
   WalletIcon: "wallet",

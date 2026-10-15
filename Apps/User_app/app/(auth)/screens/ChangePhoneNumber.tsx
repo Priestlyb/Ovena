@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTheme, ThemeColors } from "@/constants/theme";
 import {
   View,
   Text,
@@ -17,12 +18,14 @@ const BASE_URL = "https://ovena-backend-production.up.railway.app/api";
 
 export default function ChangePhoneNumber() {
   const { accessToken } = useAuth();
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Countdown state for rate-limit
   const [cooldown, setCooldown] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -49,7 +52,11 @@ export default function ChangePhoneNumber() {
     } else if (cleaned.startsWith("234")) {
       // 2348012345678 → +2348012345678
       return "+" + cleaned;
-    } else if (cleaned.startsWith("7") || cleaned.startsWith("8") || cleaned.startsWith("9")) {
+    } else if (
+      cleaned.startsWith("7") ||
+      cleaned.startsWith("8") ||
+      cleaned.startsWith("9")
+    ) {
       // 7012345678 → +2347012345678
       return "+234" + cleaned;
     } else if (cleaned.startsWith("+234")) {
@@ -62,7 +69,10 @@ export default function ChangePhoneNumber() {
   const handleSendOtp = async () => {
     const formattedPhone = formatPhoneNumber(phone);
     if (!formattedPhone) {
-      Toast.show({ type: "error", text1: "Enter a valid Nigerian phone number" });
+      Toast.show({
+        type: "error",
+        text1: "Enter a valid Nigerian phone number",
+      });
       return;
     }
 
@@ -101,7 +111,10 @@ export default function ChangePhoneNumber() {
       Keyboard.dismiss();
     } catch (error) {
       console.error("OTP Error:", error);
-      Toast.show({ type: "error", text1: "Something went wrong. Check console." });
+      Toast.show({
+        type: "error",
+        text1: "Something went wrong. Check console.",
+      });
     } finally {
       setLoading(false);
     }
@@ -112,10 +125,14 @@ export default function ChangePhoneNumber() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.replace("/(auth)/screens/AccountScreen")}
+          onPress={() => router.back()}
           style={styles.backButton}
         >
-          <IconSymbol name="ArrowLeftIcon" size={22} color="#000" />
+          <IconSymbol
+            name="ArrowLeftIcon"
+            size={22}
+            color={theme.textPrimary}
+          />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Change Phone Number</Text>
@@ -138,6 +155,7 @@ export default function ChangePhoneNumber() {
           <TextInput
             style={styles.phoneInput}
             placeholder="Phone number"
+            placeholderTextColor={theme.textSecondary}
             keyboardType="phone-pad"
             value={phone}
             onChangeText={setPhone}
@@ -151,7 +169,7 @@ export default function ChangePhoneNumber() {
           disabled={loading || cooldown > 0}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.background} />
           ) : cooldown > 0 ? (
             <Text style={styles.buttonText}>
               Try again in{" "}
@@ -170,53 +188,101 @@ export default function ChangePhoneNumber() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, marginTop: 55 },
-  header: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  backButton: {
-    padding: 10,
-    borderColor: "#000",
-    borderWidth: 1,
-    borderRadius: 50,
-  },
-  headerTitle: { fontSize: 24, fontWeight: "bold" },
-  headerSpacer: { width: 34 },
-  content: { paddingHorizontal: 30, paddingVertical: 10 },
-  description: { marginBottom: 10, fontSize: 18, lineHeight: 30 },
-  phoneRow: { flexDirection: "row", marginTop: 20, gap: 10 },
-  countryBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    gap: 6,
-  },
-  flag: { fontSize: 18 },
-  code: { fontWeight: "600" },
-  phoneInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-  },
-  button: {
-    marginTop: 30,
-    borderColor: "#000",
-    borderWidth: 1,
-    padding: 15,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  buttonText: { fontSize: 20, color: "#000", fontWeight: "bold" },
-});
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingTop: 60,
+      backgroundColor: theme.background,
+    },
+
+    header: {
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+
+    backButton: {
+      padding: 10,
+      borderColor: theme.border,
+      borderWidth: 1,
+      borderRadius: 50,
+      backgroundColor: theme.surface,
+    },
+
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.textPrimary,
+    },
+
+    headerSpacer: {
+      width: 34,
+    },
+
+    content: {
+      paddingHorizontal: 30,
+      paddingVertical: 10,
+    },
+
+    description: {
+      marginBottom: 10,
+      fontSize: 18,
+      lineHeight: 30,
+      color: theme.textSecondary,
+    },
+
+    phoneRow: {
+      flexDirection: "row",
+      marginTop: 20,
+      gap: 10,
+    },
+
+    countryBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      gap: 6,
+      backgroundColor: theme.surface,
+    },
+
+    flag: {
+      fontSize: 18,
+    },
+
+    code: {
+      fontWeight: "600",
+      color: theme.textPrimary,
+    },
+
+    phoneInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      color: theme.textPrimary,
+      backgroundColor: theme.surface,
+    },
+
+    button: {
+      marginTop: 30,
+      backgroundColor: theme.primary,
+      padding: 15,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+
+    buttonText: {
+      fontSize: 20,
+      color: theme.background,
+      fontWeight: "bold",
+    },
+  });

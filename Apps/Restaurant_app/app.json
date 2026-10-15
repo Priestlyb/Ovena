@@ -1,32 +1,29 @@
 {
   "expo": {
-    "name": "Restaurant_app",
-    "slug": "Restaurant_app",
+    "name": "Ovena Restaurant",
+    "slug": "ovena-restaurant",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "restaurantapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ovena.restaurantapp"
     },
     "android": {
-      "usesCleartextTraffic": true,
+      "package": "com.ovena.restaurantapp",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.itspriestlybassey.Restaurant_app"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -45,7 +42,13 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser",
+      "@react-native-firebase/app/app.plugin.js",
+      "@react-native-firebase/messaging/app.plugin.js"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -54,7 +57,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "e7eb92de-1749-4749-99ca-8c46e3e816f9"
+        "projectId": "d2e28683-1f89-4252-a180-9804fd3f9cd8"
       }
     },
     "owner": "thisispriestly007"

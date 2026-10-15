@@ -1,54 +1,150 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import React from "react";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useTheme } from "@/constants/theme";
+import type { ThemeColors } from "@/constants/theme";
+
 export default function ManagePrivacy() {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
   return (
-    <View style={{ flex: 1, marginTop: 55 }}>
-      <View
-        style={{
-          width: "100%",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          gap: 50,
-          alignItems: "center",
-          marginBottom: 20,
-          paddingHorizontal: 20,
-          paddingVertical: 10,
-        }}
-      >
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.replace("/(auth)/screens/AccountScreen")}
-          style={{
-            padding: 10,
-            borderColor: "#000",
-            borderWidth: 1,
-            borderRadius: 50,
-          }}
+          onPress={() => router.back()}
+          style={styles.backButton}
         >
-          <IconSymbol name="ArrowLeftIcon" size={22} color={"#000"} />
+          <IconSymbol
+            name="ArrowLeftIcon"
+            size={22}
+            color={theme.textPrimary}
+          />
         </TouchableOpacity>
 
-        <Text style={{ fontSize: 24, fontWeight: "bold" }}>Manage privacy</Text>
-        <View style={{ width: 34 }} />
+        <Text style={styles.headerTitle}>Manage Privacy</Text>
+
+        <View style={styles.headerSpacer} />
       </View>
 
-      <TouchableOpacity onPress={() => router.replace("/(auth)/screens/PersonalizedAdsScreen")}>
-      <View style={{
-        paddingHorizontal: 30,
-        paddingVertical: 10, display: "flex", flexDirection: "row", gap: 10, alignItems: "center", justifyContent: "space-between"
-      }}>
-        <View style={{ display: "flex", flexDirection: "row", gap: 10, alignItems: "center" }}>
-        <IconSymbol name="SettingsIcon" size={24} color={"#000"} />
-      <Text>Personalized ads</Text>
-      </View>
+      {/* Privacy Options */}
+      <TouchableOpacity
+        onPress={() => router.push("/(auth)/screens/PersonalizedAdsScreen")}
+        activeOpacity={0.7}
+      >
+        <View style={styles.row}>
+          <View style={styles.leftSection}>
+            <IconSymbol
+              name="SettingsIcon"
+              size={24}
+              color={theme.textPrimary}
+            />
 
-      <IconSymbol name="ChevronRightIcon" size={20} color={"#000"} />
-      </View>
+            <Text style={styles.rowText}>Personalized Ads</Text>
+          </View>
+
+          <IconSymbol
+            name="ChevronRightIcon"
+            size={20}
+            color={theme.textSecondary}
+          />
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => router.push("/screens/ThemeScreen")}
+      >
+        <View style={styles.row}>
+          <View style={styles.leftSection}>
+            <IconSymbol name="MoonIcon" size={24} color={theme.textPrimary} />
+
+            <Text style={styles.rowText}>Theme</Text>
+          </View>
+
+          <IconSymbol
+            name="ChevronRightIcon"
+            size={20}
+            color={theme.textSecondary}
+          />
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => router.push("/screens/NotificationSettings")}
+      >
+        <View style={styles.row}>
+          <View style={styles.leftSection}>
+            <IconSymbol name="BellIcon" size={24} color={theme.textPrimary} />
+
+            <Text style={styles.rowText}>Notification</Text>
+          </View>
+
+          <IconSymbol
+            name="ChevronRightIcon"
+            size={20}
+            color={theme.textSecondary}
+          />
+        </View>
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({});
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingTop: 60,
+      backgroundColor: theme.background,
+    },
+
+    header: {
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+
+    backButton: {
+      padding: 10,
+      borderWidth: 1,
+      borderRadius: 50,
+      borderColor: theme.border,
+      backgroundColor: theme.surface,
+    },
+
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.textPrimary,
+    },
+
+    headerSpacer: {
+      width: 42,
+    },
+
+    row: {
+      paddingHorizontal: 30,
+      paddingVertical: 14,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    leftSection: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+
+    rowText: {
+      fontSize: 17,
+      color: theme.textPrimary,
+    },
+  });

@@ -27,7 +27,7 @@ import { InfoCard, InfoRow } from "@/components/InfoCard";
 import { Header } from "@/components/molecules/Header";
 import { StatusButton } from "@/components/StatusButton";
 
-import useOrderDetail from "@/hooks/staff/useOrderDetail";
+import useOrderDetail, { StaffOrderItem } from "@/hooks/staff/useOrderDetail";
 
 export default function OrderDetailsPage() {
   const router = useRouter();
@@ -55,13 +55,29 @@ export default function OrderDetailsPage() {
     if (!date) return "—";
 
     return new Date(date).toLocaleString("en-US", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-      day: "numeric",
-      month: "short",
     });
   };
+
+  const formatStatus = (status?: string) => {
+    if (!status) return "—";
+
+    return status
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const totalItems =
+    order?.items?.reduce(
+      (total, item) => total + Number(item.quantity || 0),
+      0,
+    ) ?? 0;
 
   if (!routeOrder || !orderId) {
     return (
@@ -169,6 +185,13 @@ export default function OrderDetailsPage() {
             <Spacer size="md" />
 
             <StatusButton status={order.status} />
+
+            <Spacer size="md" />
+
+            <InfoRow
+              label="Order Type"
+              value={order.picked_up_by_user ? "Customer Pickup" : "Delivery"}
+            />
           </View>
 
           <Spacer size="xl" />
@@ -182,6 +205,11 @@ export default function OrderDetailsPage() {
             <InfoRow label="Branch" value={order.branch_name || "—"} bold />
 
             <InfoRow label="Created" value={formatTime(order.created_at)} />
+
+            <InfoRow
+              label="Items"
+              value={`${totalItems} ${totalItems === 1 ? "item" : "items"}`}
+            />
           </InfoCard>
 
           <Spacer size="lg" />
@@ -199,8 +227,18 @@ export default function OrderDetailsPage() {
             title="Items"
             icon={<ShoppingBag size={18} color="#F84E10" />}
           >
-            {order.items?.map((item: any, index: number) => (
+            {order.items?.map((item: StaffOrderItem, index: number) => (
               <View key={index}>
+                <Text
+                  weight="bold"
+                  style={{
+                    marginBottom: 10,
+                    color: "#F84E10",
+                  }}
+                >
+                  Item {index + 1}
+                </Text>
+
                 <View
                   style={{
                     flexDirection: "row",
@@ -215,6 +253,7 @@ export default function OrderDetailsPage() {
                       width: 90,
                       height: 90,
                       borderRadius: 12,
+                      backgroundColor: "#F3F4F6",
                     }}
                     resizeMode="cover"
                   />
@@ -232,7 +271,7 @@ export default function OrderDetailsPage() {
                     <Text color="secondary">Qty: {item.quantity}</Text>
 
                     <Text weight="bold">
-                      ₦{Number(item.line_total).toLocaleString()}
+                      Subtotal: ₦{Number(item.line_total).toLocaleString()}
                     </Text>
                   </View>
                 </View>
@@ -253,6 +292,10 @@ export default function OrderDetailsPage() {
                     label="Addons"
                     value={item.snapshot.addons.join(", ")}
                   />
+                )}
+
+                {!!item.addtional_note?.trim() && (
+                  <InfoRow label="Customer Note" value={item.addtional_note} />
                 )}
 
                 {index < order.items.length - 1 && (
@@ -281,9 +324,21 @@ export default function OrderDetailsPage() {
           >
             <InfoRow label="Order ID" value={String(order.id)} />
 
-            <InfoRow label="Order Number" value={String(order.order_number)} />
+            {order.order_number > 0 && (
+              <InfoRow
+                label="Order Number"
+                value={String(order.order_number)}
+              />
+            )}
 
-            <InfoRow label="Status" value={order.status} />
+            <InfoRow label="Status" value={formatStatus(order.status)} />
+
+            <InfoRow
+              label="Order Type"
+              value={order.picked_up_by_user ? "Customer Pickup" : "Delivery"}
+            />
+
+            <InfoRow label="Items" value={String(totalItems)} />
           </InfoCard>
 
           <Spacer size="lg" />

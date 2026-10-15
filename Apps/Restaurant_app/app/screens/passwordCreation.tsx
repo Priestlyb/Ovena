@@ -100,10 +100,16 @@ const PasswordPage: React.FC<PasswordPageProps> = ({
 
   /* =========================================================
      🔹 CONTINUE
+     🔹
+     🔹 Validate password
+     🔹 Send OTP
+     🔹 Automatically navigate to next page on success
   ========================================================= */
   const handleContinue = async () => {
+    // Prevent duplicate requests
     if (sendingOtp) return;
 
+    // Validate password fields first
     if (!validateFields()) return;
 
     try {
@@ -111,18 +117,17 @@ const PasswordPage: React.FC<PasswordPageProps> = ({
 
       console.log("📧 Sending OTP to:", data.email);
 
+      // Send verification code
       await sendEmailOtp({
         email: data.email,
       });
 
-      setModalConfig({
-        message: "A verification code has been sent to your email.",
-        variant: "success",
-      });
+      console.log("✅ OTP sent successfully");
 
-      setModalVisible(true);
+      // Automatically move to the next registration step
+      onNext();
     } catch (err) {
-      console.error("Send OTP Error:", err);
+      console.error("❌ Send OTP Error:", err);
 
       setModalConfig({
         message: "Failed to send verification code. Please try again.",
@@ -144,15 +149,23 @@ const PasswordPage: React.FC<PasswordPageProps> = ({
         <ScrollView
           style={styles.container}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Back Button */}
+          {/* =====================================================
+              BACK BUTTON
+          ===================================================== */}
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
             <ArrowLeft size={22} />
           </TouchableOpacity>
 
+          {/* =====================================================
+              TITLE
+          ===================================================== */}
           <Text style={styles.pageTitle}>Begin your Ovena experience</Text>
 
-          {/* Create Password */}
+          {/* =====================================================
+              CREATE PASSWORD
+          ===================================================== */}
           <CustomInput
             label="Create Password"
             placeholder="at least 8 characters"
@@ -162,7 +175,9 @@ const PasswordPage: React.FC<PasswordPageProps> = ({
             required
           />
 
-          {/* Confirm Password */}
+          {/* =====================================================
+              CONFIRM PASSWORD
+          ===================================================== */}
           <CustomInput
             label="Confirm Password"
             placeholder="at least 8 characters"
@@ -172,33 +187,42 @@ const PasswordPage: React.FC<PasswordPageProps> = ({
             required
           />
 
-          {/* Continue Button */}
+          {/* =====================================================
+              CONTINUE BUTTON
+          ===================================================== */}
           <TouchableOpacity
             style={styles.continueBtn}
             onPress={handleContinue}
             disabled={sendingOtp}
+            activeOpacity={0.8}
           >
             <Text style={styles.continueBtnText}>
               {sendingOtp ? "Sending Code..." : "Continue"}
             </Text>
           </TouchableOpacity>
 
+          {/* =====================================================
+              LOADING INDICATOR
+          ===================================================== */}
           {sendingOtp && (
             <ActivityIndicator size="small" style={{ marginTop: 12 }} />
           )}
         </ScrollView>
 
-        {/* FEEDBACK MODAL */}
+        {/* =====================================================
+            ERROR FEEDBACK MODAL
+
+            Only errors are shown here.
+
+            Successful OTP sending navigates automatically,
+            so the user doesn't have to close a success modal.
+        ===================================================== */}
         <FeedbackModal
           visible={modalVisible}
           message={modalConfig.message}
           variant={modalConfig.variant}
           onClose={() => {
             setModalVisible(false);
-
-            if (modalConfig.variant === "success") {
-              onNext();
-            }
           }}
         />
       </KeyboardAvoidingView>

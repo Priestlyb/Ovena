@@ -257,6 +257,7 @@ export type AppRoute =
   | "/superForm"
   | "/superForm2/checklist"
   | "/screens/subscriptionPlans"
+  | "/screens/business-verification"
   | "/superForm2/menu-items"
   | "/(tabs)";
 
@@ -264,6 +265,7 @@ export const stepRoutes: Record<number, AppRoute> = {
   0: "/superForm",
   1: "/superForm2/checklist",
   2: "/screens/subscriptionPlans",
-  3: "/superForm2/menu-items",
-  4: "/(tabs)",
+  3: "/screens/business-verification",
+  4: "/superForm2/menu-items",
+  5: "/(tabs)",
 };

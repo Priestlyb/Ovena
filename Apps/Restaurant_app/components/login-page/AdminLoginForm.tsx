@@ -47,10 +47,18 @@ export const AdminLoginForm = ({
 
     <Spacer size="xl" />
 
-    <TouchableOpacity style={styles.continueBtn} onPress={onLogin}>
-      <Text style={styles.continueBtnText}>
-        {loading ? "Loading..." : "Login"}
-      </Text>
+    <TouchableOpacity
+      style={[
+        styles.continueBtn,
+        loading && {
+          opacity: 0.6,
+        },
+      ]}
+      onPress={onLogin}
+      disabled={loading}
+      activeOpacity={loading ? 1 : 0.7}
+    >
+      <Text style={styles.continueBtnText}>Login</Text>
     </TouchableOpacity>
   </>
 );

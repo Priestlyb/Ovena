@@ -32,7 +32,11 @@ export function mapMenuResponse(
         break;
     }
 
-    return { foundMenu, foundCategory, foundItem };
+    return {
+        foundMenu,
+        foundCategory,
+        foundItem,
+    };
 }
 
 export function buildUpdatePayload({
@@ -69,14 +73,22 @@ export function buildUpdatePayload({
                                 description: cleanText(description),
                                 price: parsePrice(price),
 
-                                image: image?.uploadedUrl ?? image?.uri ?? null,
+                                // Never send a local file:// URI
+                                image:
+                                    image?.uploadedUrl ??
+                                    (image?.uri?.startsWith("http") ? image.uri : null),
 
-                                base_item: baseItemId ? { id: baseItemId } : undefined,
+                                base_item: baseItemId
+                                    ? {
+                                        id: baseItemId,
+                                    }
+                                    : undefined,
 
                                 variant_groups: (variantGroups || []).map((g: any) => ({
                                     id: g.id,
                                     name: cleanText(g.name),
                                     is_required: !!g.is_required,
+
                                     options: (g.options || []).map((o: any) => ({
                                         id: o.id,
                                         name: cleanText(o.name),
@@ -94,10 +106,18 @@ export function buildUpdatePayload({
                                         id: a.id,
                                         name: cleanText(a.name),
                                         price: safeNumber(a.price),
+
                                         base_item: a.base_item_id
-                                            ? { id: a.base_item_id }
+                                            ? {
+                                                id: a.base_item_id,
+                                            }
                                             : undefined,
-                                        image: a.image?.uploadedUrl ?? a.image?.uri ?? null,
+
+                                        image:
+                                            a.image?.uploadedUrl ??
+                                            (a.image?.uri?.startsWith("http")
+                                                ? a.image.uri
+                                                : null),
                                     })),
                                 })),
                             },

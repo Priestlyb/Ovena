@@ -19,7 +19,7 @@ export default function MyAccountDetails() {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.replace("/(auth)/screens/HelpScreen")}
+          onPress={() => router.back()}
           style={{
             padding: 10,
             borderColor: "#000",

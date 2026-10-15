@@ -15,13 +15,13 @@ export default function OvenaPrimeScreen() {
   return (
     <ScrollView
       style={{ flex: 1 }}
-      contentContainerStyle={{ paddingTop: 55, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingTop: 60, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.replace("/(tabs)/profile")}
+          onPress={() => router.back()}
           style={styles.backBtn}
         >
           <IconSymbol name="ArrowLeftIcon" size={22} color={"#000"} />

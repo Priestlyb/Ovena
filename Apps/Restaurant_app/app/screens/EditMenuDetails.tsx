@@ -27,6 +27,7 @@ import { useEditMenuDetails } from "../../hooks/foodTab/useEditMenuDetails";
 export default function EditMenuDetailsPage() {
   const {
     router,
+
     categories,
     category,
     setCategory,
@@ -36,25 +37,32 @@ export default function EditMenuDetailsPage() {
     setShowAddCategory,
     handleAddCategory,
 
-    // image
+    // IMAGE
     productImage,
     uploadProgress,
     handleImageUpload,
-    removeImage,
+    hasPendingImageChange,
+    cancelImageChange,
 
-    // variants
+    // VARIANTS
     variantGroups,
     setVariantGroups,
     addVariantGroup,
     addVariantOption,
+    deleteVariantOption,
 
-    // addons
+    // ADDONS
     addonGroups,
     setAddonGroups,
     addAddonGroup,
     addAddon,
+    deleteAddon,
 
-    // menu state
+    pickAddonImage,
+    hasPendingAddonImageChange,
+    cancelAddonImageChange,
+
+    // MENU
     isActive,
     setIsActive,
 
@@ -103,7 +111,7 @@ export default function EditMenuDetailsPage() {
             handleAddCategory={handleAddCategory}
           />
 
-          {/* ACTIVE SWITCH */}
+          {/* ACTIVE */}
           <CustomSwitch
             label="Menu Active"
             value={isActive}
@@ -126,7 +134,9 @@ export default function EditMenuDetailsPage() {
             productImage={productImage}
             uploadProgress={uploadProgress}
             handleImageUpload={handleImageUpload}
-            removeImage={removeImage}
+            hasPendingImageChange={hasPendingImageChange}
+            cancelImageChange={cancelImageChange}
+            isUploading={isSubmitting}
           />
 
           {/* VARIANTS */}
@@ -135,6 +145,7 @@ export default function EditMenuDetailsPage() {
             setVariantGroups={setVariantGroups}
             addVariantGroup={addVariantGroup}
             addVariantOption={addVariantOption}
+            deleteVariantOption={deleteVariantOption}
             formatPrice={formatPrice}
           />
 
@@ -144,11 +155,15 @@ export default function EditMenuDetailsPage() {
             setAddonGroups={setAddonGroups}
             addAddonGroup={addAddonGroup}
             addAddon={addAddon}
+            deleteAddon={deleteAddon}
             formatPrice={formatPrice}
-            onPickAddonImage={handleImageUpload}
+            onPickAddonImage={pickAddonImage}
+            hasPendingAddonImageChange={hasPendingAddonImageChange}
+            cancelAddonImageChange={cancelAddonImageChange}
+            uploadProgress={uploadProgress}
           />
 
-          {/* SUBMIT BUTTON */}
+          {/* UPDATE BUTTON */}
           <TouchableOpacity
             style={[styles.continueBtn, isSubmitting && { opacity: 0.5 }]}
             onPress={handleSubmit}
@@ -161,12 +176,16 @@ export default function EditMenuDetailsPage() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* FEEDBACK MODAL */}
       <FeedbackModal
         visible={feedback.visible}
         message={feedback.message}
         variant={feedback.variant}
-        onClose={() => setFeedback((prev) => ({ ...prev, visible: false }))}
+        onClose={() =>
+          setFeedback((prev) => ({
+            ...prev,
+            visible: false,
+          }))
+        }
       />
     </SafeAreaView>
   );

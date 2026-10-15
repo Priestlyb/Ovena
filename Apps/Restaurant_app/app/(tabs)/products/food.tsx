@@ -29,7 +29,7 @@ export default function FoodScreen() {
     selectedBranch,
     setSelectedBranch,
     menuItems,
-    MenuLoading,
+    menuLoading,
     toggleSelect,
     selectAll,
     handleMarkSelected,
@@ -39,13 +39,13 @@ export default function FoodScreen() {
     isMixed,
     deleteItem,
     deleteSelected,
+    deleteLoading,
   } = useFoodMenu();
 
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const openDeleteModal = (menuId: string) => {
     setSelectedMenuId(menuId);
@@ -61,10 +61,8 @@ export default function FoodScreen() {
     if (!selectedMenuId) return;
 
     try {
-      setDeleteLoading(true);
       await deleteItem(selectedMenuId);
     } finally {
-      setDeleteLoading(false);
       closeDeleteModal();
     }
   };
@@ -86,7 +84,7 @@ export default function FoodScreen() {
   // =========================
   // LOADING
   // =========================
-  if (MenuLoading) {
+  if (menuLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#F84E10" />
@@ -245,7 +243,10 @@ export default function FoodScreen() {
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={() => {
-                  console.log("[SELECTED PRODUCT]", item);
+                  console.log(
+                    "[SELECTED PRODUCT]",
+                    JSON.stringify(item, null, 2),
+                  );
 
                   router.push({
                     pathname: "/screens/ProductDetails",

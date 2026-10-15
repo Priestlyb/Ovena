@@ -25,10 +25,10 @@ export const getStaffOrderHistory = async (): Promise<
 > => {
     const response = await api.get("/menu/staff/order/history/");
 
-    console.log(
-      "[ORDER HISTORY FIRST ITEM]",
-    response.data?.results?.[0] ?? response.data?.[0]
-     );
+    //console.log(
+    //"[ORDER HISTORY FIRST ITEM]",
+    //response.data?.results?.[0] ?? response.data?.[0]
+    //);
 
     return response.data?.results ?? [];
 };

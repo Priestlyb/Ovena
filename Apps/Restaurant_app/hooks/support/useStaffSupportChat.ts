@@ -33,8 +33,8 @@ export const useStaffSupportChat = () => {
         {
             id: "1",
             type: "system",
-            text: getTodayLabel(),
-            timestamp: new Date().toISOString(),
+            text: "{recent_date}",
+            timestamp: getTodayLabel(),
             attachments: [],
         },
         {

@@ -30,9 +30,3 @@ export const bulkUpdateAvailability = async (
         payload
     );
 };
-
-export const deleteMenu = async (menuId: string) => {
-    return api.delete(
-        `/menu/business/${menuId}/delete/`
-    );
-};

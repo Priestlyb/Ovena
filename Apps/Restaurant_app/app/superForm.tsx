@@ -187,7 +187,7 @@ export default function SuperForm() {
       console.log("Logo:", businessLogo?.uri);
       console.log("============================");
 
-      const response = await api.post("/accounts/onboard/phase1/", payload, {
+      const response = await api.put("/accounts/onboard/phase1/", payload, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",

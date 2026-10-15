@@ -24,7 +24,7 @@ export default function useLogout() {
                 });
             }
 
-            // Block any further API requests after logout succeeds
+            // Block any remaining protected requests while we clear auth
             setGlobalLogout(true);
 
             console.log("✅ Logout successful");
@@ -33,15 +33,15 @@ export default function useLogout() {
                 "Logout error:",
                 error?.response?.data || error?.message
             );
-
-            // Still prevent future requests
-            setGlobalLogout(true);
         } finally {
             try {
                 await clearAuth();
             } catch (clearError) {
                 console.warn("Error clearing auth:", clearError);
             }
+
+            // Re-enable API requests for the next login
+            setGlobalLogout(false);
 
             router.replace("/");
 

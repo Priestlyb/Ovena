@@ -1,8 +1,37 @@
 import api from "@/services/apiClient";
 import { useCallback, useEffect, useState } from "react";
 
+export interface StaffOrderItemSnapshot {
+    item: {
+        id: number;
+        name: string;
+        image: string;
+    };
+    options: string[];
+    addons: string[];
+}
+
+export interface StaffOrderItem {
+    quantity: number;
+    line_total: string;
+    snapshot: StaffOrderItemSnapshot;
+    addtional_note: string;
+}
+
+export interface StaffOrderDetail {
+    id: number;
+    branch_name: string;
+    branch_address: string;
+    grand_total: string;
+    order_number: number;
+    status: string;
+    created_at: string;
+    picked_up_by_user: boolean;
+    items: StaffOrderItem[];
+}
+
 interface UseStaffOrderDetailReturn {
-    order: any | null;
+    order: StaffOrderDetail | null;
     loading: boolean;
     error: string | null;
     refetch: () => Promise<void>;
@@ -11,7 +40,7 @@ interface UseStaffOrderDetailReturn {
 export default function useOrderDetail(
     orderId: string | number
 ): UseStaffOrderDetailReturn {
-    const [order, setOrder] = useState<any | null>(null);
+    const [order, setOrder] = useState<StaffOrderDetail | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -25,14 +54,14 @@ export default function useOrderDetail(
             setLoading(true);
             setError(null);
 
-            const response = await api.get(
+            const response = await api.get<StaffOrderDetail>(
                 `/menu/staff/order/${orderId}/`
             );
 
             //console.log(
-            //   "[STAFF ORDER DETAIL SUCCESS]",
-            //  JSON.stringify(response.data, null, 2)
-            // );
+            //  "[STAFF ORDER DETAIL SUCCESS]",
+            //JSON.stringify(response.data, null, 2)
+            //);
 
             setOrder(response.data);
         } catch (err: any) {

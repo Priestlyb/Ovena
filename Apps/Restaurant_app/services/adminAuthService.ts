@@ -71,7 +71,7 @@ export const OnboardingAdmin = async (
   try {
     console.log("ONBOARD REQUEST BODY:", data);
 
-    const response = await api.post<OnboardAdminResponse>(
+    const response = await api.put<OnboardAdminResponse>(
       "/accounts/onboard/admin/",
       data
     );

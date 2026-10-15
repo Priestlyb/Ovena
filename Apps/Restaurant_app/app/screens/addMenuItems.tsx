@@ -1,4 +1,4 @@
-// app/addMenuItems/index.tsx
+// /screens/addMenuItems
 
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
@@ -18,6 +18,7 @@ import { styles } from "@/constants/styles";
 /* =========================================
    COMPONENTS
 ========================================= */
+
 import { AddonSection } from "@/components/AddonSection";
 import { BaseItemSection } from "@/components/BaseItemSection";
 import { CategorySection } from "@/components/CategorySection";
@@ -32,6 +33,7 @@ import { Header } from "@/components/molecules/Header";
 /* =========================================
    HOOKS
 ========================================= */
+
 import { useAddMenuSubmit } from "@/hooks/useAddMenuSubmit";
 import { useAddons } from "@/hooks/useAddons";
 import { useCategories } from "@/hooks/useCategories";
@@ -42,12 +44,11 @@ import { useVariants } from "@/hooks/useVariants";
 /* =========================================
    UTILS
 ========================================= */
+
 import { formatPrice, unformatPrice } from "@/utils/formatPrice";
+
 import { cleanText } from "@/utils/text";
 
-/* =========================================
-   TYPES
-========================================= */
 type ProductImageState = {
   uri: string;
   uploadedUrl?: string;
@@ -57,6 +58,7 @@ export default function MenuItemsPage() {
   const router = useRouter();
 
   /* ================= CATEGORY ================= */
+
   const {
     categories,
     category,
@@ -70,61 +72,72 @@ export default function MenuItemsPage() {
   } = useCategories();
 
   /* ================= VARIANTS ================= */
+
   const { variantGroups, setVariantGroups, addVariantGroup, addVariantOption } =
     useVariants();
 
   /* ================= ADDONS ================= */
+
   const { addonGroups, setAddonGroups, addAddonGroup, addAddon } = useAddons();
 
   /* ================= FEEDBACK ================= */
+
   const { feedback, setFeedback, showFeedback } = useFeedback();
 
   /* ================= IMAGE ================= */
-  const { uploadImage } = useImageUploader(showFeedback);
+
+  const { pickImage, uploadImage } = useImageUploader(showFeedback);
 
   const [productImage, setProductImage] = useState<ProductImageState>(null);
 
   const [uploadProgress] = useState(0);
+
   const [isUploading] = useState(false);
 
   /* =========================================
-     IMAGE UPLOAD (FIXED)
+     PICK PRODUCT IMAGE ONLY
+     UPLOAD HAPPENS ON SUBMIT
   ========================================= */
-  const handleImageUpload = async () => {
-    const url = await uploadImage();
 
-    if (!url) return;
+  const handleImageUpload = async () => {
+    const image = await pickImage();
+
+    if (!image) return;
 
     setProductImage({
-      uri: url, // preview now uses uploaded URL
-      uploadedUrl: url,
+      uri: image.uri,
     });
   };
 
-  const removeImage = () => setProductImage(null);
+  const removeImage = () => {
+    setProductImage(null);
+  };
 
-  /* ================= ADDON IMAGE PICKER ================= */
+  /* ================= ADDON IMAGE PICK ================= */
+
   const handlePickAddonImage = async (
     groupIndex: number,
     addonIndex: number,
   ) => {
-    const url = await uploadImage();
-    if (!url) return;
+    const image = await pickImage();
+
+    if (!image) return;
 
     setAddonGroups((prev) =>
-      prev.map((group, gIdx) => {
-        if (gIdx !== groupIndex) return group;
+      prev.map((group, gIndex) => {
+        if (gIndex !== groupIndex) return group;
 
         return {
           ...group,
-          addons: group.addons.map((addon, aIdx) => {
-            if (aIdx !== addonIndex) return addon;
+
+          addons: group.addons.map((addon, aIndex) => {
+            if (aIndex !== addonIndex) return addon;
 
             return {
               ...addon,
+
               image: {
-                uri: url,
-                uploadedUrl: url,
+                uri: image.uri,
               },
             };
           }),
@@ -133,91 +146,174 @@ export default function MenuItemsPage() {
     );
   };
 
+  const hasPendingAddonImageChange = (
+    groupIndex: number,
+    addonIndex: number,
+  ) => {
+    return Boolean(addonGroups[groupIndex]?.addons[addonIndex]?.image);
+  };
+
+  const cancelAddonImageChange = (groupIndex: number, addonIndex: number) => {
+    setAddonGroups((prev) =>
+      prev.map((group, gIndex) => {
+        if (gIndex !== groupIndex) return group;
+
+        return {
+          ...group,
+
+          addons: group.addons.map((addon, aIndex) => {
+            if (aIndex !== addonIndex) return addon;
+
+            return {
+              ...addon,
+              image: null,
+            };
+          }),
+        };
+      }),
+    );
+  };
+
+  /* ================= DELETE ================= */
+
+  const deleteVariantOption = (groupIndex: number, optionIndex: number) => {
+    setVariantGroups((prev) =>
+      prev.map((group, index) => {
+        if (index !== groupIndex) return group;
+
+        return {
+          ...group,
+
+          options: group.options.filter((_, i) => i !== optionIndex),
+        };
+      }),
+    );
+  };
+
+  const deleteAddon = (groupIndex: number, addonIndex: number) => {
+    setAddonGroups((prev) =>
+      prev.map((group, index) => {
+        if (index !== groupIndex) return group;
+
+        return {
+          ...group,
+
+          addons: group.addons.filter((_, i) => i !== addonIndex),
+        };
+      }),
+    );
+  };
+
   /* ================= LOCAL STATE ================= */
+
   const [isActive, setIsActive] = useState(true);
+
   const [useMergeBase, setUseMergeBase] = useState(true);
 
   const [manualBaseName, setManualBaseName] = useState("");
+
   const [manualBaseDescription, setManualBaseDescription] = useState("");
+
   const [manualBasePrice, setManualBasePrice] = useState("");
 
   const [name, setName] = useState("");
+
   const [description, setDescription] = useState("");
+
   const [price, setPrice] = useState("");
 
   /* ================= CLEAN VARIANTS ================= */
+
   const cleanVariants = useMemo(() => {
     return variantGroups
       .filter((g) => g.name && g.options.length)
       .map((g) => ({
         name: cleanText(g.name),
-        is_required: !!g.is_required,
+
+        is_required: Boolean(g.is_required),
+
         options: g.options.map((o) => ({
           name: cleanText(o.name),
+
           price_diff: unformatPrice(o.price_diff),
         })),
       }));
   }, [variantGroups]);
 
   /* ================= CLEAN ADDONS ================= */
+
   const cleanAddons = useMemo(() => {
     return addonGroups
       .filter((g) => g.name && g.addons.length)
       .map((g) => ({
         name: cleanText(g.name),
 
-        is_required: !!g.is_required,
+        is_required: Boolean(g.is_required),
 
         max_selection: Number(g.max_selection || 0),
 
-        addons: g.addons.map((a) => {
-          const priceVal = unformatPrice(a.price);
+        addons: g.addons.map((a) => ({
+          name: cleanText(a.name),
 
-          return {
+          description: cleanText(a.description || ""),
+
+          price: unformatPrice(a.price),
+
+          image: a.image,
+
+          base_item: {
             name: cleanText(a.name),
 
             description: cleanText(a.description || ""),
 
-            price: priceVal,
+            price: unformatPrice(a.price),
 
             image: a.image,
-
-            base_item: {
-              name: cleanText(a.name),
-
-              description: cleanText(a.description || ""),
-
-              price: priceVal,
-
-              image: a.image,
-            },
-          };
-        }),
+          },
+        })),
       }));
   }, [addonGroups]);
 
   /* ================= SUBMIT ================= */
+
   const { handleSubmit, isSubmitting } = useAddMenuSubmit({
     category,
+
     showAddCategory,
+
     newCategory,
+
     name,
+
     description,
+
     price,
+
     isActive,
+
     useMergeBase,
+
     manualBaseName,
+
     manualBaseDescription,
+
     manualBasePrice,
+
     productImage,
-    cleanVariants: cleanVariants as any,
-    cleanAddons: cleanAddons as any,
+
+    cleanVariants,
+
+    cleanAddons,
+
+    uploadImage,
+
     showFeedback,
-    fetchCategories,
-    onSuccess: () => router.push("/(tabs)/products/food"),
+
+    onSuccess: () => {
+      router.push("/(tabs)/products/food");
+    },
   });
 
-  /* ================= UI ================= */
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -231,7 +327,14 @@ export default function MenuItemsPage() {
             onLeftIconPress={() => router.back()}
           />
 
-          <Text style={[styles.sectionTitle, { marginBottom: 20 }]}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              {
+                marginBottom: 20,
+              },
+            ]}
+          >
             Basic Info
           </Text>
 
@@ -278,25 +381,31 @@ export default function MenuItemsPage() {
             productImage={productImage}
             uploadProgress={uploadProgress}
             handleImageUpload={handleImageUpload}
-            removeImage={removeImage}
+            hasPendingImageChange={Boolean(productImage)}
+            cancelImageChange={removeImage}
             isUploading={isUploading}
           />
 
           <VariantSection
             variantGroups={variantGroups}
-            setVariantGroups={setVariantGroups as any}
+            setVariantGroups={setVariantGroups}
+            deleteVariantOption={deleteVariantOption}
             addVariantGroup={addVariantGroup}
             addVariantOption={addVariantOption}
             formatPrice={formatPrice}
           />
 
           <AddonSection
-            addonGroups={addonGroups as any}
-            setAddonGroups={setAddonGroups as any}
+            addonGroups={addonGroups}
+            setAddonGroups={setAddonGroups}
+            deleteAddon={deleteAddon}
             addAddonGroup={addAddonGroup}
             addAddon={addAddon}
             formatPrice={formatPrice}
             onPickAddonImage={handlePickAddonImage}
+            hasPendingAddonImageChange={hasPendingAddonImageChange}
+            cancelAddonImageChange={cancelAddonImageChange}
+            uploadProgress={uploadProgress}
           />
 
           <SubmitButton loading={isSubmitting} onPress={handleSubmit} />
@@ -309,7 +418,12 @@ export default function MenuItemsPage() {
         visible={feedback.visible}
         message={feedback.message}
         variant={feedback.variant}
-        onClose={() => setFeedback((prev) => ({ ...prev, visible: false }))}
+        onClose={() =>
+          setFeedback((prev) => ({
+            ...prev,
+            visible: false,
+          }))
+        }
       />
     </SafeAreaView>
   );

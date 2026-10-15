@@ -1,6 +1,5 @@
 import api from "@/services/apiClient";
-import { AxiosError } from "axios";
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 interface DashboardMetric {
   filter: string;
@@ -21,59 +20,92 @@ interface DashboardStaffResponse {
   data: DashboardStaff;
 }
 
-export const useDashboardStaff = (filter: string = "today") => {
-  const [staff, setStaff] = useState<DashboardStaff | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const buildDateRange = (key: string) => {
+  const today = new Date();
+  const start = new Date();
 
-  const fetchStaff = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  switch (key) {
+    case "7d":
+      start.setDate(today.getDate() - 7);
+      break;
 
-      const response = await api.get<DashboardStaffResponse>(
-        "/business/dashboard/staff/",
-        {
-          params: {
-            filter,
-          },
-        }
-      );
+    case "30d":
+      start.setDate(today.getDate() - 30);
+      break;
 
-      console.log(
-        `[Dashboard Staff - ${filter}]`,
-        JSON.stringify(response.data, null, 2)
-      );
+    case "12m":
+      start.setMonth(today.getMonth() - 12);
+      break;
+  }
 
-      setStaff(response.data.data);
-    } catch (err) {
-      const error = err as AxiosError;
-
-      console.log(
-        "[Dashboard Staff Error]",
-        JSON.stringify(error.response?.data, null, 2)
-      );
-
-      setError(
-        (error.response?.data as any)?.detail ||
-          (error.response?.data as any)?.message ||
-          error.message ||
-          "Failed to fetch dashboard."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [filter]);
-
-  useEffect(() => {
-    fetchStaff();
-  }, [fetchStaff]);
+  const format = (date: Date) => date.toISOString().split("T")[0];
 
   return {
-    staff,
-    loading,
-    error,
-    refetch: fetchStaff,
+    from_date: format(start),
+    to_date: format(today),
+  };
+};
+
+const fetchDashboardStaff = async (
+  filter: string
+): Promise<DashboardStaff> => {
+  let params: Record<string, string> = {};
+
+  if (filter === "today") {
+    params = {
+      range: "today",
+    };
+  } else {
+    params = {
+      range: "custom",
+      ...buildDateRange(filter),
+    };
+  }
+
+  console.log("Dashboard params:", params);
+
+  const response = await api.get<DashboardStaffResponse>(
+    "/business/dashboard/staff/",
+    {
+      params,
+    }
+  );
+
+  //console.log(
+  // `[Dashboard Staff - ${filter}]`,
+  //  JSON.stringify(response.data, null, 2)
+  //);
+
+  return response.data.data;
+};
+
+export const useDashboardStaff = (filter: string = "today") => {
+  const query = useQuery({
+    queryKey: ["dashboard-staff", filter],
+    queryFn: () => fetchDashboardStaff(filter),
+
+    // Cache for 15 minutes
+    staleTime: 15 * 60 * 1000,
+
+    // Keep cache in memory for 15 minutes after unused
+    gcTime: 15 * 60 * 1000,
+
+    retry: 1,
+
+    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    staff: query.data ?? null,
+    loading: query.isLoading,
+    refreshing: query.isFetching && !query.isLoading,
+    error:
+      query.error instanceof Error
+        ? query.error.message
+        : null,
+    refetch: query.refetch,
   };
 };
 

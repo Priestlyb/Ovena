@@ -1,8 +1,8 @@
 // dashboardTab.tsx
 
 import { useRouter } from "expo-router";
-import { Eye, MessageCircle } from "lucide-react-native";
-import React from "react";
+import { MessageCircle } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -45,7 +45,8 @@ export default function DashboardScreen() {
   } = useDashboardCarousel();
 
   // Refetches automatically whenever selectedPeriod changes
-  const { staff, loading, error } = useDashboardStaff(selectedPeriod);
+  const { staff, loading, refreshing, error } =
+    useDashboardStaff(selectedPeriod);
 
   const { isOpen, updating, feedback, setFeedback, toggleBranch } =
     useBranchStatus();
@@ -66,7 +67,15 @@ export default function DashboardScreen() {
     },
   };
 
-  if (loading) {
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+  useEffect(() => {
+    if (staff && !initialLoadComplete) {
+      setInitialLoadComplete(true);
+    }
+  }, [staff, initialLoadComplete]);
+
+  if (!initialLoadComplete && loading) {
     return (
       <SafeAreaView style={styles.center}>
         <ActivityIndicator size="large" color="#FF5920" />
@@ -118,11 +127,7 @@ export default function DashboardScreen() {
           }
           subtitle="SALES"
           subtitleValue={dashboard.today_sales_count}
-          icon={
-            <TouchableOpacity onPress={() => setShowSales((prev) => !prev)}>
-              <Eye color="#666" size={20} />
-            </TouchableOpacity>
-          }
+          masked={refreshing}
         />
 
         {/* Period Filters */}
@@ -135,15 +140,21 @@ export default function DashboardScreen() {
                 key={period.value}
                 style={[styles.periodChip, isActive && styles.activePeriodChip]}
                 onPress={() => setSelectedPeriod(period.value)}
+                disabled={refreshing}
+                activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    styles.periodText,
-                    isActive && styles.activePeriodText,
-                  ]}
-                >
-                  {period.label}
-                </Text>
+                {isActive && refreshing ? (
+                  <ActivityIndicator size="small" color="#FF5920" />
+                ) : (
+                  <Text
+                    style={[
+                      styles.periodText,
+                      isActive && styles.activePeriodText,
+                    ]}
+                  >
+                    {period.label}
+                  </Text>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -167,29 +178,23 @@ export default function DashboardScreen() {
               title="TOTAL REVENUE"
               value={`₦${dashboard.total_orders.amount.toLocaleString()}`}
               subtitle="REVENUE"
+              masked={refreshing}
             />
           </View>
 
           <View style={styles.cardWrapper}>
             <StatsCard
               title="TOTAL ORDERS"
-              value={`${dashboard.total_orders.count}`}
+              value={dashboard.total_orders.count}
               subtitle="ORDERS"
-            />
-          </View>
-
-          <View style={styles.cardWrapper}>
-            <StatsCard
-              title="TOTAL SHIPMENT"
-              value={`${dashboard.total_shipment.count}`}
-              subtitle="SHIPMENTS"
+              masked={refreshing}
             />
           </View>
         </ScrollView>
 
         {/* Pagination */}
         <View style={styles.paginationContainer}>
-          {[0, 1, 2].map((_, index) => (
+          {[0, 1].map((_, index) => (
             <TouchableOpacity key={index} onPress={() => scrollToCard(index)}>
               <View
                 style={[

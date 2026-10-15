@@ -197,7 +197,7 @@ export const usePhase2Submit = ({
             console.log("=====================================");
             // ==================== END DEBUG LOGS ====================
 
-            await api.post(
+            await api.put(
                 "/accounts/onboard/phase2/",
                 formData,
                 {
@@ -216,7 +216,7 @@ export const usePhase2Submit = ({
                 },
             );
 
-            router.push("/superForm2/menu-items");
+            router.push("/screens/business-verification");
         } catch (err) {
             console.error(err);
         } finally {

@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Calendar } from "react-native-calendars";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 
 export default function RoomDetailsScreen() {
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -27,11 +28,8 @@ export default function RoomDetailsScreen() {
     <ScrollView style={{ flex: 1, backgroundColor: "#fff" }}>
       {/* Header */}
       <View style={styles.headerWrapper}>
-        <Image
-          source={require("../../../assets/images/restaurant_header.png")}
-          style={styles.headerImage}
-        />
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace("/(auth)/screens/ResturantsPage")}>
+        <IconSymbol name="BedRoomIcon" size={45} color="#ddd" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} />
         </TouchableOpacity>
 

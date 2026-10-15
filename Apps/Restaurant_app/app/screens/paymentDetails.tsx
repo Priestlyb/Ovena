@@ -57,7 +57,7 @@ const PaymentDetailsScreen = () => {
         const response = await api.get("/business/payment/");
         const paymentData = response.data;
 
-        console.log("Paymenent Details", response.data);
+        //console.log("Paymenent Details", response.data);
 
         if (!paymentData.bank_code && paymentData.bank) {
           const matchedBank = banks.find(

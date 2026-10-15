@@ -1,119 +1,144 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import React from "react";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useTheme, ThemeColors } from "@/constants/theme";
+
 export default function NotRelatedToAnOrder() {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
   return (
-    <View style={{ flex: 1, marginTop: 55 }}>
-      <View
-        style={{
-          width: "100%",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          gap: 50,
-          alignItems: "center",
-          marginBottom: 20,
-          paddingHorizontal: 20,
-          paddingVertical: 10,
-        }}
-      >
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.replace("/(auth)/screens/HelpScreen")}
-          style={{
-            padding: 10,
-            borderColor: "#000",
-            borderWidth: 1,
-            borderRadius: 50,
-          }}
+          onPress={() => router.back()}
+          style={styles.backButton}
         >
-          <IconSymbol name="ArrowLeftIcon" size={22} color={"#000"} />
+          <IconSymbol name="ArrowLeftIcon" size={22} color={theme.icon} />
         </TouchableOpacity>
 
-        <Text style={{ fontSize: 24, fontWeight: "bold" }}>
-          Not related to an order
-        </Text>
-        <View style={{ width: 34 }} />
+        <Text style={styles.headerTitle}>Not related to an order</Text>
+
+        <View style={styles.headerSpacer} />
       </View>
-      <View style={{ marginTop: 20, paddingHorizontal: 30, gap: 25 }}>
+
+      {/* Menu */}
+      <View style={styles.content}>
         <TouchableOpacity
+          style={styles.menuItem}
           onPress={() => {
-            router.replace("/(auth)/screens/HelpScreen");
+            router.push("/(auth)/screens/AccountDetails");
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 15 }}
-            >
-              <IconSymbol
-                name="UserOutlineIcon"
-                size={24}
-                color={"#000"}
-              />
-              <Text style={{ fontSize: 18 }}>My account details</Text>
-            </View>
-            <IconSymbol name="ChevronRightIcon" size={20} color={"#000"} />
+          <View style={styles.menuLeft}>
+            <IconSymbol name="UserOutlineIcon" size={24} color={theme.icon} />
+            <Text style={styles.menuText}>My account details</Text>
           </View>
+
+          <IconSymbol
+            name="ChevronRightIcon"
+            size={20}
+            color={theme.textSecondary}
+          />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            router.replace("/(auth)/screens/HelpScreen");
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 15 }}
-            >
-              <IconSymbol
-                name="LocationDotIcon"
-                size={24}
-                color={"#000"}
-              />
-              <Text style={{ fontSize: 18 }}>Work with us</Text>
-            </View>
-            <IconSymbol name="ChevronRightIcon" size={20} color={"#000"} />
+
+        <TouchableOpacity style={styles.menuItem}>
+          <View style={styles.menuLeft}>
+            <IconSymbol name="LocationDotIcon" size={24} color={theme.icon} />
+            <Text style={styles.menuText}>Work with us</Text>
           </View>
+
+          <IconSymbol
+            name="ChevronRightIcon"
+            size={20}
+            color={theme.textSecondary}
+          />
         </TouchableOpacity>
+
         <TouchableOpacity
+          style={styles.menuItem}
           onPress={() => {
-            router.replace("/(auth)/screens/HelpScreen");
+            router.push("/(auth)/screens/ourPoliciesPage");
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 15 }}
-            >
-              <IconSymbol
-                name="LawIcon"
-                size={24}
-                color={"#000"}
-              />
-              <Text style={{ fontSize: 18 }}>Our Policies</Text>
-            </View>
-            <IconSymbol name="ChevronRightIcon" size={20} color={"#000"} />
+          <View style={styles.menuLeft}>
+            <IconSymbol name="LawIcon" size={24} color={theme.icon} />
+            <Text style={styles.menuText}>Our Policies</Text>
           </View>
+
+          <IconSymbol
+            name="ChevronRightIcon"
+            size={20}
+            color={theme.textSecondary}
+          />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({});
+const createStyles = (theme: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingTop: 60,
+      backgroundColor: theme.background,
+    },
+
+    header: {
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 50,
+      marginBottom: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+
+    backButton: {
+      padding: 10,
+      borderColor: theme.border,
+      borderWidth: 1,
+      borderRadius: 50,
+      backgroundColor: theme.surface,
+    },
+
+    headerTitle: {
+      flex: 1,
+      textAlign: "center",
+      fontSize: 22,
+      fontWeight: "bold",
+      color: theme.textPrimary,
+    },
+
+    headerSpacer: {
+      width: 42,
+    },
+
+    content: {
+      marginTop: 20,
+      paddingHorizontal: 30,
+      gap: 25,
+    },
+
+    menuItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    menuLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 15,
+    },
+
+    menuText: {
+      fontSize: 18,
+      color: theme.textPrimary,
+    },
+  });

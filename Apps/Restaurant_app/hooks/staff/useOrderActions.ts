@@ -1,10 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Order } from "@/data/mockOrders";
-import api from "@/services/apiClient";
-
 import { STAFF_ORDER_HISTORY_QUERY_KEY } from "@/hooks/staff/useStaffOrderHistory";
-import { useQueryClient } from "@tanstack/react-query";
+import api from "@/services/apiClient";
 
 const ACTIVE_ORDERS_STORAGE_KEY = "active_orders_ws";
 
@@ -15,16 +14,21 @@ type OrderAction =
     | "pickup"
     | "complete";
 
+export interface OrderActionResult {
+    success: boolean;
+    message: string;
+}
+
 export const useOrderActions = (
-    setOrders: React.Dispatch<React.SetStateAction<Order[]>>,
+    setOrders: React.Dispatch<React.SetStateAction<Order[]>>
 ) => {
     const queryClient = useQueryClient();
 
     const handleOrderAction = async (
         order: Order,
         action: OrderAction,
-        pickupCode?: string,
-    ) => {
+        pickupCode?: string
+    ): Promise<OrderActionResult> => {
         try {
             console.log("================================");
             console.log("Order Action");
@@ -34,14 +38,14 @@ export const useOrderActions = (
 
             try {
                 const cached = await AsyncStorage.getItem(
-                    ACTIVE_ORDERS_STORAGE_KEY,
+                    ACTIVE_ORDERS_STORAGE_KEY
                 );
 
                 if (cached) {
                     const orders = JSON.parse(cached);
 
                     const cachedOrder = orders.find(
-                        (o: any) => String(o.id) === String(order.id),
+                        (o: any) => String(o.id) === String(order.id)
                     );
 
                     if (cachedOrder) {
@@ -69,7 +73,7 @@ export const useOrderActions = (
 
             const response = await api.post(
                 "/menu/restaurant-order/",
-                payload,
+                payload
             );
 
             console.log("Order action success");
@@ -108,12 +112,18 @@ export const useOrderActions = (
                         status: nextStatus,
                         picked_up_by_user: pickedUpByUser,
                     };
-                }),
+                })
             );
 
             await queryClient.invalidateQueries({
                 queryKey: STAFF_ORDER_HISTORY_QUERY_KEY,
             });
+
+            return {
+                success: true,
+                message:
+                    response.data?.message ?? "Order updated successfully.",
+            };
         } catch (err: any) {
             console.log("Order action error");
 
@@ -125,6 +135,15 @@ export const useOrderActions = (
             } else {
                 console.log("Message:", err.message);
             }
+
+            return {
+                success: false,
+                message:
+                    err?.response?.data?.message ||
+                    err?.response?.data?.detail ||
+                    err?.message ||
+                    "Something went wrong while updating the order.",
+            };
         }
     };
 

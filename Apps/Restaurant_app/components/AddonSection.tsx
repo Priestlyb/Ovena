@@ -17,6 +17,8 @@ type AddonImage = {
 } | null;
 
 type Addon = {
+  id?: number;
+  base_item_id?: number;
   name: string;
   description: string;
   price: string;
@@ -24,6 +26,7 @@ type Addon = {
 };
 
 type AddonGroup = {
+  id?: number;
   name: string;
   is_required: boolean;
   max_selection: number | string;
@@ -33,10 +36,24 @@ type AddonGroup = {
 type Props = {
   addonGroups: AddonGroup[];
   setAddonGroups: React.Dispatch<React.SetStateAction<AddonGroup[]>>;
+
+  deleteAddon: (groupIndex: number, addonIndex: number) => void | Promise<void>;
+
   addAddonGroup: () => void;
   addAddon: (index: number) => void;
+
   formatPrice: (val: string) => string;
+
   onPickAddonImage: (groupIndex: number, addonIndex: number) => void;
+
+  hasPendingAddonImageChange: (
+    groupIndex: number,
+    addonIndex: number,
+  ) => boolean;
+
+  cancelAddonImageChange: (groupIndex: number, addonIndex: number) => void;
+
+  uploadProgress: number;
 };
 
 /* =========================================
@@ -45,36 +62,24 @@ type Props = {
 export const AddonSection: React.FC<Props> = ({
   addonGroups,
   setAddonGroups,
+  deleteAddon,
   addAddonGroup,
   addAddon,
   formatPrice,
   onPickAddonImage,
+  hasPendingAddonImageChange,
+  cancelAddonImageChange,
+  uploadProgress,
 }) => {
   /* =========================================
-     DELETE GROUP (SAFE)
+     DELETE GROUP (LOCAL ONLY)
   ========================================= */
   const deleteAddonGroup = (index: number) => {
     setAddonGroups((prev) => prev.filter((_, i) => i !== index));
   };
 
   /* =========================================
-     DELETE ADDON (SAFE)
-  ========================================= */
-  const deleteAddon = (groupIndex: number, addonIndex: number) => {
-    setAddonGroups((prev) =>
-      prev.map((group, i) => {
-        if (i !== groupIndex) return group;
-
-        return {
-          ...group,
-          addons: group.addons.filter((_, j) => j !== addonIndex),
-        };
-      }),
-    );
-  };
-
-  /* =========================================
-     UPDATE GROUP FIELD (SAFE)
+     UPDATE GROUP FIELD
   ========================================= */
   const updateGroupField = <K extends keyof AddonGroup>(
     groupIndex: number,
@@ -89,7 +94,7 @@ export const AddonSection: React.FC<Props> = ({
   };
 
   /* =========================================
-     UPDATE ADDON FIELD (SAFE)
+     UPDATE ADDON FIELD
   ========================================= */
   const updateAddonField = <K extends keyof Addon>(
     groupIndex: number,
@@ -116,7 +121,7 @@ export const AddonSection: React.FC<Props> = ({
       <Text style={[styles.pageTitle, { marginTop: 50 }]}>Add-ons</Text>
 
       {addonGroups.map((group, i) => (
-        <View key={i}>
+        <View key={group.id ?? i}>
           {/* GROUP HEADER */}
           <View
             style={{
@@ -159,12 +164,11 @@ export const AddonSection: React.FC<Props> = ({
           {/* ADDONS */}
           {group.addons.map((addon, j) => (
             <View
-              key={j}
+              key={addon.id ?? j}
               style={{
                 marginTop: 14,
                 borderWidth: 1,
                 borderColor: "#eee",
-                padding: 10,
                 borderRadius: 12,
               }}
             >
@@ -172,10 +176,21 @@ export const AddonSection: React.FC<Props> = ({
               <AddonImagePicker
                 value={addon.image?.uri || null}
                 onPress={() => onPickAddonImage(i, j)}
+                hasPendingChange={hasPendingAddonImageChange(i, j)}
+                onCancel={() => cancelAddonImageChange(i, j)}
+                isUploading={uploadProgress > 0}
               />
 
               {/* NAME + PRICE */}
-              <View style={{ flexDirection: "row", gap: 10 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  gap: 10,
+                  marginVertical: 20,
+                  padding: 10,
+                  alignItems: "center",
+                }}
+              >
                 <View style={{ flex: 1 }}>
                   <CustomInput
                     placeholder="Addon name"
@@ -206,7 +221,7 @@ export const AddonSection: React.FC<Props> = ({
           <TouchableOpacity onPress={() => addAddon(i)}>
             <Text
               style={{
-                marginVertical: 25,
+                marginVertical: 50,
                 fontWeight: "600",
                 fontSize: 16,
               }}

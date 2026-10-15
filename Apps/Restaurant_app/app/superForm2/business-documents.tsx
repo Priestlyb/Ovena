@@ -65,19 +65,17 @@ export default function BusinessDocumentsPage() {
   const normalizeBusinessType = (type: string) => clean(type);
 
   const formatTIN = (value: string) => {
-    const cleaned = value.replace(/\s/g, "");
-    if (!cleaned.startsWith("TIN-")) {
-      return "TIN-" + cleaned.replace(/^TIN-*/, "");
-    }
-    return cleaned;
+    // Remove the existing prefix and keep only numbers
+    const numbers = value.replace(/^TIN-/i, "").replace(/\D/g, "").slice(0, 6);
+
+    return `TIN-${numbers}`;
   };
 
   const formatRC = (value: string) => {
-    const cleaned = value.replace(/\s/g, "");
-    if (!cleaned.startsWith("RC-")) {
-      return "RC-" + cleaned.replace(/^RC-*/, "");
-    }
-    return cleaned;
+    // Remove the existing prefix and keep only numbers
+    const numbers = value.replace(/^RC-/i, "").replace(/\D/g, "").slice(0, 6);
+
+    return `RC-${numbers}`;
   };
 
   /* ================= DOCUMENT PICKER ================= */

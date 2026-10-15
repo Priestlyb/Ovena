@@ -1,5 +1,15 @@
 import React from "react";
-import { View, Text, TextInput, StyleSheet, StyleProp, ViewStyle, TextStyle } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  StyleProp,
+  ViewStyle,
+  TextStyle,
+} from "react-native";
+
+import { useTheme } from "@/constants/theme";
 
 interface PhoneInputProps {
   value: string;
@@ -14,6 +24,9 @@ export default function PhoneInput({
   containerStyle,
   inputStyle,
 }: PhoneInputProps) {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
   return (
     <View style={[styles.row, containerStyle]}>
       {/* Flag + Country Code */}
@@ -26,47 +39,62 @@ export default function PhoneInput({
       <TextInput
         style={[styles.input, inputStyle]}
         placeholder="Phone number"
+        placeholderTextColor={theme.textSecondary}
         keyboardType="phone-pad"
         value={value}
         onChangeText={onChange}
-        placeholderTextColor="#999"
+        selectionColor={theme.primary}
+        cursorColor={theme.primary}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1,
-  },
-  countryBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  flag: {
-    fontSize: 20,
-  },
-  code: {
-    fontWeight: "600",
-    fontSize: 16,
-    marginLeft: 4,
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 16,
-    minHeight: 50,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      flex: 1,
+    },
+
+    countryBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.surface,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+
+    flag: {
+      fontSize: 20,
+    },
+
+    code: {
+      fontWeight: "600",
+      fontSize: 16,
+      marginLeft: 4,
+      color: theme.textPrimary,
+    },
+
+    input: {
+      flex: 1,
+      minHeight: 50,
+
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.surface,
+
+      borderRadius: 12,
+
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+
+      fontSize: 16,
+      color: theme.textPrimary,
+    },
+  });
